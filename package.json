@@ -1,0 +1,38 @@
+{
+  "name": "crlngn-roll-requests",
+  "version": "0.1.0",
+  "description": "A FoundryVTT module for handling roll requests between users",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "WATCH_MODE=true watch 'npm run build' ./src",
+    "createSymlinks": "node ./tools/create-symlinks.mjs",
+    "postinstall": "npm run createSymlinks",
+    "bump": "npm version patch --no-git-tag-version && git add package.json ./src/module.json README.md && npm run build",
+    "bump:minor": "npm version minor --no-git-tag-version && git add package.json ./src/module.json README.md && npm run build",
+    "bump:major": "npm version major --no-git-tag-version && git add package.json ./src/module.json README.md && npm run build",
+    "tsc": "tsc"
+  },
+  "devDependencies": {
+    "@league-of-foundry-developers/foundry-vtt-types": "^12.331.3-beta",
+    "@types/node": "^22.7.5",
+    "autoprefixer": "^10.4.20",
+    "cssnano": "^7.0.6",
+    "js-yaml": "^4.1.0",
+    "jsdoc": "^4.0.3",
+    "postcss": "^8.4.47",
+    "postcss-cli": "^11.0.0",
+    "postcss-preset-env": "^10.0.6",
+    "rollup-plugin-copy": "^3.5.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "watch": "^1.0.2"
+  },
+  "dependencies": {
+    "postcss-custom-properties": "^14.0.4",
+    "postcss-discard-duplicates": "^7.0.1",
+    "postcss-nesting": "^13.0.1"
+  }
+}

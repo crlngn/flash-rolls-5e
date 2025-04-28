@@ -1,0 +1,16 @@
+{
+  "CRLNGN_ROLLS": {
+    "settings": {
+      "debugMode": {
+        "label": "Ativar Debug",
+        "hint": "Habilita o log de debug no navegador. Use apenas quando houver um problema com o módulo."
+      }
+    },
+    "ui": {
+      "buttons": {},
+      "notifications": {
+        "socketlibMissing": "O módulo SocketLib é necessário, mas não foi ativado."
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "CRLNGN_ROLLS": {
+    "settings": {
+      "debugMode": {
+        "label": "Debug Mode",
+        "hint": "Enable debug logging to the console. Only use if there's a problem with the module."
+      }
+    },
+    "ui": {
+      "buttons": {},
+      "notifications": {
+        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active"
+      }
+    }
+  }
+}
