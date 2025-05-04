@@ -1,4 +1,54 @@
 /* Base Styles */
-.crlngn-roll-requests {
-  font-family: inherit;
+.application.roll-resolver section[data-application-part] {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  gap: 0em;
+  > *{
+    margin: 0;
+    padding: 12px;
+    text-align: center;
+  }
+  >.form-footer{
+    padding: 0px;
+  }
+  .formula{
+    background-color: rgba(235,235,235,0.15);
+    margin-bottom: 0.5em;
+  }
+}
+.application.roll-resolver section[data-application-part] .input-grid{
+  margin-bottom: 1em;
+}
+.crlngn-resolver-title {
+  text-align: center;
+  h1{
+    text-align: center;
+    font-size: var(--font-size-24);
+    font-weight: 600;
+    margin-bottom: 0;
+    text-shadow: none;
+    color: inherit;
+  }
+}
+#crlngn-request-toggle{
+  cursor: pointer;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  margin-right: 2px;
+
+  i{
+    pointer-events: none;
+    align-self: center;
+    opacity: 0.5; 
+  }
+
+  &.active{
+    i{
+      opacity: 1;
+    }
+  }
 }

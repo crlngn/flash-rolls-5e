@@ -1,7 +1,4 @@
 node_modules/
 deps/
-dnd5e/
-foundry/
 crlngn-roll-requests.code-workspace
 foundry-config.yaml
-foundry

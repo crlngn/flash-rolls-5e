@@ -1,6 +1,6 @@
 {
   "id": "crlngn-roll-requests",
-  "title": "Roll Requests",
+  "title": "Roll That For Me",
   "version": "0.1.0",
   "description": "A module for handling roll requests between users in Foundry VTT",
   "url": "https://github.com/crlngn/crlngn-roll-requests",

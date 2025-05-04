@@ -22,6 +22,16 @@ export const getSettings = () => {
       default: true,
       scope: SETTING_SCOPE.client,
       config: true
+    },
+    rollRequestsEnabled: {
+      tag: "roll-requests-enabled",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: true
     }
     // Additional settings will be added as needed
   };

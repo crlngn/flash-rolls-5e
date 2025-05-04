@@ -7,9 +7,16 @@
       }
     },
     "ui": {
-      "buttons": {},
+      "buttons": {
+        "rollRequestsToggleOn": "Roll Requests Ativado",
+        "rollRequestsToggleOff": "Roll Requests Desativado"
+      },
+      "forms": {
+        "pixelsRollTitle": "Pixels Dice",
+        "pixelsWaitingTitle": "Aguardando Rolagem"
+      },
       "notifications": {
-        "socketlibMissing": "O módulo SocketLib é necessário, mas não foi ativado."
+        "socketlibMissing": "Roll Requests depende do módulo SocketLib, mas ele não está ativo. O módulo não funcionará como deveria até que você ative SocketLib."
       }
     }
   }

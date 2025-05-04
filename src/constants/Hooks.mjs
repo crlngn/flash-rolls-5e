@@ -8,7 +8,9 @@ export const HOOKS_CORE = {
   READY: "ready",
   RENDER_CHAT_MESSAGE: "renderChatMessage",
   UPDATE_SCENE: "updateScene",
-  RENDER_SCENE_NAVIGATION: "renderSceneNavigation"
+  RENDER_SCENE_NAVIGATION: "renderSceneNavigation",
+  RENDER_ROLL_RESOLVER: "renderRollResolver",
+  USER_CONNECTED: "userConnected"
 };
 
 /**

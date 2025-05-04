@@ -1,6 +1,7 @@
 import { MODULE_ID } from "../constants/General.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { LogUtil } from "./LogUtil.mjs";
+import { RollUtil } from "./RollUtil.mjs";
 
 /**
  * Utility class for managing module settings
@@ -64,8 +65,8 @@ export class SettingsUtil {
       if(selectedSetting===undefined){
         const world = game.settings.storage.get("world");
         selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
+        setting = selectedSetting?.value;
       }
-      setting = selectedSetting?.value;
       LogUtil.log("GET Setting", [selectedSetting, setting]);
     }
 
@@ -98,4 +99,40 @@ export class SettingsUtil {
 
     return true;
   }
+
+  static apply(settingName, newValue){
+    const SETTINGS = getSettings();
+    switch(settingName){
+      case SETTINGS.rollRequestsEnabled.tag:
+        SettingsUtil.applyRollRequestsSetting(newValue);
+        break;
+      default:
+        break;
+    }
+  }
+
+  static applyRollRequestsSetting(value){
+    const SETTINGS = getSettings();
+    const isEnabled = value!==undefined ? value : SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    RollUtil.requestsEnabled = isEnabled;
+    const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
+    if(!rollRequestsToggle){ return; }
+    if (isEnabled === false) {
+      rollRequestsToggle.classList.remove("active");
+    } else {
+      rollRequestsToggle.classList.add("active");
+    }
+
+    const tooltipStr = game.i18n.localize(rollRequestsToggle.classList.contains("active") ? 
+      "CRLNGN_ROLLS.ui.buttons.rollRequestsToggleOn" : 
+      "CRLNGN_ROLLS.ui.buttons.rollRequestsToggleOff");
+    rollRequestsToggle.dataset.tooltip = tooltipStr;
+
+    if (game.tooltip) {
+      game.tooltip.activate(rollRequestsToggle, {text: tooltipStr});
+    }
+    
+    LogUtil.log("Roll Requests Toggle", [isEnabled, rollRequestsToggle]);
+  }
+
 }

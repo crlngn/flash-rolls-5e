@@ -15,29 +15,30 @@ export class SocketUtil {
    * @param {Function} callbackFunc - Optional callback to execute after registration.
    */
   static initialize = (callbackFunc) => {
-      Hooks.once(HOOKS_SOCKET.READY, () => { 
-        LogUtil.log(`Attempting to register module...`);
+    Hooks.once(HOOKS_SOCKET.READY, () => { 
+      LogUtil.log(`Attempting to register module...`);
 
-        // Check if socketlib is available before registering the module
-        if (typeof socketlib === "undefined") {
-          LogUtil.error("SocketUtil Error: socketlib is not loaded. Ensure it is installed and enabled.");
-          return;
+      // Check if socketlib is available before registering the module
+      if (typeof socketlib === "undefined") {
+        LogUtil.error("SocketUtil Error: socketlib is not loaded. Ensure it is installed and enabled.");
+        ui.notifications.error(game.i18n.localize("CRLNGN_ROLLS.notifications.socketlibMissing"), {permanent: true});
+        return;
+      }
+
+      try { 
+        // Register the module with socketlib
+        SocketUtil.socket = socketlib.registerModule(MODULE_ID);
+
+        // Execute callback function if provided
+        if (callbackFunc) {
+          callbackFunc();
         }
 
-        try { 
-          // Register the module with socketlib
-          SocketUtil.socket = socketlib.registerModule(MODULE_ID);
-
-          // Execute callback function if provided
-          if (callbackFunc) {
-            callbackFunc();
-          }
-
-          LogUtil.log(`SocketUtil | Module registered`, [SocketUtil.socket]);
-        } catch (e) {
-            LogUtil.log(`Problem registering module`, [e]);
-        }
-      });
+        LogUtil.log(`SocketUtil | Module registered`, [SocketUtil.socket]);
+      } catch (e) {
+          LogUtil.log(`Problem registering module`, [e]);
+      }
+    });
   }
 
   /**
@@ -47,12 +48,12 @@ export class SocketUtil {
    * @param {Function} func - The function to be executed remotely.
    */
   static registerCall = (name, func) => {
-      if (SocketUtil.socket) {
-        SocketUtil.socket.register(name, func);
-        LogUtil.log(`SocketUtil - Registered callback`, [SocketUtil.socket, name]);
-      } else {
-        LogUtil.log(`SocketUtil - Failed to register callback (socket not initialized)`, [SocketUtil.socket, name]);
-      }
+    if (SocketUtil.socket) {
+      SocketUtil.socket.register(name, func);
+      LogUtil.log(`SocketUtil - Registered callback`, [SocketUtil.socket, name]);
+    } else {
+      LogUtil.log(`SocketUtil - Failed to register callback (socket not initialized)`, [SocketUtil.socket, name]);
+    }
   }
 
   /**
@@ -75,12 +76,12 @@ export class SocketUtil {
    * @param {...*} parameters - The parameters to pass to the function.
    * @returns {Promise} A promise resolving when the function executes.
    */
-  static execAsGM = async (handler, ...parameters) => {
+  static execForGMs = async (handler, ...parameters) => {
     if (!SocketUtil.socket) {
-        LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as GM.");
-        return;
+      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as GM.");
+      return;
     }
-    return await SocketUtil.socket.executeAsGM(handler, ...parameters);
+    return await SocketUtil.socket.executeForAllGMs(handler, ...parameters);
   }
 
   /**
@@ -91,11 +92,11 @@ export class SocketUtil {
    * @returns {Promise} A promise resolving when the function executes for all clients.
    */
   static execForAll = async (handler, ...parameters) => {
-      if (!SocketUtil.socket) {
-          LogUtil.log("SocketUtil - Socket not initialized. Cannot execute for all clients.");
-          return;
-      }
-      return await SocketUtil.socket.executeForEveryone(handler, ...parameters);
+    if (!SocketUtil.socket) {
+      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute for all clients.");
+      return;
+    }
+    return await SocketUtil.socket.executeForEveryone(handler, ...parameters);
   }
 
 
@@ -106,7 +107,7 @@ export class SocketUtil {
    * @param {...*} parameters - The parameters to pass to the function.
    * @returns {Promise} A promise resolving when the function executes.
    */
-  static execAsUser = async (handler, userId, ...parameters) => {
+  static execForUser = async (handler, userId, ...parameters) => {
     if (!SocketUtil.socket) {
         LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as user.");
         return;
@@ -123,11 +124,11 @@ export class SocketUtil {
    * @param {*} data - The data to serialize
    * @returns {*} - Serialized data
    */
-  static serializeForTransport(data) {
+  static serializeForTransport(data, hasRolls=false) {
     // Handle null or undefined
     if (data == null) return data;
     
-    if (data.rolls && Array.isArray(data.rolls)) {
+    if (hasRolls && data.rolls && Array.isArray(data.rolls)) {
       // data.rolls = data.rolls.map(r => SocketUtil.serializeForTransport(r));
       
       data.rolls = data.rolls.map(r => {
@@ -149,12 +150,12 @@ export class SocketUtil {
    * @param {*} data - The serialized data
    * @returns {*} - Deserialized data with reconstructed objects
    */
-  static deserializeFromTransport(data) {
+  static deserializeFromTransport(data, hasRolls=false) {
     let result = {};
     // Handle null or undefined
     if (data == null) return data;
 
-    if(data.rolls && data.rolls.length > 0){
+    if(hasRolls && data.rolls && data.rolls.length > 0){
       // rolls = data.rolls.map(r => Roll.fromJSON(JSON.stringify(r)));
       
       result = {

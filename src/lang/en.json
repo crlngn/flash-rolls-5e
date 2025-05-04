@@ -3,13 +3,24 @@
     "settings": {
       "debugMode": {
         "label": "Debug Mode",
-        "hint": "Enable debug logging to the console. Only use if there's a problem with the module."
+        "hint": "Enable debug mode to show additional logging information"
+      },
+      "rollRequestsEnabled": {
+        "label": "Roll Requests Enabled",
+        "hint": "Enable or disable roll requests functionality"
       }
     },
     "ui": {
-      "buttons": {},
+      "buttons": {
+        "rollRequestsToggleOn": "Roll Requests ON",
+        "rollRequestsToggleOff": "Roll Requests OFF"
+      },
+      "forms": {
+        "pixelsRollTitle": "Pixels Dice - Roll Resolver",
+        "pixelsWaitingTitle": "Waiting for Roll"
+      },
       "notifications": {
-        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active"
+        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib."
       }
     }
   }
