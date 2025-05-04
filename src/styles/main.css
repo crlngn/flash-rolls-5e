@@ -19,6 +19,10 @@
 }
 .application.roll-resolver section[data-application-part] .input-grid{
   margin-bottom: 1em;
+  grid-auto-columns: none;
+  gap: 0.5em 2%;
+  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(auto, 30%));
 }
 .crlngn-resolver-title {
   text-align: center;

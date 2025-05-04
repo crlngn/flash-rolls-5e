@@ -15,15 +15,14 @@ export class RollUtil {
   static requestsEnabled = false;
   static SOCKET_CALLS = {
     receiveDiceConfig: "receiveDiceConfig",
-    sendDiceConfig: "sendDiceConfig",
+    getDiceConfig: "getDiceConfig",
     triggerRollSkillV2: "triggerRollSkillV2"
   };
   static diceConfig = {};
   static playerDiceConfigs = {};
   
   static init() {
-    // General Rolling Process
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_V2, RollUtil.#onPreRollV2);
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_V2, RollUtil.#onPreRollV2);
     Hooks.on(HOOKS_CORE.RENDER_ROLL_RESOLVER, RollUtil.#onRenderRollResolver)
     
     // Ability Checks & Saving Throws
@@ -66,119 +65,15 @@ export class RollUtil {
     Hooks.on(HOOKS_DND5E.PRE_ROLL_RECHARGE_V2, RollUtil.#onPreRollRechargeV2);
 
     // Roll Config
-    Hooks.on(HOOKS_DND5E.BUILD_ROLL_CONFIG, RollUtil.#onBuildRollConfig);
+    // Hooks.on(HOOKS_DND5E.BUILD_ROLL_CONFIG, RollUtil.#onBuildRollConfig);
+    Hooks.on(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_CONFIGURATION_DIALOG, RollUtil.#onRenderRollConfigurationDialog);
     Hooks.on(HOOKS_DND5E.POST_ROLL_CONFIG, RollUtil.#onPostRollConfiguration);
     
     // Item Display
     // Hooks.on(HOOKS_DND5E.PRE_DISPLAY_CARD_V2, RollUtil.#onPreDisplayCardV2);
 
-  }
 
-  /**
-   * 
-   * @param {RollConfigurationDialog} rollConfigDialog 
-   * @param {BasicRollConfigurationDialogOptions} options
-   * @returns 
-   */
-  static #onBuildRollConfig(rollConfigDialog, options){
-    LogUtil.log("#onBuildRollConfig #1", [rollConfigDialog, options]);
-    const SETTINGS = getSettings();
-    const isEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    if(!isEnabled || !rollConfigDialog.config){
-      return;
-    }
-    
-    // Get the button that triggered this dialog if any
-    const target = rollConfigDialog.config?.event?.target?.closest("button[data-action=rollRequest]");
-    
-    // If this was triggered by our button, set up the configuration
-    if(target){
-      // Set situational bonus from the button data
-      const situationalBonus = Number(target.dataset.situational || 0);
-      rollConfigDialog.config.situational = situationalBonus;
-      rollConfigDialog.config.advantage = target.dataset.advantage==="true";
-      rollConfigDialog.config.disadvantage = target.dataset.disadvantage==="true";
-      rollConfigDialog.config.ability = target.dataset.ability;
-      rollConfigDialog.config.abilityId = target.dataset.ability;
-      
-      // Update window title if available
-      if(rollConfigDialog.options?.window?.title && target.dataset.flavor) {
-        rollConfigDialog.options.window.title = target.dataset.flavor;
-      }
-      
-      // Make sure the situational bonus is included in the formula data
-      if (!rollConfigDialog.data) rollConfigDialog.data = {};
-      rollConfigDialog.data.situational = situationalBonus;
-    }
-    
-    // Always update the situational bonus from the dialog input if present
-    if(rollConfigDialog.config && options.data && options.data.situational !== undefined) {
-      const situationalBonus = Number(options.data.situational);
-      rollConfigDialog.config.situational = situationalBonus;
-      
-      // Make sure the situational bonus is included in the formula data
-      if (!rollConfigDialog.data) rollConfigDialog.data = {};
-      rollConfigDialog.data.situational = situationalBonus;
-    }
-    
-    // Crucial: Add the situational bonus to the parts array if it's not already there
-    if (options.parts && rollConfigDialog.config.situational && !options.parts.includes('@situational')) {
-      options.parts.push('@situational');
-      // Also add it to the data object
-      if (!options.data) options.data = {};
-      options.data.situational = rollConfigDialog.config.situational;
-    }
-    
-    // Apply the changes to the dialog's form elements
-    if (rollConfigDialog.element && rollConfigDialog.element.length) {
-      const situationalInput = rollConfigDialog.element.find('input[name="data.situational"]');
-      if (situationalInput.length && rollConfigDialog.config.situational !== undefined) {
-        situationalInput.val(rollConfigDialog.config.situational);
-      }
-    }
-    
-    // Modify the formula display if needed
-    if (rollConfigDialog.element && rollConfigDialog.element.length) {
-      const formulaElement = rollConfigDialog.element.find('.dice-formula');
-      if (formulaElement.length) {
-        let currentFormula = formulaElement.text();
-        // Check if the formula already includes the situational bonus
-        if (rollConfigDialog.config.situational && !currentFormula.includes('@situational')) {
-          currentFormula += ` + @situational`;
-          formulaElement.text(currentFormula);
-        }
-      }
-    }
-
-    LogUtil.log("#onBuildRollConfig #2", [rollConfigDialog.config, options]);
-    
-    // Force re-render of the dialog after configuration changes
-    if(rollConfigDialog.element && rollConfigDialog.element.length) {
-      // Schedule the re-render on the next tick to ensure all config changes are applied
-      setTimeout(() => {
-        rollConfigDialog.render(true);
-      }, 0);
-    }
-    
-    return rollConfigDialog;
   }
-
-  static injectRollRequestsToggle(){
-    const SETTINGS = getSettings();
-    const rollRequestsToggleHTML = `<label class="chat-control-icon active" id="crlngn-request-toggle" data-tooltip-direction="LEFT"><i class="fas fa-bolt"></i></label>`;
-    
-    document.querySelector("#chat-controls").insertAdjacentHTML("afterbegin", rollRequestsToggleHTML);
-    const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
-    const isEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    SettingsUtil.applyRollRequestsSetting(isEnabled);
-    
-    rollRequestsToggle.addEventListener("click", (event) => {
-      event.target.classList.toggle("active");
-      const isActive = event.target.classList.contains("active");
-      SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, isActive);
-    });
-  }
-  
 
   /**
    * Register socket calls with socketlib for remote execution
@@ -188,36 +83,80 @@ export class RollUtil {
   }
 
   /**
-   * Hook handler for dnd5e.preRollV2
+   * Hook handler for dnd5e.renderRollConfigurationDialog
+   * Fires when a roll configuration dialog is rendered
+   * @param {RollConfigurationDialog} rollConfigDialog - The roll configuration dialog
+   * @param {HTMLElement} html - The HTML element of the dialog
+   */
+  static #onRenderRollConfigurationDialog(rollConfigDialog, html){
+    LogUtil.log("#onRenderRollConfigurationDialog", [rollConfigDialog, html]);
+    const target = rollConfigDialog.config?.event?.target?.closest("button[data-action=rollRequest]");
+
+    // Created flag to prevent render loop
+    const flagAttribute = `data-${MODULE_ID}-event-triggered`; 
+    if (html.hasAttribute(flagAttribute)) {
+      return; 
+    }
+    const situationalBonus = target ? Number(target?.dataset?.situational || '0') : rollConfigDialog.config?.situational || undefined;
+
+    // Only proceed if a situational bonus needs potential processing
+    if (situationalBonus !== undefined && situationalBonus !== null && situationalBonus !== 0) {
+      const situationalInput = html.querySelector('input[name="roll.0.situational"]');
+      if (situationalInput) {
+        if (situationalInput.value != situationalBonus) {
+          situationalInput.value = situationalBonus;
+        }
+        html.setAttribute(flagAttribute, "true");
+
+        // Trigger the change event to force formula recalculation
+        situationalInput.dispatchEvent(new Event('change', {
+          bubbles: true,
+          cancelable: false
+        }));
+
+      } else {
+        LogUtil.warn("onRenderRollConfigurationDialog | Could not find situational bonus input field.");
+        html.setAttribute(flagAttribute, "true");
+      }
+    } else {
+      LogUtil.log("onRenderRollConfigurationDialog | No situational bonus found or bonus is zero.");
+      html.setAttribute(flagAttribute, "true");
+    }
+  }
+
+  // static #onPreRollV2(config, dialog, message) {
+  /**
+   * Hook handler for dnd5e.onPreRollSkillV2
    * Fires before a roll is performed
    * @param {Object} config - BasicRollProcessConfiguration for the roll
    * @param {Object} dialog - BasicRollDialogConfiguration for the dialog
    * @param {Object} message - BasicRollMessageConfiguration for the message
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
-  static #onPreRollV2(config, dialog, message) {
-    LogUtil.log("#onPreRollV2", [config, dialog, message]);
-    const target = config.event.target.closest("button[data-action=rollRequest]");
-
-    if(!target) return true;
-    
+  static #onPreRollSkillV2(config, dialog, message) {
+    LogUtil.log("#onPreRollSkillV2", [config, dialog, message]);
+    const target = config.event?.target?.closest("button[data-action=rollRequest]");
+    // if(!target) return true;
     // Extract situational bonus from the dataset
-    const situationalBonus = target.dataset.situational ? Number(target.dataset.situational) : undefined;
+    const situationalBonus = target ? Number(target.dataset.situational) : config.situational;
     
-    // Set configuration properties
-    config.advantage = target.dataset.advantage==="true";
-    config.disadvantage = target.dataset.disadvantage==="true";
-    config.ability = target.dataset.ability;
-    config.abilityId = target.dataset.ability;
-    config.situational = situationalBonus; // Set situational bonus in config
-    
-    // Set flavor text if available
-    if (target.dataset.flavor) {
-      message.data.flavor = target.dataset.flavor;
-      if (dialog.options?.window) {
-        dialog.options.window.title = target.dataset.flavor;
+    if(target){
+      // Set configuration properties
+      config.advantage = target.dataset.advantage==="true";
+      config.disadvantage = target.dataset.disadvantage==="true";
+      config.ability = target.dataset.ability;
+      config.abilityId = target.dataset.ability;
+      config.situational = situationalBonus; // Set situational bonus in config
+
+      // Set flavor text if available
+      if (target.dataset.flavor) {
+        message.data.flavor = target.dataset.flavor;
+        if (dialog.options?.window) {
+          dialog.options.window.title = target.dataset.flavor;
+        }
       }
     }
+    
     
     // Ensure the situational bonus is included in the parts array
     if (situationalBonus !== undefined) {
@@ -240,10 +179,11 @@ export class RollUtil {
         // ...roll.data,
         flags: roll.data.flags,
         situational: situationalBonus,
-        target: target.dataset.dc ? Number(target.dataset.dc) : undefined,
-        ability: target.dataset.ability
+        target: target?.dataset.dc ? Number(target.dataset.dc) : config.target,
+        ability: target?.dataset.ability || config.ability
       };
-      LogUtil.log("#onPreRollV2 - roll", [roll]);
+      if(roll.resetFormula) roll.resetFormula();
+      LogUtil.log("#onPreRollSkillV2 - roll", [roll]);
     }
     
     return true; // Allow the roll to proceed
@@ -333,9 +273,9 @@ export class RollUtil {
    * @param {Object} message - SkillToolRollMessageConfiguration for the message
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
-  static #onPreRollSkillV2(config, dialog, message) {
-    LogUtil.log("#onPreRollSkillV2", [config, dialog, message]);
-  }
+  // static #onPreRollSkillV2(config, dialog, message) {
+  //   LogUtil.log("#onPreRollSkillV2", [config, dialog, message]);
+  // }
 
   /**
    * Hook handler for dnd5e.preRollToolCheckV2
@@ -474,7 +414,7 @@ export class RollUtil {
     const playerOwner = actor.hasPlayerOwner ? GeneralUtil.getUserFromActor(actor.id) : null;
 
     const roll = rolls[0];
-    const bonus = roll?.data.situational ? Number(roll.data.situational) : Number(config.situational || "");
+    const situationalBonus = roll?.data.situational ? Number(roll.data.situational) : Number(config.situational || "");
     if(!roll){return;}
 
     roll.data.flags = {
@@ -483,29 +423,28 @@ export class RollUtil {
         flavor: message.data.flavor
       }
     }
-    // roll.resetFormula();
-
 
     if(playerOwner && playerOwner !== game.user && RollUtil.requestsEnabled){
       switch(hookName){
         case HOOK_NAMES.SKILL.name: {
           LogUtil.log("SocketUtil.execForUser", [playerOwner, config, dialog, message]);
           const skillConfig = {
-            // bonus: bonus,
+            // bonus: situationalBonus,
             skill: config.skill,
             subject: config.subject,
             ability: roll.data.abilityId || config.ability,
             abilityId: roll.data.abilityId || config.ability,
             advantage: roll.hasAdvantage || false,
             disadvantage: roll.hasDisadvantage || false,
-            situational: bonus,
+            situational: situationalBonus,
             flavor: message.data.flavor,
-            target: 17
+            target: 17,
+            parts: config.parts || []
           };
           // message.data.flavor = dialog.options?.window?.title || message.data.flavor;
-          // if(dialog.options?.window?.title){
-          //   dialog.options.window.title = message.data.flavor;
-          // }
+          if(dialog.options?.window?.title){
+            dialog.options.window.title = message.data.flavor;
+          }
           const msg = {
             data:{
               flavor: dialog.options?.window?.title || message.data.flavor
@@ -516,8 +455,12 @@ export class RollUtil {
             },
             rollMode: message.rollMode
           }
-          SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerRollSkillV2, playerOwner.id, skillConfig, dialog, msg);
+          // Ensure the situational bonus is included in the parts array
+          if (situationalBonus && !skillConfig.parts.includes('@situational')) {
+            skillConfig.parts.push('@situational');
+          }
           RollUtil.postRequestChatMessage(playerOwner, actor, skillConfig, dialog, msg);
+          SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerRollSkillV2, playerOwner.id, skillConfig, dialog, msg);
 
           LogUtil.log("#onPostRollConfiguration - msg", [skillConfig, dialog, msg]);
           return false;
@@ -551,9 +494,7 @@ export class RollUtil {
       dc: config.target,
       hideDC: true,
       flavor: config.flavor,
-      // Make sure the situational bonus is properly included
       situational: situationalBonus,
-      // Include parts to ensure the situational bonus is added to the roll
       parts: config.parts || []
     };
     
@@ -584,41 +525,36 @@ export class RollUtil {
 
   static triggerRollSkillV2 = async (config, dialog, message) => {
     const diceConfig = RollUtil.playerDiceConfigs[game.user.id];
-    LogUtil.log("triggerRollSkillV2", [game.user, diceConfig?.d20]);
+    const situationalBonus = config.situational !== undefined ? Number(config.situational) : 0;
     // if(config.cancel) { return; }
     
     // Get the actor
     const actor = game.actors.get(config.subject._id);
-    if(!actor || !diceConfig?.d20) return;
-    message.data.flavor = config.flavor;
-    // Make sure the skill is specified
-    if(!config.skill || !actor) {
-      LogUtil.log("triggerRollSkillV2 - missing data", [config, dialog, message]);
-      return;
-    }
-    LogUtil.log("triggerRollSkillV2", [actor, diceConfig.d20, config, dialog, message]);
+    LogUtil.log("triggerRollSkillV2", [game.user, diceConfig, actor]);
+    if(!actor) return;
+    // if(!config.skill) {
+    //   LogUtil.log("triggerRollSkillV2 - missing data", [config, dialog, message]);
+    //   return;
+    // }
     
-    // Create a new dialog configuration that includes the situational bonus
     const updatedDialog = {
       ...dialog,
-      configure: diceConfig.d20 ? false : true
+      configure: diceConfig?.d20 ? false : true
     };
-    
-    // Ensure the situational bonus is included in the roll
     const updatedConfig = {
       ...config,
-      // Make sure the situational bonus is properly passed to the roll
       parts: config.parts || []
     };
+    const updatedMessage = {
+      ...message,
+      flavor: config.flavor
+    };
     
-    // If there's a situational bonus, add it to the parts array if not already included
+    // Add situational bonus to the parts array if not already included
     if (config.situational && !updatedConfig.parts.includes('@situational')) {
       updatedConfig.parts.push('@situational');
     }
-    
-    // If there is no roll resolver configured for the die, show player the configuration popup 
-    // filled in with the information set by GM
-    actor.rollSkill(updatedConfig, updatedDialog, message);
+    actor.rollSkill(updatedConfig, updatedDialog, updatedMessage);
   }
 
   /**

@@ -96,5 +96,6 @@ export const HOOKS_DND5E = {
 
   // Config
   BUILD_ROLL_CONFIG: "dnd5e.buildRollConfig",
-  POST_ROLL_CONFIG: "dnd5e.postRollConfiguration"
+  POST_ROLL_CONFIG: "dnd5e.postRollConfiguration",
+  RENDER_SKILL_TOOL_ROLL_CONFIGURATION_DIALOG: "renderSkillToolRollConfigurationDialog"
 }

@@ -56,34 +56,37 @@ export class Main {
     // Request dice configuration from the connected user
     if (user.active && user.id !== game.user.id) {
       LogUtil.log("onUserConnected", [user]);
-      SocketUtil.execForUser(RollUtil.SOCKET_CALLS.sendDiceConfig, user.id);
+      SocketUtil.execForUser(RollUtil.SOCKET_CALLS.getDiceConfig, user.id);
     }
   }
   
-  // Add the sendDiceConfig method that will be called on the player's client
-  static sendDiceConfig() {
-    // Only run this on non-GM clients when requested
-    if (!game.user || game.user.isGM) return;
-    
+  // Add the getDiceConfig method that will be called on the player's client
+  static getDiceConfig() { 
+    if(!game.user) return;
     const clientSettings = game.settings.storage.get("client");
     let diceConfig = clientSettings[`core.diceConfiguration`] || '';
     diceConfig = diceConfig || "";
-    LogUtil.log(`sendDiceConfig`, [diceConfig]);
+    LogUtil.log(`getDiceConfig`, [diceConfig]);
     
-    // Send the dice configuration back to the GM
-    SocketUtil.execForGMs(RollUtil.SOCKET_CALLS.receiveDiceConfig, game.user?.id, diceConfig);
+    if(game.user.isGM) {
+      RollUtil.playerDiceConfigs[game.user.id] = diceConfig;
+      SocketUtil.execForGMs(RollUtil.SOCKET_CALLS.receiveDiceConfig, game.user.id, diceConfig);
+      return;
+    }else{
+      RollUtil.playerDiceConfigs[game.user.id] = JSON.parse(diceConfig);
+    }
+    
   }
 
   // Add the receiveDiceConfig method that will be called on the GM's client
   static receiveDiceConfig(userId, diceConfig) {
-    // Only run this on the GM client
-    if (!game.user?.isGM) return;
-    
-    // Store the dice configuration for this user
-    if (!RollUtil.playerDiceConfigs) RollUtil.playerDiceConfigs = {};
-    RollUtil.playerDiceConfigs[userId] = JSON.parse(diceConfig) || {};
-    
-    LogUtil.log(`Received dice configuration from user ${userId}`, [RollUtil.playerDiceConfigs]);
+    if (game.user?.isGM || userId===game.user.id){ // for GM or own user
+      // Store the dice configuration for this user
+      if (!RollUtil.playerDiceConfigs) RollUtil.playerDiceConfigs = {};
+      RollUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
+      
+      LogUtil.log(`Received dice configuration from user ${userId}`, [RollUtil.playerDiceConfigs]);
+    };
   }
 
   /**
@@ -91,7 +94,7 @@ export class Main {
    */
   static registerSocketCalls() {
     SocketUtil.registerCall(RollUtil.SOCKET_CALLS.triggerRollSkillV2, RollUtil.triggerRollSkillV2);
-    SocketUtil.registerCall(RollUtil.SOCKET_CALLS.sendDiceConfig, Main.sendDiceConfig);
+    SocketUtil.registerCall(RollUtil.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
     SocketUtil.registerCall(RollUtil.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
   }
 
