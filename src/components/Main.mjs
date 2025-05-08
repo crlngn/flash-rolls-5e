@@ -5,13 +5,17 @@ import { getSettings } from "../constants/Settings.mjs";
 import { MODULE_ID } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
 import { RollUtil } from "./RollUtil.mjs";
+import { ActivityUtil } from "./ActivityUtil.mjs";
 
 /**
  * Main class handling core module initialization and setup
  * Manages module lifecycle, hooks, and core functionality
  */
 export class Main {
-
+  static SOCKET_CALLS = {
+    receiveDiceConfig: "receiveDiceConfig",
+    getDiceConfig: "getDiceConfig"
+  };
   /**
    * Initialize the module and set up core hooks
    * @static
@@ -32,7 +36,7 @@ export class Main {
       
       var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
       if(isDebugOn){CONFIG.debug.hooks = true};
-
+      
       if(game.user.isGM){
         Main.injectRollRequestsToggle();
       }
@@ -45,6 +49,7 @@ export class Main {
         });
       }
     });
+    ActivityUtil.init();
   }
 
   /**
@@ -56,7 +61,7 @@ export class Main {
     // Request dice configuration from the connected user
     if (user.active && user.id !== game.user.id) {
       LogUtil.log("onUserConnected", [user]);
-      SocketUtil.execForUser(RollUtil.SOCKET_CALLS.getDiceConfig, user.id);
+      SocketUtil.execForUser(Main.SOCKET_CALLS.getDiceConfig, user.id);
     }
   }
   
@@ -70,10 +75,10 @@ export class Main {
     
     if(game.user.isGM) {
       RollUtil.playerDiceConfigs[game.user.id] = diceConfig;
-      SocketUtil.execForGMs(RollUtil.SOCKET_CALLS.receiveDiceConfig, game.user.id, diceConfig);
+      SocketUtil.execForGMs(Main.SOCKET_CALLS.receiveDiceConfig, game.user.id, diceConfig);
       return;
     }else{
-      RollUtil.playerDiceConfigs[game.user.id] = JSON.parse(diceConfig);
+      RollUtil.playerDiceConfigs[game.user.id] = diceConfig ? JSON.parse(diceConfig) : {};
     }
     
   }
@@ -93,9 +98,9 @@ export class Main {
    * Register methods with socketlib for remote execution
    */
   static registerSocketCalls() {
-    SocketUtil.registerCall(RollUtil.SOCKET_CALLS.triggerRollSkillV2, RollUtil.triggerRollSkillV2);
-    SocketUtil.registerCall(RollUtil.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
-    SocketUtil.registerCall(RollUtil.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
+    SocketUtil.registerCall(Main.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
+    SocketUtil.registerCall(Main.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
+    RollUtil.registerSocketCalls();
   }
 
   static injectRollRequestsToggle(){

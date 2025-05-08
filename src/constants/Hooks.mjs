@@ -10,7 +10,9 @@ export const HOOKS_CORE = {
   UPDATE_SCENE: "updateScene",
   RENDER_SCENE_NAVIGATION: "renderSceneNavigation",
   RENDER_ROLL_RESOLVER: "renderRollResolver",
-  USER_CONNECTED: "userConnected"
+  USER_CONNECTED: "userConnected",
+  PRE_CREATE_CHAT_MESSAGE: "preCreateChatMessage",
+  CREATE_CHAT_MESSAGE: "createChatMessage"
 };
 
 /**
@@ -26,6 +28,10 @@ export const HOOKS_SOCKET = {
 export const HOOKS_DND5E = {
   // General Rolling Process
   PRE_ROLL_V2: "dnd5e.preRollV2",
+
+  // Activity
+  PRE_USE_ACTIVITY: "dnd5e.preUseActivity",
+  POST_USE_ACTIVITY: "dnd5e.postUseActivity",
   
   // Ability Checks & Saving Throws
   PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheck",
@@ -54,9 +60,9 @@ export const HOOKS_DND5E = {
   
   // Skills & Tools
   PRE_ROLL_SKILL_V2: "dnd5e.preRollSkillV2",
-  PRE_ROLL_TOOL_CHECK_V2: "dnd5e.preRollToolCheckV2",
+  PRE_ROLL_TOOL_V2: "dnd5e.preRollToolV2",
   ROLL_SKILL_V2: "dnd5e.rollSkillV2",
-  ROLL_TOOL_CHECK_V2: "dnd5e.rollToolCheckV2",
+  ROLL_TOOL_V2: "dnd5e.rollToolV2",
   
   // Hit Dice
   PRE_ROLL_HIT_DIE_V2: "dnd5e.preRollHitDieV2",
@@ -90,12 +96,13 @@ export const HOOKS_DND5E = {
   PRE_ROLL_RECHARGE_V2: "dnd5e.preRollRechargeV2",
   ROLL_RECHARGE_V2: "dnd5e.rollRechargeV2",
   
-  // Item Display
+  // Car Display
   PRE_DISPLAY_CARD_V2: "dnd5e.preDisplayCardV2",
   DISPLAY_CARD: "dnd5e.displayCard",
 
   // Config
   BUILD_ROLL_CONFIG: "dnd5e.buildRollConfig",
   POST_ROLL_CONFIG: "dnd5e.postRollConfiguration",
+  RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
   RENDER_SKILL_TOOL_ROLL_CONFIGURATION_DIALOG: "renderSkillToolRollConfigurationDialog"
 }
