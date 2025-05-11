@@ -35,6 +35,7 @@
     color: inherit;
   }
 }
+
 #crlngn-request-toggle{
   cursor: pointer;
   align-self: center;
@@ -55,4 +56,10 @@
       opacity: 1;
     }
   }
+}
+
+/* DC field on roll config dialog */
+.dnd5e2.application.roll-configuration .rolls .dc {
+  padding: 6px;
+  max-width: 80px;
 }

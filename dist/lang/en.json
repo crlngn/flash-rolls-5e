@@ -17,10 +17,14 @@
       },
       "forms": {
         "pixelsRollTitle": "Pixels Dice - Roll Resolver",
-        "pixelsWaitingTitle": "Waiting for Roll"
+        "pixelsWaitingTitle": "Waiting for Roll",
+        "dcFieldLabel": "DC"
       },
       "notifications": {
         "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib."
+      },
+      "cards": {
+        "rollRequestFlavor": "Roll request"
       }
     }
   }

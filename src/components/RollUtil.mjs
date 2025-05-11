@@ -1,11 +1,10 @@
-import { HOOKS_DND5E, HOOKS_CORE } from "@/constants/Hooks.mjs";
+import { HOOKS_DND5E, HOOKS_CORE } from "../constants/Hooks.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
-import { HOOK_NAMES, MODULE_ID } from "@/constants/General.mjs";
+import { HOOK_NAMES, MODULE_ID, ACTIVITY_TYPES, BUTTON_ACTION_TYPES, CALL_TYPE } from "../constants/General.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { getSettings } from "../constants/Settings.mjs";
-import { ACTIVITY_TYPES, CALL_TYPE } from "../constants/General.mjs";
 import { ActivityUtil } from "./ActivityUtil.mjs";
 
 /**
@@ -16,7 +15,7 @@ import { ActivityUtil } from "./ActivityUtil.mjs";
 export class RollUtil {
   static requestsEnabled = false;
   static SOCKET_CALLS = {
-    triggerRollSkillV2: { action:"triggerRollSkillV2", type: CALL_TYPE.CHECK },
+    triggerRollRequest: { action:"triggerRollRequest", type: CALL_TYPE.CHECK },
     triggerActivity: { action:"triggerActivity", type: CALL_TYPE.ACTIVITY }
   };
   static diceConfig = {};
@@ -24,64 +23,62 @@ export class RollUtil {
   
   static init() {
     LogUtil.log("RollUtil.init() - Registering hooks", [], true);
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_V2, RollUtil.#onPreRollV2);
+    RollUtil.preloadTemplates();
+    /**
+     * ROLLS
+     */
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_V2, RollUtil.#onPreRollV2);
+    // Skills & Tools
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_SKILL_V2, RollUtil.#onPreRollSkillToolV2);
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_TOOL_V2, RollUtil.#onPreRollSkillToolV2);
+    // Attacks
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, RollUtil.#onPreRollAttackV2);
+    // Ability Checks & Saving Throws
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, RollUtil.#onPreRollAbilityCheck);
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, RollUtil.#onPreRollSavingThrow);
+
+    //
     Hooks.on(HOOKS_CORE.RENDER_ROLL_RESOLVER, RollUtil.#onRenderRollResolver);
 
     // ACTIVITY
     Hooks.on(HOOKS_DND5E.PRE_USE_ACTIVITY, RollUtil.#onPreUseActivity);
     Hooks.on(HOOKS_DND5E.POST_USE_ACTIVITY, RollUtil.#onPostUseActivity);
     
-    // Ability Checks & Saving Throws
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, RollUtil.#onPreRollAbilityCheck);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, RollUtil.#onPreRollSavingThrow);
+    // // Concentration
+    // Hooks.on(HOOKS_DND5E.PRE_BEGIN_CONCENTRATING, RollUtil.#onPreBeginConcentrating);
+    // Hooks.on(HOOKS_DND5E.PRE_END_CONCENTRATION, RollUtil.#onPreEndConcentration);
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_CONCENTRATION_V2, RollUtil.#onPreRollConcentrationV2);
     
-    // Concentration
-    Hooks.on(HOOKS_DND5E.PRE_BEGIN_CONCENTRATING, RollUtil.#onPreBeginConcentrating);
-    Hooks.on(HOOKS_DND5E.PRE_END_CONCENTRATION, RollUtil.#onPreEndConcentration);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_CONCENTRATION_V2, RollUtil.#onPreRollConcentrationV2);
+    // // Death Saves
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, RollUtil.#onPreRollDeathSaveV2);
     
-    // Death Saves
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, RollUtil.#onPreRollDeathSaveV2);
     
-    // Skills & Tools
-    LogUtil.log("Registering preRollSkillV2 hook: " + HOOKS_DND5E.PRE_ROLL_SKILL_V2, [], true);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_SKILL_V2, RollUtil.#onPreRollSkillToolV2);
     
-    LogUtil.log("Registering preRollToolV2 hook: " + HOOKS_DND5E.PRE_ROLL_TOOL_V2, [], true);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_TOOL_V2, RollUtil.#onPreRollSkillToolV2);
+    // // Hit Dice
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, RollUtil.#onPreRollHitDieV2);
     
-    // Hit Dice
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, RollUtil.#onPreRollHitDieV2);
+    // // Hit Points
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_CLASS_HIT_POINTS, RollUtil.#onPreRollClassHitPoints);
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_NPC_HIT_POINTS, RollUtil.#onPreRollNPCHitPoints);
     
-    // Hit Points
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_CLASS_HIT_POINTS, RollUtil.#onPreRollClassHitPoints);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_NPC_HIT_POINTS, RollUtil.#onPreRollNPCHitPoints);
+    // // Initiative
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG, RollUtil.#onPreRollInitiativeDialog);
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_INITIATIVE, RollUtil.#onPreRollInitiative);
     
-    // Initiative
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG, RollUtil.#onPreRollInitiativeDialog);
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_INITIATIVE, RollUtil.#onPreRollInitiative);
     
-    // Attacks
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, RollUtil.#onPreRollAttackV2);
+    // // Damage Rolls
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, RollUtil.#onPreRollDamageV2);
     
-    // Damage Rolls
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, RollUtil.#onPreRollDamageV2);
+    // // Formula Rolls
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_FORMULA_V2, RollUtil.#onPreRollFormulaV2);
     
-    // Formula Rolls
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_FORMULA_V2, RollUtil.#onPreRollFormulaV2);
-    
-    // Recharge Rolls
-    Hooks.on(HOOKS_DND5E.PRE_ROLL_RECHARGE_V2, RollUtil.#onPreRollRechargeV2);
+    // // Recharge Rolls
+    // Hooks.on(HOOKS_DND5E.PRE_ROLL_RECHARGE_V2, RollUtil.#onPreRollRechargeV2);
 
     // Roll Config
-    // Hooks.on(HOOKS_DND5E.BUILD_ROLL_CONFIG, RollUtil.#onBuildRollConfig);
-    Hooks.on(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, RollUtil.#onRenderRollConfigurationDialog);
+    Hooks.on(HOOKS_CORE.RENDER_ROLL_CONFIGURATION_DIALOG, RollUtil.#onRenderRollConfigurationDialog);
     Hooks.on(HOOKS_DND5E.POST_ROLL_CONFIG, RollUtil.#onPostRollConfiguration);
     
-    // Item Display
-    // Hooks.on(HOOKS_DND5E.PRE_DISPLAY_CARD_V2, RollUtil.#onPreDisplayCardV2);
-    // Hooks.on(HOOKS_CORE.CREATE_CHAT_MESSAGE, RollUtil.#onCreateChatMessage);
-    // Hooks.on(HOOKS_CORE.RENDER_CHAT_MESSAGE, RollUtil.#onCreateChatMessage);
 
     // Enable debug mode for hooks to see all hook calls in the console
     CONFIG.debug.hooks = true;
@@ -118,7 +115,7 @@ export class RollUtil {
     const playerOwner = RollUtil.getPlayerOwner(activity.actor.id);
     LogUtil.log("#onPreUseActivity #2", [playerOwner, activity, usageConfig, dialogConfig, messageConfig]);
 
-    if(!RollUtil.requestsEnabled || !usageConfig.create){return;} //activity.type !== ACTIVITY_TYPES.SAVE
+    if(!RollUtil.requestsEnabled || !usageConfig.create){return true;} //activity.type !== ACTIVITY_TYPES.SAVE
     
     if(playerOwner.id !== game.user.id && game.user.isGM){
       usageConfig.create.measuredTemplate = false;
@@ -135,14 +132,6 @@ export class RollUtil {
           }
         }
       }
-
-      RollUtil.getTrigger({ 
-        activity,
-        rolls: activity.rolls,
-        dialog: dialogConfig,
-        message: messageConfig,
-        config: usageConfig
-      });
     }else{
       usageConfig.create.measuredTemplate = true;
       usageConfig.consume.spellSlot = true;
@@ -159,9 +148,9 @@ export class RollUtil {
    * @param {ActivityMessageConfiguration} messageConfig - Configuration info for the created chat message.
    */
   static #onPostUseActivity(activity, usageConfig, dialogConfig, messageConfig){
-    LogUtil.log("#onPostUseActivity", [activity, usageConfig, dialogConfig, messageConfig]);
+    LogUtil.log("#onPostUseActivity", [activity.type, ACTIVITY_TYPES.SAVE, activity, usageConfig, dialogConfig, messageConfig]);
     const playerOwner = RollUtil.getPlayerOwner(activity.actor.id);
-    if(!usageConfig.create || activity.type !== ACTIVITY_TYPES.SAVING_THROW){return;}
+    if(!usageConfig.create || activity.type !== ACTIVITY_TYPES.SAVE){return;}
     if(playerOwner.id !== game.user.id && game.user.isGM){
       
       usageConfig.create.measuredTemplate = true;
@@ -178,11 +167,65 @@ export class RollUtil {
         dialog: dialogConfig,
         message: messageConfig
       }
-      messageConfig.create = true;
+      messageConfig = {
+        ...messageConfig,
+        create: true
+      };
+
+      // RollUtil.getTrigger({ 
+      //   activity,
+      //   rolls: activity.rolls,
+      //   dialog: dialogConfig,
+      //   message: messageConfig,
+      //   config: usageConfig
+      // });
       
       LogUtil.log("SocketUtil.execForUser", [playerOwner.id, triggerData]);
       SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerActivity.action, playerOwner.id, triggerData);
     }
+  }
+  static preloadTemplates = async () => {
+    const templatePaths = [
+      `modules/${MODULE_ID}/templates/roll-dc-field.hbs`
+    ];
+    await loadTemplates(templatePaths);
+    return true;
+  }
+
+  static handleRollDialogInputs = async(target, dialog, html) => {
+    LogUtil.log("handleRollDialogInputs", [dialog, html]);
+    
+    const renderedHtml = await renderTemplate(
+      `modules/${MODULE_ID}/templates/roll-dc-field.hbs`, 
+      { 
+        label: game.i18n.localize("CRLNGN_ROLLS.ui.forms.dcFieldLabel"), 
+        dc: dialog.config.dc || ""
+      }
+    );
+    
+    if(RollUtil.allowsDC(dialog.config.hookNames)){
+      const targetElement = html.querySelector('.window-content .rolls .formulas');
+      targetElement?.insertAdjacentHTML('beforebegin', renderedHtml);
+    }
+    const dcInput = html.querySelector('input[name="dc"]');
+
+    if(!game.user.isGM){
+      html.querySelector('.formulas.dc')?.classList.add('hidden');
+      dcInput?.setAttribute('hidden', true);
+    }
+    LogUtil.log("handleRollDialogInputs", [html, target, dialog]);
+    if(target && dcInput){dcInput.value = target?.dataset?.dc;}
+    if(dcInput){dialog.config.dc = Number(dcInput.value);}
+    dcInput?.addEventListener('change', () => {
+      dialog.config.dc = Number(dcInput.value) || "";
+    });
+  }
+
+  static allowsDC(hookNames){
+    return hookNames[0].toLowerCase() === HOOK_NAMES.SKILL.name.toLowerCase() || 
+    hookNames[0].toLowerCase() === HOOK_NAMES.TOOL.name.toLowerCase() || 
+    hookNames[0].toLowerCase() === HOOK_NAMES.SAVING_THROW.name.toLowerCase() || 
+    hookNames[0].toLowerCase() === HOOK_NAMES.ABILITY_CHECK.name.toLowerCase();
   }
 
   /**
@@ -192,69 +235,107 @@ export class RollUtil {
    * @param {HTMLElement} html - The HTML element of the dialog
    */
   static #onRenderRollConfigurationDialog(rollConfigDialog, html){
-    const target = rollConfigDialog.config?.event?.target?.closest("button[data-action]");
+    LogUtil.log("#onRenderRollConfigurationDialog #1", [rollConfigDialog]);
+    const eventTarget = GeneralUtil.getElement(rollConfigDialog.config?.event?.target);
+    const target = eventTarget?.closest(".card-buttons")?.querySelector("button[data-action]");
+    const actionTitle = target ? target?.dataset?.title : rollConfigDialog.config?.title || rollConfigDialog.options?.window?.title;
+    if(actionTitle){
+      // rollConfigDialog.window.title = actionTitle;
+      rollConfigDialog.options.window.title = actionTitle;
+    }
+    if(target && target?.dataset.action !== BUTTON_ACTION_TYPES.ROLL_REQUEST){
+      return;
+    }
+    RollUtil.handleRollDialogInputs(target, rollConfigDialog, html);
+    LogUtil.log("#onRenderRollConfigurationDialog", [target?.dataset.advantage ? CONFIG.Dice.D20Roll.ADV_MODE.ADVANTAGE : CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE]);
+    let dcInput = html.querySelector('input[name="dc"]');
+    const dcValue = target ? Number(target?.dataset?.dc) : rollConfigDialog.config?.dc || undefined;
+    // const dcInput = html.querySelector('input[name="dc"]');
+    
+    if(dcInput){ dcInput.value = dcValue; }
+    const flagAttribute = `data-${MODULE_ID}-${game.user.id}-custom-event`;
+    // html.querySelector('.window-title').textContent = actionTitle;
 
-    LogUtil.log("#onRenderRollConfigurationDialog", [rollConfigDialog, target]);
-    // Created flag to prevent render loop
-    const flagAttribute = `data-${MODULE_ID}-${game.user.id}custom-event`; 
+    const targetActor = target ? game.actors.get(target.dataset.actorId) : rollConfigDialog.config?.subject;
+    if(rollConfigDialog.config){
+      rollConfigDialog.config.subject = targetActor;
+      rollConfigDialog.config.dc = dcValue || "";
+      rollConfigDialog.config.advantage = target ? target?.dataset.advantage == "true" : rollConfigDialog.config.advantage;
+      rollConfigDialog.config.disadvantage = target ? target?.dataset.disadvantage == "true" : rollConfigDialog.config.disadvantage;
+      if(rollConfigDialog.config.rolls.length > 0){
+        // rollConfigDialog.rolls = [];
+        rollConfigDialog.config.rolls[0].advantage = target ? target?.dataset.advantage == "true" : rollConfigDialog.config.rolls[0].advantage;
+        rollConfigDialog.config.rolls[0].disadvantage = target ? target?.dataset.disadvantage == "true" : rollConfigDialog.config.rolls[0].disadvantage;
+        rollConfigDialog.config.rolls[0].situational = target ? Number(target?.dataset.situational) : rollConfigDialog.config.rolls[0].situational;
+        rollConfigDialog.config.rolls[0].options.advantage = rollConfigDialog.config.rolls[0].advantage;
+        rollConfigDialog.config.rolls[0].options.disadvantage = rollConfigDialog.config.rolls[0].disadvantage;
+        rollConfigDialog.config.rolls[0].options.advantageMode = RollUtil.getAdvantageMode(rollConfigDialog.config.rolls[0]);
+      }
+    }
+
+    const situationalBonus = Number(target?.dataset?.situational) || rollConfigDialog.config?.situational || "";
+    const situationalInput = html.querySelector('input[name="roll.0.situational"]');
+    LogUtil.log("#onRenderRollConfigurationDialog ##", [rollConfigDialog, actionTitle]);
+    
     if (html.hasAttribute(flagAttribute)) {
       return; 
     }
-    return; 
-    const situationalBonus = target ? Number(target?.dataset?.situational) : rollConfigDialog.config?.situational || undefined;
-
-    if(situationalBonus){
-      const situationalInput = html.querySelector('input[name="roll.0.situational"]');
-      if(situationalInput){
-        if(situationalInput.value != situationalBonus){
-          situationalInput.value = situationalBonus;
-        }
-        html.setAttribute(flagAttribute, "true");
-
-        // Trigger the change event to force formula recalculation
-        situationalInput.dispatchEvent(new Event('change', {
-          bubbles: true,
-          cancelable: false
-        }));
-      }
+    if(situationalInput){
+      html.setAttribute(flagAttribute, "true");
+      situationalInput.value = situationalBonus || "";
+      situationalInput.dispatchEvent(new Event('change', {
+        bubbles: true,
+        cancelable: false
+      }));
     }
+
     html.setAttribute(flagAttribute, "true");
   }
 
-  // static #onPreRollV2(config, dialog, message) {
   /**
-   * Hook handler for dnd5e.onPreRollSkillToolV2
-   * Fires before a roll is performed
-   * @param {Object} config - BasicRollProcessConfiguration for the roll
-   * @param {Object} dialog - BasicRollDialogConfiguration for the dialog
-   * @param {Object} message - BasicRollMessageConfiguration for the message
-   * @returns {boolean|void} Return false to prevent the normal rolling process
+   * Base method for handling pre-roll hooks
+   * @param {Object} config - Roll process configuration
+   * @param {Object} dialog - Dialog configuration
+   * @param {Object} message - Message configuration
+   * @param {string} actionType - The type of action being performed (e.g., 'rollRequest', 'rollAttack')
+   * @returns {boolean} Whether to allow the roll to proceed
    */
-  static #onPreRollSkillToolV2(config, dialog, message) {
-    LogUtil.log("#onPreRollSkillToolV2 CALLED", [config, dialog, message]);
-    const target = config.event?.target?.closest("button[data-action=rollRequest]");
+  static #onPreRollV2(config, dialog, message, actionType='') {
+    LogUtil.log(`#onPreRollV2 for ${actionType}`, [config, dialog, message, CONFIG.Dice.D20Roll.ADV_MODE]);
+    if(!actionType){return}
     
+    // Find the target button based on the action type
+    const eventTarget = GeneralUtil.getElement(config.event?.target) || null;
+    // config.event = null;
+    const target = eventTarget?.closest(".card-buttons")?.querySelector(`button[data-action=${actionType}]`) || null;
+    config.event = null;
     // Extract situational bonus from the dataset or config
-    const situationalBonus = target ? Number(target.dataset.situational) : config.situational;
-    LogUtil.log("Situational bonus:", [situationalBonus], true);
+    const situationalBonus = target ? Number(target.dataset.situational) : config.situational || undefined;
+    LogUtil.log("Situational bonus:", [situationalBonus, target, eventTarget]);
     
-    if(target){
-      // Set configuration properties
-      config.advantage = target.dataset.advantage==="true";
-      config.disadvantage = target.dataset.disadvantage==="true";
-      config.ability = target.dataset.ability;
-      config.abilityId = target.dataset.ability;
-      config.situational = situationalBonus; // Set situational bonus in config
-
-      // Set flavor text if available
-      if (target.dataset.flavor) {
-        message.data.flavor = target.dataset.flavor;
-        if (dialog.options?.window) {
-          dialog.options.window.title = target.dataset.flavor;
-        }
+    // if(target) {
+      // Set common configuration properties
+      config.advantage = target?.dataset?.advantage || config.advantage;
+      config.disadvantage = target?.dataset?.disadvantage || config.disadvantage;
+      config.situational = situationalBonus || ""; // Set situational bonus in config
+      
+      // Set action-specific configuration properties
+      if (actionType === BUTTON_ACTION_TYPES.ROLL_REQUEST) {
+        config.ability = target?.dataset.ability || config.ability;
+        config.abilityId = target?.dataset.ability || config.ability;
+      } else if (actionType === BUTTON_ACTION_TYPES.ROLL_ATTACK) {
+        config.attackMode = target?.dataset.attackMode || config.attackMode;
       }
-      LogUtil.log("Applied target data to config", [config], true);
-    }
+      LogUtil.log("Config:", [dialog.options?.window, message.data.flavor], true);
+    
+      // Set flavor text if available
+      // message.data.flavor = target?.dataset.flavor || config.flavor;
+      // if(dialog.options?.window && message.data.flavor){
+      //   dialog.options.window.title = message.data.flavor || target?.dataset.flavor || config.flavor;
+      // }
+
+      LogUtil.log("Applied target data to config", [config, dialog], true);
+    // }
     
     // Ensure the situational bonus is included in the parts array
     if (situationalBonus !== undefined && !config.parts?.includes('@situational')) {
@@ -269,23 +350,44 @@ export class RollUtil {
       if (!roll.data) roll.data = {};
       if (!roll.data.flags) roll.data.flags = {};
       
-      // Add your module's flags to the roll options
       roll.data.flags[MODULE_ID] = {
         flavor: dialog.options?.window?.title || message.data.flavor
       };
-      roll.data = {
-        // ...roll.data,
+      const rollData = {
         flags: roll.data.flags,
-        situational: situationalBonus,
-        target: target?.dataset.dc ? Number(target.dataset.dc) : config.target,
-        ability: target?.dataset.ability || config.ability
+        situational: situationalBonus
       };
+      if (actionType === BUTTON_ACTION_TYPES.ROLL_REQUEST) {
+        rollData.target = target?.dataset.dc ? Number(target.dataset.dc) : config.target;
+        rollData.ability = target?.dataset.ability || config.ability;
+      }
+      
+      roll.data = rollData;
+      if(config.advantage || config.disadvantage){
+        roll.options = {
+          ...roll.options,
+          advantageMode: config.advantage ? CONFIG.Dice.D20Roll.ADV_MODE.ADVANTAGE : CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE
+        }
+      }
+      
       if(roll.resetFormula) roll.resetFormula();
       LogUtil.log("Modified roll data", [roll], true);
     }
     
-    LogUtil.log("#onPreRollSkillToolV2 completed", [], true);
+    LogUtil.log(`#onPreRollV2 for ${actionType} completed`, [], true);
     return true; // Allow the roll to proceed
+  }
+  
+  /**
+   * Hook handler for skill and tool checks
+   * @param {Object} config - SkillToolRollProcessConfiguration for the roll
+   * @param {Object} dialog - SkillToolRollDialogConfiguration for the dialog
+   * @param {Object} message - SkillToolRollMessageConfiguration for the message
+   * @returns {boolean|void} Return false to prevent the normal rolling process
+   */
+  static #onPreRollSkillToolV2(config, dialog, message) {
+    LogUtil.log("#onPreRollSkillToolV2", [config, dialog, message]);
+    // return RollUtil.#onPreRollV2(config, dialog, message, BUTTON_ACTION_TYPES.ROLL_REQUEST);
   }
 
   /**
@@ -295,27 +397,30 @@ export class RollUtil {
    */
   static getPlayerOwner(actorId) {
     return game.users.find(u => u.character?.id === actorId);
-
   }
 
   /**
    * Hook handler for dnd5e.preRollAbilityCheck
-   * Fires before an ability check is rolled
-   * @param {Object} config - AbilityRollProcessConfiguration for the roll
+   * @param {Object} config - RollProcessConfiguration for the roll
+   * @param {Object} dialog - RollDialogConfiguration for the dialog
+   * @param {Object} message - RollMessageConfiguration for the message
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
-  static #onPreRollAbilityCheck(config) {
-    LogUtil.log("#onPreRollAbilityCheck", [config]);
+  static #onPreRollAbilityCheck(config, dialog, message) {
+    LogUtil.log("#onPreRollAbilityCheck", [config, dialog, message]);
+    return RollUtil.#onPreRollV2(config, dialog, message, BUTTON_ACTION_TYPES.ROLL_REQUEST);
   }
 
   /**
    * Hook handler for dnd5e.preRollSavingThrow
-   * Fires before a saving throw is rolled
-   * @param {Object} config - AbilityRollProcessConfiguration for the roll
+   * @param {Object} config - RollProcessConfiguration for the roll
+   * @param {Object} dialog - RollDialogConfiguration for the dialog
+   * @param {Object} message - RollMessageConfiguration for the message
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
-  static #onPreRollSavingThrow(config) {
-    LogUtil.log("#onPreRollSavingThrow", [config]);
+  static #onPreRollSavingThrow(config, dialog, message) {
+    LogUtil.log("#onPreRollSavingThrow", [config, dialog, message]);
+    return RollUtil.#onPreRollV2(config, dialog, message, BUTTON_ACTION_TYPES.ROLL_REQUEST);
   }
 
   /**
@@ -364,17 +469,6 @@ export class RollUtil {
     LogUtil.log("#onPreRollDeathSaveV2", [config, dialog, message]);
   }
 
-  /**
-   * Hook handler for dnd5e.preRollSkillV2
-   * Fires before a skill check is rolled
-   * @param {Object} config - SkillToolRollProcessConfiguration for the roll
-   * @param {Object} dialog - SkillToolRollDialogConfiguration for the dialog
-   * @param {Object} message - SkillToolRollMessageConfiguration for the message
-   * @returns {boolean|void} Return false to prevent the normal rolling process
-   */
-  // static #onPreRollSkillV2(config, dialog, message) {
-  //   LogUtil.log("#onPreRollSkillV2", [config, dialog, message]);
-  // }
 
   /**
    * Hook handler for dnd5e.preRollToolCheckV2
@@ -445,8 +539,7 @@ export class RollUtil {
   }
 
   /**
-   * Hook handler for dnd5e.preRollAttackV2
-   * Fires before an attack is rolled
+   * Hook handler for attack rolls
    * @param {Object} config - AttackRollProcessConfiguration for the roll
    * @param {Object} dialog - AttackRollDialogConfiguration for the dialog
    * @param {Object} message - AttackRollMessageConfiguration for the message
@@ -454,59 +547,7 @@ export class RollUtil {
    */
   static #onPreRollAttackV2(config, dialog, message) {
     LogUtil.log("#onPreRollAttackV2", [config, dialog, message]);
-    const target = config.event?.target?.closest("button[data-action=rollAttack]");
-    
-    // Extract situational bonus from the dataset or config
-    const situationalBonus = target ? Number(target.dataset.situational) : config.situational;
-    LogUtil.log("Situational bonus:", [situationalBonus], true);
-    
-    if(target){
-      // Set configuration properties
-      config.advantage = target.dataset.advantage==="true";
-      config.disadvantage = target.dataset.disadvantage==="true";
-      config.attackMode = target.dataset.attackMode;
-      config.situational = situationalBonus; // Set situational bonus in config
-
-      // Set flavor text if available
-      if (target.dataset.flavor) {
-        message.data.flavor = target.dataset.flavor;
-        if (dialog.options?.window) {
-          dialog.options.window.title = target.dataset.flavor;
-        }
-      }
-      LogUtil.log("Applied target data to config", [config], true);
-    }
-    
-    // Ensure the situational bonus is included in the parts array
-    if (situationalBonus !== undefined && !config.parts?.includes('@situational')) {
-      if (!config.parts) config.parts = [];
-      config.parts.push('@situational');
-    }
-
-    if (!config.rolls) config.rolls = [];
-    LogUtil.log("Number of rolls:", [config.rolls.length], true);
-    
-    for (const roll of config.rolls) {
-      if (!roll.data) roll.data = {};
-      if (!roll.data.flags) roll.data.flags = {};
-      
-      // Add your module's flags to the roll options
-      roll.data.flags[MODULE_ID] = {
-        flavor: dialog.options?.window?.title || message.data.flavor
-      };
-      roll.data = {
-        // ...roll.data,
-        flags: roll.data.flags,
-        situational: situationalBonus,
-        // target: target?.dataset.dc ? Number(target.dataset.dc) : config.target,
-        // ability: target?.dataset.ability || config.ability
-      };
-      if(roll.resetFormula) roll.resetFormula();
-      LogUtil.log("Modified roll data", [roll], true);
-    }
-    
-    LogUtil.log("#onPreRollSkillToolV2 completed", [], true);
-    return true; // Allow the roll to proceed
+    return RollUtil.#onPreRollV2(config, dialog, message, BUTTON_ACTION_TYPES.ROLL_ATTACK);
   }
 
   /**
@@ -553,19 +594,34 @@ export class RollUtil {
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
   static #onPostRollConfiguration(rolls, config, dialog, message) {
-    LogUtil.log("#onPostRollConfiguration", [rolls, config, dialog, message]);
-    if(!game.user.isGM){ return; }
+    LogUtil.log("#onPostRollConfiguration #A", [rolls, config, dialog, message]);
+    if(!game.user.isGM || !RollUtil.requestsEnabled){ return true; }
+    
+    const roll = rolls?.[0];
+    if(roll){
+      config.ability = roll.data.abilityId;
+      config.abilityId = roll.data.abilityId;
+      config.advantage = roll.hasAdvantage;
+      config.disadvantage = roll.hasDisadvantage;
+      config.situational = roll.data.situational;
+      // config.flavor = roll.data.flavor;
+    }
+    config.target = config.dc;
+    if(config.options?.window?.title){
+      message.flavor = config.options.window.title;
+      message.data.flavor = config.options.window.title;
+      config.title = config.options.window.title;
+    }
 
-    // if(config.subject.type===ACTIVITY_TYPES.SAVE){
     const triggerData = {
       rolls,
       config,
       dialog,
       message
     };
+    LogUtil.log("#onPostRollConfiguration #B", [config, dialog, message]);
 
     RollUtil.getTrigger(triggerData);
-    // }
 
     return false;
   }
@@ -577,22 +633,32 @@ export class RollUtil {
    * @param {*} dialog 
    * @param {*} message 
    */
-  static postRequestChatMessage = async(player, actor, config, dialog, message) => {
+  static postRequestChatMessage = async(data) => {
+    const { playerId, actor, config, dialog, message } = data;
     // Ensure we have a valid situational bonus value
-    const situationalBonus = config.situational !== undefined ? Number(config.situational) : 0;
+    const situationalBonus = config.situational !== undefined ? Number(config.situational) : "";
     
     const dataset = {
       ...config,
       type: config.type,
       action: "rollRequest",
-      visibility: player.id,
+      visibility: "",//playerId,
       target: actor.uuid,
-      dc: config.target,
-      hideDC: true,
-      flavor: config.flavor,
+      dc: config.target || config.dc,
+      actorId: actor.id,
+      hideDC: !game.user.isGM,
+      title: message.flavor,
+      flavor: message.flavor,
       situational: situationalBonus,
       parts: config.parts || []
     };
+    delete dataset.subject;
+    delete dataset.event;
+    if(config.type==='skill'){
+      dataset.skill = config.skill;
+    }else if(config.type==='tool'){
+      dataset.tool = config.tool;
+    }
     
     // Ensure the situational bonus is included in the parts array
     if (situationalBonus && !dataset.parts.includes('@situational')) {
@@ -605,18 +671,67 @@ export class RollUtil {
       hiddenLabel: dnd5e.enrichers.createRollLabel({...dataset, format: "short", icon: true, hideDC: true}),
       dataset: dataset
     }]; 
-    message.data.flavor = config.flavor;
 
-    LogUtil.log("postRequestChatMessage", [ message, dataset ]);
+    LogUtil.log("postRequestChatMessage", [ buttons, message, dataset ]);
     
     const chatData = {
-      user: player.id, 
+      user: playerId, 
       content: await renderTemplate("systems/dnd5e/templates/chat/request-card.hbs", { buttons }),
-      flavor: `GM has requested a roll`,
+      flavor: game.i18n.localize("CRLNGN_ROLLS.ui.cards.rollRequestFlavor"),
       speaker: message.speaker // ChatMessage.implementation.getSpeaker({ alias: "Game Master" })
     };
     
     await ChatMessage.implementation.create(chatData);
+
+    // const MessageClass = getDocumentClass("ChatMessage");
+
+    // let buttons;
+    // if ( dataset.type === "check" ) buttons = RollUtil.createCheckRequestButtons(dataset);
+    // else if ( dataset.type === "save" ) buttons = RollUtil.createSaveRequestButtons(dataset);
+    // else buttons = [RollUtil.createRequestButton({ ...dataset, format: "short" })];
+
+    // const chatData = {
+    //   user: playerId, 
+    //   content: await renderTemplate("systems/dnd5e/templates/chat/request-card.hbs", { buttons }),
+    //   flavor: game.i18n.localize("CRLNGN_ROLLS.ui.cards.rollRequestFlavor"),
+    //   speaker: message.speaker
+    // };
+    // return MessageClass.create(chatData);
+  }
+
+  /**
+   * Create the buttons for a check requested in chat.
+   * @param {object} dataset
+   * @returns {object[]}
+   */
+  static createCheckRequestButtons(dataset) {
+    const skills = dataset.skill?.split("|") ?? [];
+    const tools = dataset.tool?.split("|") ?? [];
+    if ( (skills.length + tools.length) <= 1 ) return [RollUtil.createRequestButton(dataset)];
+    const baseDataset = { ...dataset };
+    delete baseDataset.skill;
+    delete baseDataset.tool;
+    return [
+      ...skills.map(skill => RollUtil.createRequestButton({
+        ability: CONFIG.DND5E.skills[skill].ability, ...baseDataset, format: "short", skill, type: "skill"
+      })),
+      ...tools.map(tool => dnd5e.enrichers.createRequestButton({
+        ability: CONFIG.DND5E.tools[tool]?.ability, ...baseDataset, format: "short", tool, type: "tool"
+      }))
+    ];
+  }
+
+  /**
+   * Create a button for a chat request.
+   * @param {object} dataset
+   * @returns {object}
+   */
+  static createRequestButton(dataset) {
+    return {
+      buttonLabel: dnd5e.enrichers.createRollLabel({ ...dataset, icon: true }),
+      hiddenLabel: dnd5e.enrichers.createRollLabel({ ...dataset, icon: true, hideDC: true }),
+      dataset: { ...dataset, action: "rollRequest", visibility: "all" }
+    };
   }
 
   
@@ -677,8 +792,10 @@ export class RollUtil {
     // Add custom UI elements if the Resolver is for Pixel Dice
     if(isPixelsDice){
       const roll = resolver.roll;
-      const flags = roll?.data?.flags?.[MODULE_ID];
+      let flags = roll?.data?.flags?.[MODULE_ID];
       if (!flags) { flags = {flavor: ""} }
+
+      roll.data.situational = 7;
       
       html.classList.add('crlngn-rolls');
       html.querySelector('.window-header .window-title').innerHTML = game.i18n.localize("CRLNGN_ROLLS.ui.forms.pixelsRollTitle");
@@ -701,42 +818,31 @@ export class RollUtil {
     // TODO: what to do if there's no actor for this roll, such as custom rolls
     if(!actor){ return; } 
     const activity = isActivity ? config.subject : null;
-    const activityType = activity?.type || "";
-    // const hookName = config.hookNames?.[0]?.toLowerCase() || "";
+    const hookName = config.hookNames?.[0]?.toLowerCase() || "";
+    const activityType = activity?.type || GeneralUtil.getActivityType(hookName) || "";
     const playerOwner = actor.hasPlayerOwner ? GeneralUtil.getUserFromActor(actor.id) : null;
     const roll = rolls[0];
-    if(!roll){return;}
-    const situationalBonus = roll?.data.situational ? Number(roll.data.situational) : Number(config.situational || "");
-
-    roll.data.flags = {
-      ... roll.data.flags,
-      [MODULE_ID]: {
-        flavor: message.data.flavor,
-        situational: situationalBonus,
-        attackMode: config.attackMode,
-        ammunition: config.ammunition
-      }
-    }
-
+    // if(!roll){return;}
+    const situationalBonus = roll?.data.situational ? Number(roll.data.situational) : Number(config.situational) || "";
 
     if(playerOwner && playerOwner !== game.user && RollUtil.requestsEnabled){
       let damageParts, diceTypes;
 
       let newConfig = {
-        subject: config.subject,
+        ...config,
         situational: situationalBonus,
-        flavor: message.data.flavor,
-        rolls: [roll],
-        parts: config.parts || []
       };
       if(isActivity){
         newConfig.activity = config.subject;
       }
+      newConfig.skill = config.skill || '';
+      newConfig.tool = config.tool || '';
       // Create message data
       const msg = {
-        data: {
-          flavor: dialog.options?.window?.title || message.data.flavor
-        },
+        ...message.data,
+        // data: {
+        //   flavor: dialog.options?.window?.title || message.data.flavor
+        // },
         speaker: {
           ...message.speaker,
           alias: actor.name
@@ -744,28 +850,29 @@ export class RollUtil {
         rollMode: message.rollMode
       };
       // Add situational bonus to parts if needed
-      if (situationalBonus && !newConfig.parts.includes('@situational')) {
-        newConfig.parts.push('@situational');
-      }
+      // if (situationalBonus && !newConfig.parts.includes('@situational')) {
+      //   newConfig.parts.push('@situational');
+      // }
 
-      if(isActivity){
-        damageParts = activity?.damage?.parts || [];
-        diceTypes = damageParts.map(part => part.denomination).filter(denomination => denomination && typeof denomination === "string");
-      }
-      const forwardData = { config:newConfig, dialog, message: msg, isActivity, diceTypes, activity, playerOwner, roll };
+      const forwardData = { config:newConfig, dialog, message: msg, isActivity, activity, hookName, playerOwner, roll };
       LogUtil.log("getTrigger", [activityType,forwardData]);
       switch(activityType){
-        case ACTIVITY_TYPES.ATTACK: {
+        case HOOK_NAMES.ATTACK.activityType: {
           RollUtil.forwardAttackActivity(forwardData); break;
         }
-        case ACTIVITY_TYPES.DAMAGE: {
+        case HOOK_NAMES.DAMAGE.activityType: {
           RollUtil.forwardDamageActivity(forwardData); break;
         }
-        case ACTIVITY_TYPES.CHECK: {
+        case HOOK_NAMES.SAVE.activityType: {
+          RollUtil.forwardDamageActivity(forwardData); break;
+          // RollUtil.forwardSaveActivity(forwardData); break;
+        }
+        case HOOK_NAMES.SKILL.activityType:
+        case HOOK_NAMES.TOOL.activityType: {
           RollUtil.forwardSkillToolCheck(forwardData); break;
         }
-        case ACTIVITY_TYPES.SAVE: {
-          RollUtil.forwardSaveActivity(forwardData); break;
+        case HOOK_NAMES.SAVING_THROW.name: {
+          RollUtil.forwardSavingThrow(forwardData); break;
         }
         default:{
           return null;
@@ -777,7 +884,7 @@ export class RollUtil {
   }
 
   static forwardAttackActivity(data){
-    const { config, dialog, message, isActivity, diceTypes, playerOwner, roll } = data;
+    const { config, dialog, message, playerOwner, roll } = data;
 
     const newConfig = {
       ...config,
@@ -791,7 +898,6 @@ export class RollUtil {
     };
     const triggerData = {
       activityUuid: config.subject.uuid,
-      diceTypes: diceTypes,
       config: newConfig,
       dialog: dialog,
       message: {
@@ -805,7 +911,7 @@ export class RollUtil {
   }
 
   static forwardDamageActivity(data){
-    const { config, dialog, message, isActivity, diceTypes, playerOwner, roll } = data;
+    const { config, dialog, message, playerOwner, roll } = data;
 
     const newConfig = {
       ...config,
@@ -817,94 +923,115 @@ export class RollUtil {
     };
     const triggerData = {
       activityUuid: config.subject.uuid,
-      diceTypes: diceTypes,
       config: newConfig,
       dialog: dialog,
       message: message
-    }
-    if(isActivity){
-      triggerData.diceTypes = diceTypes;
     }
     
     LogUtil.log("SocketUtil.execForUser", [playerOwner.id, triggerData]);
     SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerActivity.action, playerOwner.id, triggerData);
   }
 
-  static forwardSaveActivity(ata){
-    const { config, dialog, message, isActivity, diceTypes, activity, playerOwner } = data;
+  static forwardSaveActivity(data){
+    const { config, dialog, message, playerOwner, roll } = data;
+
     const newConfig = {
       ...config,
-      // ...roll.options,
-      type: HOOK_NAMES.SAVING_THROW.name,
-      target: activity.target
+      options: roll.options,
+      type: HOOK_NAMES.SAVE.name,
+      critical: roll.options.critical,
+      isCritical: roll.options.isCritical,
+      target: roll.options.target
     };
     const triggerData = {
-      activityUuid: activity.uuid,
-      diceTypes: diceTypes,
+      activityUuid: config.subject.uuid,
       config: newConfig,
       dialog: dialog,
       message: message
     }
-    message.create = false;
     
     LogUtil.log("SocketUtil.execForUser", [playerOwner.id, triggerData]);
     SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerActivity.action, playerOwner.id, triggerData);
   }
 
-  static forwardSkillToolCheck(data){
-    const { config, dialog, message, isActivity, diceTypes, activity, playerOwner, roll } = data;
+  static forwardSavingThrow(data){
+    LogUtil.log("forwardSavingThrow", [data, HOOK_NAMES.SAVING_THROW.activityType]);
+    const { config, dialog, message, hookName, playerOwner, roll } = data;
+    const actor = game.actors.get(config.subject._id);
     const newConfig = {
       ...config,
-      type: config.skill ? HOOK_NAMES.SKILL.name : HOOK_NAMES.TOOL.name,
-      subject: config.subject,
-      ability: roll.data.abilityId || config.ability,
-      abilityId: roll.data.abilityId || config.ability,
-      advantage: roll.hasAdvantage || false,
-      disadvantage: roll.hasDisadvantage || false,
-      target: 17,
+      type: HOOK_NAMES.SAVING_THROW.name,
       parts: config.parts || []
     };
-
-    if(hookName === HOOK_NAMES.SKILL.name){
-      newConfig.skill = config.skill;
-    }else if(hookName === HOOK_NAMES.TOOL.name){
-      newConfig.tool = config.tool;
-    }
-    if(dialog.options?.window?.title){
-      dialog.options.window.title = message.data.flavor;
-    }
+    delete newConfig.event;
+    delete newConfig.options;
+    // if(dialog.options?.window?.title){
+    //   dialog.options.window.title = message.data.flavor;
+    // }
 
     const triggerData = {
-      diceTypes: diceTypes,
       config: newConfig,
       dialog: dialog,
-      message: message
+      message: message,
+      playerId: playerOwner?.id || ""
     }
     // RollUtil.postRequestChatMessage(playerOwner, actor, newConfig, dialog, msg);
     LogUtil.log("SocketUtil.execForUser", [playerOwner.id, triggerData]);
-    SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerRollSkillV2, playerOwner.id, triggerData);
+    RollUtil.postRequestChatMessage({...triggerData, actor});
+    SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerRollRequest.action, playerOwner.id, triggerData);
   }
 
+  static forwardSkillToolCheck(data){
+    LogUtil.log("forwardSkillToolCheck", [data]);
+    const { config, dialog, message, hookName, playerOwner, roll } = data;
+    const actor = game.actors.get(config.subject._id);
+    const newConfig = {
+      ...config,
+      type: hookName,
+      parts: config.parts || []
+    };
+    delete newConfig.event;
+    delete newConfig.options;
+    // delete newConfig.subject;
 
+    const triggerData = {
+      config: newConfig,
+      dialog: dialog,
+      message: message,
+      playerId: playerOwner?.id || ""
+    }
+    // RollUtil.postRequestChatMessage(playerOwner, actor, newConfig, dialog, msg);
+    LogUtil.log("SocketUtil.execForUser", [playerOwner.id, triggerData]);
+    RollUtil.postRequestChatMessage({...triggerData, actor});
+    SocketUtil.execForUser(RollUtil.SOCKET_CALLS.triggerRollRequest.action, playerOwner.id, triggerData);
+  }
 
   ///////
   //
-  static triggerRollSkillV2 = async (data) => {
-    const { diceTypes, config, dialog, message } = data;
+  static triggerRollRequest = async (data) => {
+    const { diceTypes, config, dialog, message, playerId } = data;
     const diceConfig = RollUtil.playerDiceConfigs[game.user.id];
     const situationalBonus = config.situational !== undefined ? Number(config.situational) : 0;
-    const areDiceConfigured = diceTypes.map(diceType => {
-      return diceConfig?.[diceType] !== "";
-    }).includes(true);
+    const areDiceConfigured = RollUtil.areDiceConfigured(diceTypes, playerId); 
+    //  diceTypes.map(diceType => {
+    //   return diceConfig?.[diceType] !== "";
+    // }).includes(true);
 
     // Get the actor
     const actor = game.actors.get(config.subject._id);
-    LogUtil.log("triggerRollSkillV2", [game.user, diceConfig, actor]);
+    LogUtil.log("triggerRollRequest", [game.user, config, dialog, message]);
     if(!actor) return;
-    RollUtil.postRequestChatMessage(playerOwner, actor, config, dialog, message);
     
     const updatedDialog = {
       ...dialog,
+      configure: !areDiceConfigured,
+      options:{
+        ...dialog.options,
+        window:{
+          ...dialog.options.window,
+          title: message.flavor || config.flavor || dialog.options.window.title
+        }
+      },
       configure: diceConfig?.d20 ? false : true
     };
     const updatedConfig = {
@@ -913,22 +1040,32 @@ export class RollUtil {
     };
     const updatedMessage = {
       ...message,
-      flavor: config.flavor
+      flavor: message.flavor || config.flavor || dialog.options.window.title
     };
     
     // Add situational bonus to the parts array if not already included
-    if (config.situational && !updatedConfig.parts.includes('@situational')) {
+    if (updatedConfig.situational && !updatedConfig.parts.includes('@situational')) {
       updatedConfig.parts.push('@situational');
     }
-    if(config.skill){
+    if(updatedConfig.skill){
       actor.rollSkill(updatedConfig, updatedDialog, updatedMessage);
-    }else if(config.tool){
+    }else if(updatedConfig.tool){
       actor.rollToolCheck(updatedConfig, updatedDialog, updatedMessage);
+    }else{
+      actor.rollSavingThrow(updatedConfig, updatedDialog, updatedMessage);
     }
   }
 
-  
+  static getAdvantageMode(roll){
+    return roll.advantage ? CONFIG.Dice.D20Roll.ADV_MODE.ADVANTAGE : roll.disadvantage ? CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE : CONFIG.Dice.D20Roll.ADV_MODE.NORMAL;
+  }
 
+  static areDiceConfigured(diceTypes, userId){
+    const diceConfig = RollUtil.playerDiceConfigs[userId];
+    return diceTypes?.map(diceType => {
+      return diceConfig?.[diceType] !== "";
+    }).includes(true) || false;
+  }
   
 }
 

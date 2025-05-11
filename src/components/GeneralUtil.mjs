@@ -1,3 +1,4 @@
+import { HOOK_NAMES } from "../constants/General.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 
@@ -120,7 +121,7 @@ export class GeneralUtil {
     let assignedPlayer = game.users.players.find(pl=>{
       return pl.active === true && pl.character.id === actorId;
     });
-    owner = assignedPlayer;
+    owner = assignedPlayer; 
 
     if(!owner){ 
       // owner = game.users.find(u => u.isGM===true); 
@@ -221,4 +222,18 @@ export class GeneralUtil {
     // Update the style element
     bodyStyle.textContent = newCss;
   };
+
+  static getActivityType(hookName) {
+    return Object.values(HOOK_NAMES).find(hookItem => hookItem.name.toLowerCase() === hookName.toLowerCase())?.activityType || "";
+  }
+
+  static getElement(target) {
+    // Check if it's a jQuery object
+    if (target && typeof target.jquery !== 'undefined') {
+      // It's a jQuery object, get the first DOM element
+      return target[0];
+    }
+    // It's already a DOM element
+    return target;
+  }
 }

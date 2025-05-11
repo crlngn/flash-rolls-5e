@@ -18,18 +18,19 @@ export const DEBUG_TAG = [
 
 export const HOOK_NAMES = {
   // "" (empty string) - General roll
+  ATTACK: { name: "attack", activityType: "attack" }, // Attack Activity
+  DAMAGE: { name: "damage", activityType: "damage" }, // Damage Activity
+  SAVE: { name: "save", activityType: "damage" }, // Save Activity (usually with damage)
+  SAVING_THROW: { name: "savingthrow", activityType: "check" }, // Saving throws
   ABILITY_CHECK: { name: "abilitycheck", activityType: "check" }, // Ability checks
-  SAVING_THROW: { name: "savingthrow", activityType: "save" }, // Saving throws
   CONCENTRATION: { name: "concentration", activityType: "check" }, // Concentration checks
   DEATH_SAVE: { name: "deathsave", activityType: "save" }, // Death saving throws
   SKILL: { name: "skill", activityType: "check" }, // Skill checks
   TOOL: { name: "tool", activityType: "check" }, // Tool checks
-  HIT_DIE: { name: "hitdie", activityType: "" }, // Hit die rolls
-  INITIATIVE: { name: "initiative", activityType: "" }, // Initiative rolls
-  ATTACK: { name: "attack", activityType: "attack" }, // Attack rolls
-  DAMAGE: { name: "damage", activityType: "damage" }, // Damage rolls
-  FORMULA: { name: "formula", activityType: "" }, // Formula rolls
-  RECHARGE: { name: "recharge", activityType: "" }, // Recharge rolls
+  HIT_DIE: { name: "hitdie", activityType: "formula" }, // Hit die rolls
+  INITIATIVE: { name: "initiative", activityType: "check" }, // Initiative rolls
+  FORMULA: { name: "formula", activityType: "formula" }, // Formula rolls
+  RECHARGE: { name: "recharge", activityType: "formula" }, // Recharge rolls
 };
 
 export const ACTIVITY_TYPES = {
@@ -52,4 +53,8 @@ export const CALL_TYPE = {
   CHECK: "check",
 }
 
-
+export const BUTTON_ACTION_TYPES = {
+  ROLL_REQUEST: "rollRequest",
+  ROLL_ATTACK: "rollAttack",
+  ROLL_DAMAGE: "rollDamage"
+}

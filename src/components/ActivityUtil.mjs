@@ -1,7 +1,8 @@
 import { HOOKS_CORE } from "../constants/Hooks.mjs";
-import { ACTIVITY_TYPES, MODULE_ID } from "../constants/General.mjs";
+import { ACTIVITY_TYPES, HOOK_NAMES, MODULE_ID } from "../constants/General.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { RollUtil } from "./RollUtil.mjs";
+import { GeneralUtil } from "./GeneralUtil.mjs";
 
 /**
  * Utility class for handling activity-related functionality
@@ -20,19 +21,19 @@ export class ActivityUtil {
    * Trigger an attack roll for a player
    * @param {Object} data - configuration data
    */
-  static triggerActivity = async (data) => {
+  static triggerActivity = async (data) => { 
     const { activityUuid, diceTypes, config, dialog, message } = data;
+    LogUtil.log("triggerActivity #1", [diceTypes, config, dialog, message, data]);
     const diceConfig = RollUtil.playerDiceConfigs[game.user.id]; // Get the player's core dice configuration
     const situationalBonus = config.situational ? Number(config.situational) : 0;
     const activityData = activityUuid.split("."); // example: "Actor.Br4xlsplGmnHwdiG.Item.kDxIYfzQIFmukmH0.Activity.attackWarhammerI"
     const actor = game.actors.get(activityData[1]); // pick actor from the uuid
     const item = actor?.items.get(activityData[3]); // pick item from the uuid
     const activity = item?.system?.activities?.get(activityData[5]) || item?.activities?.get(activityData[5]); // pick activity from the uuid
-    const areDiceConfigured = diceTypes.map(diceType => {
-      return diceConfig?.[diceType] !== "";
-    }).includes(true);
+    const hookName = config.hookNames?.[0] || activity.type;
 
-    LogUtil.log("triggerActivity #1", [activity, diceTypes, areDiceConfigured, data]);
+    LogUtil.log("triggerActivity #2", [hookName, activity, data]);
+
     if(!actor || !item || !activity) return;
     
     const updatedConfig = {
@@ -40,8 +41,7 @@ export class ActivityUtil {
       parts: config.parts || []
     };
     const updatedDialog = {
-      ...dialog,
-      configure: !areDiceConfigured, // if player configured roll resolver for specific dice, we can skip the configuration window
+      ...dialog
     };
     const updatedMessage = {
       ...message,
@@ -54,24 +54,24 @@ export class ActivityUtil {
     }
     
     // Call the activity's rollAttack method
-    switch(config.type){
-      case ACTIVITY_TYPES.ATTACK:{
+    switch(hookName){
+      case HOOK_NAMES.ATTACK.name:{
         ActivityUtil.useAttack({activity, config: updatedConfig, message: updatedMessage, dialog: updatedDialog});
         LogUtil.log("triggerActivity attack", [updatedConfig, updatedDialog, updatedMessage]);
         // activity.use(updatedConfig, updatedDialog, updatedMessage);
         // activity.rollAttack(updatedConfig, updatedDialog, updatedMessage);
         break;
       }
-      case ACTIVITY_TYPES.DAMAGE:{
-        activity.rollDamage(updatedConfig, updatedDialog, updatedMessage);
+      case HOOK_NAMES.DAMAGE.name:{
+        LogUtil.log("triggerActivity damage", [updatedConfig, updatedDialog, updatedMessage]);
+        ActivityUtil.useDamage({activity, config: updatedConfig, message: updatedMessage, dialog: updatedDialog});
         break;
       }
-      case ACTIVITY_TYPES.SAVE:{
-        LogUtil.log("triggerActivity #rollSave", [activity.rollSave, actor.rollSavingThrow]);
+      case HOOK_NAMES.SAVE.name:{
+        LogUtil.log("triggerActivity save", [updatedConfig]);
         updatedMessage.create = true;
         activity.use(updatedConfig, updatedDialog, updatedMessage);
-        // activity.rollSave(updatedConfig, updatedDialog, updatedMessage);
-        // actor.rollSavingThrow(updatedConfig, updatedDialog, updatedMessage);
+        // ActivityUtil.useDamage({activity, config: updatedConfig, message: updatedMessage, dialog: updatedDialog});
         break;
       }
       default:{
@@ -80,7 +80,7 @@ export class ActivityUtil {
     }
     
     // activity.use(updatedConfig, updatedDialog, updatedMessage);
-    LogUtil.log("triggerActivity #2", [activityUuid, config, data]);
+    LogUtil.log("triggerActivity #3", [activityUuid, config, data]);
   }
 
   /**
@@ -93,7 +93,7 @@ export class ActivityUtil {
     const context = await activity._usageChatContext(message);
     const originalActions = activity.metadata.usage.actions;
     const attackButton = context.buttons.find(btnData => btnData.dataset.action === "rollAttack");
-    const damageButton = context.buttons.find(btnData => btnData.dataset.action === "rollDamage");
+    // const damageButton = context.buttons.find(btnData => btnData.dataset.action === "rollDamage");
     
     // Add configuration data to buttons for later pickup
     const attackConfigData = {
@@ -104,23 +104,24 @@ export class ActivityUtil {
       ammunition: config.ammunition
     }
     attackButton.dataset = {
-      ...attackButton.dataset,
+      ...attackButton?.dataset,
       ...attackConfigData,
       action: "rollAttack",
       activityUuid: activity.uuid,
     }
-    damageButton.dataset = {
-      ...attackButton.dataset,
-      action: "rollDamage",
-      activityUuid: activity.uuid
-      // situational: config.situational,
-      // critical: config.critical,
-      // isCritical: config.isCritical
-    }
+    // damageButton.dataset = {
+    //   ...damageButton?.dataset,
+    //   action: "rollDamage",
+    //   activityUuid: activity.uuid,
+    //   situational: config.situational,
+    //   critical: config.critical,
+    //   isCritical: config.isCritical
+    // }
 
     activity.metadata.usage.actions = {
+      ...activity.metadata.usage.actions,
       'rollAttack': ActivityUtil.rollModifiedAttack,
-      'rollDamage': ActivityUtil.rollModifiedDamage
+      // 'rollDamage': ActivityUtil.rollModifiedDamage
     }
 
     const messageConfig = foundry.utils.mergeObject({
@@ -139,12 +140,41 @@ export class ActivityUtil {
       }
     }, message);
 
+    const diceTypes = ['d20'];
+    const areDiceConfigured = RollUtil.areDiceConfigured(diceTypes, game.user.id);
+    dialog.configure = !areDiceConfigured;
+
     LogUtil.log("useAttack", [activity, context, messageConfig, data]);
     const card = await ChatMessage.create(messageConfig.data);
-    // activity.use(config, dialog, message);
-    activity.rollAttack(attackConfigData);
+    // activity.use({}, dialog, {create: true});
+    activity.rollAttack(attackConfigData, dialog, {create: true});
     // activity.metadata.usage.actions = originalActions; // Restore original actions 
   }
+
+   /**
+   * Creates a chat card for an attack usage with buttons that
+   * allow config dialog to pick up configuration options selected by the game master
+   * @param {Object} data 
+   */
+   static useDamage = async (data) => {
+    const { activity, config, message, dialog } = data;
+    // Add configuration data to buttons for later pickup
+    const damageConfigData = {
+      situational: config.situational,
+      critical: config.critical,
+      isCritical: config.isCritical
+    }
+    const damageParts = activity?.damage?.parts || activity?.rolls?.[0]?.parts || [];
+    const diceTypes = damageParts.map(part => 'd' + part.denomination);
+    const areDiceConfigured = RollUtil.areDiceConfigured(diceTypes, game.user.id);
+    dialog.configure = !areDiceConfigured;
+
+    LogUtil.log("useDamage", [activity, damageParts, diceTypes, areDiceConfigured, data]);
+    activity.rollDamage(damageConfigData, dialog, {create: true});
+    // activity.use(damageConfigData, dialog, {create: true});
+  }
+
+  
 
   static rollModifiedAttack(event, target, message){
     LogUtil.log("rollModifiedAttack", [event, target, message, this]);
@@ -163,7 +193,13 @@ export class ActivityUtil {
 
   static rollModifiedDamage(event, target, message){
     LogUtil.log("rollModifiedDamage", [event, target, message]);
-    this.rollDamage();
+    const { activity } = ActivityUtil.getDataFromUuid(target.dataset.activityUuid);
+    activity.rollDamage({
+      event: event,
+      situational: target.dataset.situational,
+      critical: target.dataset.critical === "true",
+      isCritical: target.dataset.isCritical === "true"
+    }, {}, message);
   }
 
   /**

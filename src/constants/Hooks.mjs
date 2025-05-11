@@ -12,7 +12,8 @@ export const HOOKS_CORE = {
   RENDER_ROLL_RESOLVER: "renderRollResolver",
   USER_CONNECTED: "userConnected",
   PRE_CREATE_CHAT_MESSAGE: "preCreateChatMessage",
-  CREATE_CHAT_MESSAGE: "createChatMessage"
+  CREATE_CHAT_MESSAGE: "createChatMessage",
+  RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog"
 };
 
 /**
@@ -104,5 +105,6 @@ export const HOOKS_DND5E = {
   BUILD_ROLL_CONFIG: "dnd5e.buildRollConfig",
   POST_ROLL_CONFIG: "dnd5e.postRollConfiguration",
   RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
-  RENDER_SKILL_TOOL_ROLL_CONFIGURATION_DIALOG: "renderSkillToolRollConfigurationDialog"
+  RENDER_SKILL_TOOL_ROLL_DIALOG: "renderSkillToolRollConfigurationDialog",
+  RENDER_FORMULA_ROLL_DIALOG: "renderFormulaRollConfigurationDialog"
 }
