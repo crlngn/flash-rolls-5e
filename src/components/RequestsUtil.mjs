@@ -54,8 +54,8 @@ export class RequestsUtil {
     Hooks.on(HOOKS_DND5E.POST_ROLL_CONFIG, RequestsUtil.#onPostRollConfiguration);
 
     // Enable debug mode for hooks to see all hook calls in the console
-    CONFIG.debug.hooks = true;
-    LogUtil.log("Hook debugging enabled", [], true);
+    // CONFIG.debug.hooks = true;
+    // LogUtil.log("Hook debugging enabled", [], true);
   }
 
   /**
@@ -104,10 +104,10 @@ export class RequestsUtil {
       RequestsUtil.triggerRollRequest(triggerData);
       // SocketUtil.execForUser(actionHandler, user.id, handlerData);
     }else{
-      RequestsUtil.triggerRollRequest({
-        actorId: actor.id,
-        ...data
-      })
+      // RequestsUtil.triggerRollRequest({
+      //   actorId: actor.id,
+      //   ...data
+      // })
       LogUtil.log("sendRollRequest - no user", [handlerData]);
     }
     
@@ -120,7 +120,7 @@ export class RequestsUtil {
    * @returns 
    */
   static triggerRollRequest(data){ 
-    let { actorId="", config={}, dialog={}, message={}, rollOptions={} } = SocketUtil.deserializeFromTransport(data);
+    let { actorId="", config={}, dialog={}, message={}, rollOptions={} } = data;//SocketUtil.deserializeFromTransport(data);
 
     LogUtil.log("triggerRollRequest", [ data]);
     const actor = game.actors.get(actorId);
@@ -179,9 +179,9 @@ export class RequestsUtil {
     let type = '';
 
     // in case it's an activity...
-    const { itemId, activityId } = GeneralUtil.getPartsFromActivityUuid(rollOptions.activityUuid);
-    const item = actor.items.get(itemId);
-    const activity = item?.system?.activities?.get(activityId);
+    const { itemId, activityId } = rollOptions.activityUuid ? GeneralUtil.getPartsFromActivityUuid(rollOptions.activityUuid) : {};
+    const item = itemId ? actor.items.get(itemId) : null;
+    const activity = activityId ? item?.system?.activities?.get(activityId) : null;
 
     switch(true){
       case config.hookNames[0] === ROLL_REQUEST_OPTIONS.SKILL.name:
@@ -354,7 +354,7 @@ export class RequestsUtil {
    * @param {Object} message - BasicRollMessageConfiguration for the message
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
-  static async #onPostRollConfiguration(rolls, config, dialog, message){
+  static #onPostRollConfiguration(rolls, config, dialog, message){
     const actor = config.subject?.actor || config.subject;
     const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
     const ddbGamelogFlag = config.flags?.["ddb-game-log"] !== undefined && config.flags?.["ddb-game-log"] !== null || false;
@@ -385,7 +385,7 @@ export class RequestsUtil {
         isDdbGl: ddbGamelogFlag
       }
     }
-    await actor.setFlag(MODULE_ID, "isDdbGl", ddbGamelogFlag);
+    actor.setFlag(MODULE_ID, "isDdbGl", ddbGamelogFlag);
 
     if(!playerOwner?.active || !RequestsUtil.requestsEnabled || !game.user.isGM){
       config.event = null;
@@ -402,7 +402,7 @@ export class RequestsUtil {
     const isActivity = config.subject instanceof dnd5e.dataModels.activity.BaseActivityData;
     const handlerData = {
       actorId: actor.id, 
-      config: SocketUtil.serializeForTransport(config), 
+      config: config,//SocketUtil.serializeForTransport(config), 
       dialog, message, 
       rollOptions: {
         advantage: rolls[0]?.hasAdvantage || false,
@@ -416,7 +416,7 @@ export class RequestsUtil {
     };
 
     SocketUtil.execForUser(actionHandler, playerOwner.id, handlerData);
-    LogUtil.log("#onPostRollConfiguration #B", [actionHandler, playerOwner.id, handlerData]);
+    LogUtil.log("#onPostRollConfiguration #B !!!", [actionHandler, playerOwner.id, handlerData]);
     
     return false;
   }

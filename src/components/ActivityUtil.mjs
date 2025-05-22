@@ -114,7 +114,7 @@ export class ActivityUtil {
       ...attackButton?.dataset,
       ...attackConfigData,
       action: "rollAttack",
-      activityUuid: activity.uuid,
+      activityUuid: activity.uuid || "",
     }
     // damageButton.dataset = {
     //   ...damageButton?.dataset,
