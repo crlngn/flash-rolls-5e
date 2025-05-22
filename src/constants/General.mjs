@@ -18,19 +18,23 @@ export const DEBUG_TAG = [
 
 export const HOOK_NAMES = {
   // "" (empty string) - General roll
-  ATTACK: { name: "attack", activityType: "attack" }, // Attack Activity
-  DAMAGE: { name: "damage", activityType: "damage" }, // Damage Activity
-  SAVE: { name: "save", activityType: "damage" }, // Save Activity (usually with damage)
-  SAVING_THROW: { name: "savingthrow", activityType: "check" }, // Saving throws
-  ABILITY_CHECK: { name: "abilitycheck", activityType: "check" }, // Ability checks
-  CONCENTRATION: { name: "concentration", activityType: "check" }, // Concentration checks
-  DEATH_SAVE: { name: "deathsave", activityType: "save" }, // Death saving throws
-  SKILL: { name: "skill", activityType: "check" }, // Skill checks
-  TOOL: { name: "tool", activityType: "check" }, // Tool checks
-  HIT_DIE: { name: "hitdie", activityType: "formula" }, // Hit die rolls
-  INITIATIVE: { name: "initiative", activityType: "check" }, // Initiative rolls
-  FORMULA: { name: "formula", activityType: "formula" }, // Formula rolls
-  RECHARGE: { name: "recharge", activityType: "formula" }, // Recharge rolls
+  ATTACK: { name: "attack", requestType: "attack" }, // Attack Activity
+  DAMAGE: { name: "damage", requestType: "damage" }, // Damage Activity
+  SAVE: { name: "save", requestType: "damage" }, // Save Activity (usually with damage)
+  SAVING_THROW: { name: "savingthrow", requestType: "check" }, // Saving throws
+  ABILITY_CHECK: { name: "abilitycheck", requestType: "check" }, // Ability checks
+  CONCENTRATION: { name: "concentration", requestType: "check" }, // Concentration checks
+  DEATH_SAVE: { name: "deathsave", requestType: "save" }, // Death saving throws
+  SKILL: { name: "skill", requestType: "check" }, // Skill checks
+  TOOL: { name: "tool", requestType: "check" }, // Tool checks
+  HIT_DIE: { name: "hitdie", requestType: "formula" }, // Hit die rolls
+  INITIATIVE: { name: "initiative", requestType: "check" }, // Initiative rolls
+  FORMULA: { name: "formula", requestType: "formula" }, // Formula rolls
+  RECHARGE: { name: "recharge", requestType: "formula" }, // Recharge rolls
+
+  D20_TEST: { name: "d20Test", requestType: "formula" }, // D20 test
+  SHORT_REST: { name: "shortRest", requestType: "formula" }, // Short rest
+  LONG_REST: { name: "longRest", requestType: "formula" }, // Long rest
 };
 
 export const ACTIVITY_TYPES = {
@@ -57,4 +61,16 @@ export const BUTTON_ACTION_TYPES = {
   ROLL_REQUEST: "rollRequest",
   ROLL_ATTACK: "rollAttack",
   ROLL_DAMAGE: "rollDamage"
+}
+
+export const ROLL_REQUEST_OPTIONS = {
+  SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
+  TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
+  ABILITY_CHECK: { name: "abilityCheck", label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
+  SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.savingThrows' },
+  DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
+  CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },
+  INITIATIVE: { name: "initiativeDialog", label: "Roll Initiative", subList: null, actorPath: '' },
+  // INITIATIVE_DIALOG: { name: "initiativeDialog", label: "Initiative", subList: null, actorPath: '' },
+  // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }

@@ -1,3 +1,6 @@
+/* Import additional stylesheets */
+@import url('./roll-requests-menu.css');
+
 /* Base Styles */
 .application.roll-resolver section[data-application-part] {
   display: flex;

@@ -1,8 +1,9 @@
 import { HOOKS_CORE } from "../constants/Hooks.mjs";
 import { ACTIVITY_TYPES, HOOK_NAMES, MODULE_ID } from "../constants/General.mjs";
 import { LogUtil } from "./LogUtil.mjs";
-import { RollUtil } from "./RollUtil.mjs";
+import { RequestsUtil } from "./RequestsUtil.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
+import { SocketUtil } from "./SocketUtil.mjs";
 
 /**
  * Utility class for handling activity-related functionality
@@ -24,35 +25,35 @@ export class ActivityUtil {
   static triggerActivity = async (data) => { 
     const { activityUuid, diceTypes, config, dialog, message } = data;
     LogUtil.log("triggerActivity #1", [diceTypes, config, dialog, message, data]);
-    const diceConfig = RollUtil.playerDiceConfigs[game.user.id]; // Get the player's core dice configuration
+    const diceConfig = RequestsUtil.playerDiceConfigs[game.user.id]; // Get the player's core dice configuration
     const situationalBonus = config.situational ? Number(config.situational) : 0;
     const activityData = activityUuid.split("."); // example: "Actor.Br4xlsplGmnHwdiG.Item.kDxIYfzQIFmukmH0.Activity.attackWarhammerI"
     const actor = game.actors.get(activityData[1]); // pick actor from the uuid
     const item = actor?.items.get(activityData[3]); // pick item from the uuid
     const activity = item?.system?.activities?.get(activityData[5]) || item?.activities?.get(activityData[5]); // pick activity from the uuid
     const hookName = config.hookNames?.[0] || activity.type;
+    const deserializedConfig = SocketUtil.deserializeFromTransport(config, true);
 
-    LogUtil.log("triggerActivity #2", [hookName, activity, data]);
+    LogUtil.log("triggerActivity #2", [hookName, deserializedConfig, data]);
 
     if(!actor || !item || !activity) return;
-    
     const updatedConfig = {
-      ...config,
-      parts: config.parts || []
+      ...deserializedConfig,
+      subject: activity,
+      parts: deserializedConfig.parts || []
     };
     const updatedDialog = {
       ...dialog
     };
     const updatedMessage = {
       ...message,
-      flavor: config.flavor
+      flavor: deserializedConfig.flavor
     };
-    
     // Add situational bonus to the parts array if not already included
     if (situationalBonus && !updatedConfig.parts.includes('@situational')) {
       updatedConfig.parts.push('@situational');
     }
-    
+
     // Call the activity's rollAttack method
     switch(hookName){
       case HOOK_NAMES.ATTACK.name:{
@@ -63,7 +64,8 @@ export class ActivityUtil {
         break;
       }
       case HOOK_NAMES.DAMAGE.name:{
-        LogUtil.log("triggerActivity damage", [updatedConfig, updatedDialog, updatedMessage]);
+        LogUtil.log("triggerActivity damage", [activity, updatedConfig, updatedDialog, updatedMessage]);
+        // ActivityUtil.testDamage({activity, attackMode: updatedConfig.attackMode});
         ActivityUtil.useDamage({activity, config: updatedConfig, message: updatedMessage, dialog: updatedDialog});
         break;
       }
@@ -79,8 +81,13 @@ export class ActivityUtil {
       }
     }
     
-    // activity.use(updatedConfig, updatedDialog, updatedMessage);
     LogUtil.log("triggerActivity #3", [activityUuid, config, data]);
+  }
+
+  static testDamage(data){
+    const { activity, config, message, dialog } = data;
+    
+    activity.rollDamage();
   }
 
   /**
@@ -94,7 +101,7 @@ export class ActivityUtil {
     const originalActions = activity.metadata.usage.actions;
     const attackButton = context.buttons.find(btnData => btnData.dataset.action === "rollAttack");
     // const damageButton = context.buttons.find(btnData => btnData.dataset.action === "rollDamage");
-    
+    LogUtil.log("useAttack #1", [data]);
     // Add configuration data to buttons for later pickup
     const attackConfigData = {
       situational: config.situational,
@@ -113,9 +120,10 @@ export class ActivityUtil {
     //   ...damageButton?.dataset,
     //   action: "rollDamage",
     //   activityUuid: activity.uuid,
-    //   situational: config.situational,
-    //   critical: config.critical,
-    //   isCritical: config.isCritical
+    //   attackMode: config.attackMode,
+    //   // situational: config.situational,
+    //   // critical: config.critical,
+    //   // isCritical: config.isCritical
     // }
 
     activity.metadata.usage.actions = {
@@ -141,12 +149,13 @@ export class ActivityUtil {
     }, message);
 
     const diceTypes = ['d20'];
-    const areDiceConfigured = RollUtil.areDiceConfigured(diceTypes, game.user.id);
+    const areDiceConfigured = RequestsUtil.areDiceConfigured(diceTypes, game.user.id);
     dialog.configure = !areDiceConfigured;
 
     LogUtil.log("useAttack", [activity, context, messageConfig, data]);
     const card = await ChatMessage.create(messageConfig.data);
-    // activity.use({}, dialog, {create: true});
+
+    // activity.use(attackConfigData, dialog, {create: true});
     activity.rollAttack(attackConfigData, dialog, {create: true});
     // activity.metadata.usage.actions = originalActions; // Restore original actions 
   }
@@ -158,23 +167,64 @@ export class ActivityUtil {
    */
    static useDamage = async (data) => {
     const { activity, config, message, dialog } = data;
-    // Add configuration data to buttons for later pickup
-    const damageConfigData = {
-      situational: config.situational,
-      critical: config.critical,
-      isCritical: config.isCritical
+    LogUtil.log("useDamage #1", [data, config.attackMode]);
+
+    // Check if we have rolls in the config
+    if (config.rolls && config.rolls.length > 0) {
+      // Extract the roll from config
+      const roll = config.rolls[0];
+      
+      // Create damage config data using the roll information
+      const damageConfigData = {
+        event: config.event,
+        situational: config.situational || "",
+        attackMode: config.attackMode,
+        subject: activity,
+        // critical: config.critical,
+        // // Use the roll's formula if available
+        // formula: roll.formula,
+        // // Use the roll's parts if available
+        // parts: roll.parts || [],
+        // // Include any roll data
+        // data: roll.data || {},
+        // // Include roll options
+        // options: roll.options || {}
+      };
+      
+      LogUtil.log("useDamage - Using roll from config", [damageConfigData]);
+      
+      const damageParts = activity?.damage?.parts || activity?.rolls?.[0]?.parts || [];
+      const diceTypes = damageParts.map(part => 'd' + part.denomination);
+      const areDiceConfigured = RequestsUtil.areDiceConfigured(diceTypes, game.user.id);
+      dialog.configure = !areDiceConfigured;
+      LogUtil.log("useDamage #2", [damageConfigData, dialog]);
+      ActivityUtil.rollDamage({ config: damageConfigData, attackMode: damageConfigData.attackMode });
+      // activity.rollDamage(damageConfigData, dialog, {create: true});
+      return;
     }
-    const damageParts = activity?.damage?.parts || activity?.rolls?.[0]?.parts || [];
-    const diceTypes = damageParts.map(part => 'd' + part.denomination);
-    const areDiceConfigured = RollUtil.areDiceConfigured(diceTypes, game.user.id);
-    dialog.configure = !areDiceConfigured;
+    
+    // Fallback to direct roll if no config.rolls is available
+    LogUtil.log("useDamage - No rolls in config, using direct roll");
+    activity.rollDamage();
 
-    LogUtil.log("useDamage", [activity, damageParts, diceTypes, areDiceConfigured, data]);
-    activity.rollDamage(damageConfigData, dialog, {create: true});
-    // activity.use(damageConfigData, dialog, {create: true});
+    // // Add configuration data to buttons for later pickup
+    // const damageConfigData = activity.getDamageConfig({
+    //   event: config.event,
+    //   situational: config.situational || "",
+    //   rolls: activity?.rolls || []
+    //   // critical: config.critical || dialog.critical ||undefined
+    // });
+
+    // const damageParts = activity?.damage?.parts || activity?.rolls?.[0]?.parts || [];
+    // const diceTypes = damageParts.map(part => 'd' + part.denomination);
+    // const areDiceConfigured = RequestsUtil.areDiceConfigured(diceTypes, game.user.id);
+    // // dialog.configure = !areDiceConfigured;
+
+    // LogUtil.log("useDamage #2", [damageConfigData, data]);
+    // activity.rollDamage();
+    // //damageConfigData, {configure: !areDiceConfigured}, {create: true});
+    // // activity.use(damageConfigData, dialog, {create: true});
   }
-
-  
 
   static rollModifiedAttack(event, target, message){
     LogUtil.log("rollModifiedAttack", [event, target, message, this]);
@@ -191,16 +241,14 @@ export class ActivityUtil {
     }, {}, message);
   }
 
-  static rollModifiedDamage(event, target, message){
-    LogUtil.log("rollModifiedDamage", [event, target, message]);
-    const { activity } = ActivityUtil.getDataFromUuid(target.dataset.activityUuid);
-    activity.rollDamage({
-      event: event,
-      situational: target.dataset.situational,
-      critical: target.dataset.critical === "true",
-      isCritical: target.dataset.isCritical === "true"
-    }, {}, message);
-  }
+  // static rollModifiedDamage(event, target, message){
+  //   LogUtil.log("rollModifiedDamage", [event, target, message]);
+  //   const { activity } = ActivityUtil.getDataFromUuid(target.dataset.activityUuid);
+  //   activity.rollDamage({
+  //     event: event,
+  //     situational: target.dataset.situational
+  //   }, {}, message);
+  // }
 
   /**
    * Handle rendering of chat messages
@@ -236,5 +284,51 @@ export class ActivityUtil {
     const activity = item?.system?.activities?.get(activityData[5]) || item?.activities?.get(activityData[5]);
     
     return { actor, item, activity };
+  }
+
+
+  /**
+   * Perform a damage roll.
+   * @param {Event} event  The click event triggering the action.
+   * @returns {Promise<void>}
+   */
+  static rollDamage = async(data) => {
+    let { activity, attackMode, config, formulas, damageTypes, rollType, scaling } = data;
+
+
+    formulas = formulas?.split("&") ?? [];
+    damageTypes = damageTypes?.split("&") ?? [];
+
+    const rollConfig = {
+      ...config,
+      attackMode,
+      hookNames: ["damage"],
+      rolls: formulas.map((formula, idx) => {
+        const types = damageTypes[idx]?.split("|") ?? [];
+        return {
+          parts: [formula],
+          options: { type: types[0], types }
+        };
+      })
+    };
+
+    const messageConfig = {
+      create: true,
+      data: {
+        flags: {
+          dnd5e: {
+            messageType: "roll",
+            roll: { type: rollType },
+            targets: GeneralUtil.getTargetDescriptors()
+          }
+        },
+        flavor: game.i18n.localize(`DND5E.${rollType === "healing" ? "Healing" : "Damage"}Roll`),
+        speaker: ChatMessage.implementation.getSpeaker()
+      }
+    };
+
+    const rolls = await CONFIG.Dice.DamageRoll.build(rollConfig, {}, messageConfig);
+    if ( !rolls?.length ) return;
+    Hooks.callAll("dnd5e.rollDamageV2", rolls);
   }
 }

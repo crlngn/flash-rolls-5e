@@ -1,0 +1,36 @@
+<ul class="pc-actors">
+  <li>
+    <input type="checkbox" id="crlngn-pc-actors-all" value="all">
+    <label for="crlngn-pc-actors-all">Select All</label>
+  </li>
+  {{#each actors as |actor|}}
+    <li class="pc-actor">
+      <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}">
+      <label for="crlngn-pc-{{ actor.id }}">{{ actor.name }}</label>
+    </li>
+  {{/each}}
+</ul>
+
+<!-- Request Types -->
+<ul class="request-types">
+  {{#each requestTypes as |requestType|}}
+    <li data-id="{{ requestType.id }}">
+      {{#if requestType.rollable}}
+        <i class="icon fas fa-dice-d20"></i>
+      {{else}}
+        <i class="icon fas fa-caret-left"></i>
+      {{/if}} 
+      {{ requestType.name }}
+    </li>
+  {{/each}}
+</ul>
+
+<!-- Roll Types -->
+<ul class="roll-types">
+  {{#each rollTypes as |rollType|}}
+    <li>
+      <i class="icon fas fa-dice-d20"></i>
+      {{ rollType.name }}
+    </li>
+  {{/each}}
+</ul>

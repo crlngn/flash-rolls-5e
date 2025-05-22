@@ -1,10 +1,11 @@
 import { HOOKS_CORE } from "../constants/Hooks.mjs"; 
 import { LogUtil } from "./LogUtil.mjs"; 
-import { SettingsUtil } from "./SettingsUtil.mjs"; 
+import { SettingsUtil } from "./SettingsUtil.mjs";
+import { RollRequestsMenu } from "./RollRequestsMenu.mjs"; 
 import { getSettings } from "../constants/Settings.mjs";
 import { MODULE_ID } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
-import { RollUtil } from "./RollUtil.mjs";
+import { RequestsUtil } from "./RequestsUtil.mjs";
 import { ActivityUtil } from "./ActivityUtil.mjs";
 
 /**
@@ -12,6 +13,7 @@ import { ActivityUtil } from "./ActivityUtil.mjs";
  * Manages module lifecycle, hooks, and core functionality
  */
 export class Main {
+  static diceConfig = {};
   static SOCKET_CALLS = {
     receiveDiceConfig: "receiveDiceConfig",
     getDiceConfig: "getDiceConfig"
@@ -27,7 +29,9 @@ export class Main {
       const SETTINGS = getSettings();
       LogUtil.log("Initiating module...", [], true);
       SettingsUtil.registerSettings();
-      RollUtil.init();
+      RequestsUtil.init();
+      RollRequestsMenu.init();
+      Main.setDiceConfig();
     });
 
     Hooks.once(HOOKS_CORE.READY, () => {
@@ -38,10 +42,8 @@ export class Main {
       if(isDebugOn){CONFIG.debug.hooks = true};
       
       if(game.user.isGM){
-        Main.injectRollRequestsToggle();
-      }
-      
-      if(game.user.isGM){
+        RollRequestsMenu.injectRollRequestsMenu();
+        
         Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
         // Only run this on the GM client
         game.users.forEach(user => {
@@ -64,21 +66,26 @@ export class Main {
       SocketUtil.execForUser(Main.SOCKET_CALLS.getDiceConfig, user.id);
     }
   }
+
+  static setDiceConfig(){
+    if(!game.user) return;
+    const clientSettings = game.settings.storage.get("client"); 
+    Main.diceConfig = clientSettings[`core.diceConfiguration`] || '';
+    LogUtil.log(`getDiceConfig`, [Main.diceConfig]);
+    return Main.diceConfig;
+  }
   
   // Add the getDiceConfig method that will be called on the player's client
   static getDiceConfig() { 
     if(!game.user) return;
-    const clientSettings = game.settings.storage.get("client");
-    let diceConfig = clientSettings[`core.diceConfiguration`] || '';
-    diceConfig = diceConfig || "";
-    LogUtil.log(`getDiceConfig`, [diceConfig]);
+    Main.setDiceConfig();
     
     if(game.user.isGM) {
-      RollUtil.playerDiceConfigs[game.user.id] = diceConfig;
-      SocketUtil.execForGMs(Main.SOCKET_CALLS.receiveDiceConfig, game.user.id, diceConfig);
+      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig;
+      SocketUtil.execForGMs(Main.SOCKET_CALLS.receiveDiceConfig, game.user.id, Main.diceConfig);
       return;
     }else{
-      RollUtil.playerDiceConfigs[game.user.id] = diceConfig ? JSON.parse(diceConfig) : {};
+      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig ? JSON.parse(Main.diceConfig) : {};
     }
     
   }
@@ -87,10 +94,10 @@ export class Main {
   static receiveDiceConfig(userId, diceConfig) {
     if (game.user?.isGM || userId===game.user.id){ // for GM or own user
       // Store the dice configuration for this user
-      if (!RollUtil.playerDiceConfigs) RollUtil.playerDiceConfigs = {};
-      RollUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
+      if (!RequestsUtil.playerDiceConfigs) RequestsUtil.playerDiceConfigs = {};
+      RequestsUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
       
-      LogUtil.log(`Received dice configuration from user ${userId}`, [RollUtil.playerDiceConfigs]);
+      LogUtil.log(`Received dice configuration from user ${userId}`, [RequestsUtil.playerDiceConfigs]);
     };
   }
 
@@ -100,24 +107,7 @@ export class Main {
   static registerSocketCalls() {
     SocketUtil.registerCall(Main.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
     SocketUtil.registerCall(Main.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
-    RollUtil.registerSocketCalls();
-  }
-
-  static injectRollRequestsToggle(){
-    const SETTINGS = getSettings();
-    const rollRequestsToggleHTML = `<label class="chat-control-icon active" id="crlngn-request-toggle" data-tooltip-direction="LEFT"><i class="fas fa-bolt"></i></label>`;
-    
-    document.querySelector("#chat-controls").insertAdjacentHTML("afterbegin", rollRequestsToggleHTML);
-    const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
-    const isEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    SettingsUtil.applyRollRequestsSetting(isEnabled);
-    
-    rollRequestsToggle.addEventListener("click", (event) => {
-      event.target.classList.toggle("active");
-      const isActive = event.target.classList.contains("active");
-      SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, isActive);
-    });
-    return rollRequestsToggle;
+    RequestsUtil.registerSocketCalls();
   }
 
 }

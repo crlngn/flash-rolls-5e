@@ -113,7 +113,7 @@ export class GeneralUtil {
     canvas.scene.deleteEmbeddedDocuments('MeasuredTemplate', templates.map(i=>i.id));
   }
 
-  static getUserFromActor(actorId){
+  static getPlayerOwner(actorId){
     let owner;
     if(!actorId){ return null; }
     const actor = actorId ? game.actors.get(actorId) : null;
@@ -131,9 +131,6 @@ export class GeneralUtil {
         }
       });
     }
-
-    // let gm = game.users.find(u => u.isGM===true);
-    LogUtil.log("getUserFromActor", [actorId, owner]);
 
     return owner;
   }
@@ -227,6 +224,15 @@ export class GeneralUtil {
     return Object.values(HOOK_NAMES).find(hookItem => hookItem.name.toLowerCase() === hookName.toLowerCase())?.activityType || "";
   }
 
+  static getPartsFromActivityUuid(uuid){
+    const parts = uuid.split(".");
+    return {
+      actorId: parts[1],
+      itemId: parts[3],
+      activityId: parts[5]
+    }
+  }
+
   static getElement(target) {
     // Check if it's a jQuery object
     if (target && typeof target.jquery !== 'undefined') {
@@ -236,4 +242,19 @@ export class GeneralUtil {
     // It's already a DOM element
     return target;
   }
+
+  /**
+   * Get currently selected tokens in the scene or user's character's tokens.
+   * @returns {Token5e[]}
+   */
+  static getSceneTargets() {
+    let targets = canvas.tokens?.controlled.filter(t => t.actor) ?? [];
+    if ( !targets.length && game.user.character ) targets = game.user.character.getActiveTokens();
+    return targets;
+  }
+
+  static getAdvantageMode(rollOptions){
+    return rollOptions.advantage ? CONFIG.Dice.D20Roll.ADV_MODE.ADVANTAGE : rollOptions.disadvantage ? CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE : CONFIG.Dice.D20Roll.ADV_MODE.NORMAL;
+  }
 }
+

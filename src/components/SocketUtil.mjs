@@ -7,6 +7,7 @@ import { LogUtil } from "./LogUtil.mjs";
  */
 export class SocketUtil {
   static socket;
+  static _activeExecutions = new Map();
 
   /**
    * Initializes the socket module and registers it with socketlib.
@@ -112,11 +113,32 @@ export class SocketUtil {
         LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as user.");
         return;
     }
+
+    if(userId === game.user.id){
+      LogUtil.log("SocketUtil - Preventing recursive call", [userId]);
+      return null; // Break the recursion
+    }
+    const executionKey = `${handler}-${userId}`;
     
-    // We need to use the original handler, but we'll handle deserialization on reception
-    const resp = await SocketUtil.socket.executeAsUser(handler, userId, ...parameters);
-    LogUtil.log("SocketUtil - Executed as user.", [resp]);
-    return resp;
+    // Check if this exact execution is already in progress
+    if (SocketUtil._activeExecutions.has(executionKey)) {
+        LogUtil.log("SocketUtil - Preventing recursive call", [executionKey]);
+        return null; // Break the recursion
+    }
+    // Mark this execution as active
+    SocketUtil._activeExecutions.set(executionKey, true);
+    
+    try {
+        const resp = await SocketUtil.socket.executeAsUser(handler, userId, ...parameters);
+        LogUtil.log("SocketUtil - Executed as user.", [resp]);
+        return resp;
+    } catch (error) {
+        LogUtil.log("SocketUtil - Error executing as user", [error]);
+        return null;
+    } finally {
+        // Always clean up, even if there was an error
+        SocketUtil._activeExecutions.delete(executionKey);
+    }
   }
 
   /**
@@ -124,7 +146,7 @@ export class SocketUtil {
    * @param {*} data - The data to serialize
    * @returns {*} - Serialized data
    */
-  static serializeForTransport(data, hasRolls=false) {
+  static serializeForTransport(data, hasRolls=false) { 
     // Handle null or undefined
     if (data == null) return data;
     
@@ -133,14 +155,14 @@ export class SocketUtil {
       
       data.rolls = data.rolls.map(r => {
         if(r instanceof Roll){
-          let test = r.toJSON();
-          return test;
+          let serialized = r.toJSON();
+          return serialized;
         }else{
           return r;
         }
       });
     }
-    LogUtil.log("ROLLS DATA", [data]);
+    LogUtil.log("ROLLS DATA", [data, data.subject]);
     
     return data;
   }
@@ -151,25 +173,23 @@ export class SocketUtil {
    * @returns {*} - Deserialized data with reconstructed objects
    */
   static deserializeFromTransport(data, hasRolls=false) {
-    let result = {};
-    // Handle null or undefined
-    if (data == null) return data;
+    let result = { ...data };
+    if (!data) return result;
 
     if(hasRolls && data.rolls && data.rolls.length > 0){
-      // rolls = data.rolls.map(r => Roll.fromJSON(JSON.stringify(r)));
-      
-      result = {
-        ...data,
-        rolls: data.rolls.map(r => {
-          if(typeof r === 'string'){
-            return Roll.fromJSON(r);
-          }else{
-            return Roll.fromJSON(JSON.stringify(r));
-          }
-        })
-      }
+      const rolls = result.rolls.map(r => {
+        let roll = r;
+        if(typeof r === 'string'){
+          roll = Roll.fromJSON(r);
+        }else {
+          roll = Roll.fromJSON(JSON.stringify(r));
+        }
+        LogUtil.log("ROLL", [roll, r]);
+        return roll;
+      })
+      result.rolls = [...rolls];
+      return result;
     }
-    LogUtil.log("ROLLS RESULT", [result]);
     
     return result;
   }

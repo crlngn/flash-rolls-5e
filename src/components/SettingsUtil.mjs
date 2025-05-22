@@ -1,7 +1,7 @@
 import { MODULE_ID } from "../constants/General.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { LogUtil } from "./LogUtil.mjs";
-import { RollUtil } from "./RollUtil.mjs";
+import { RequestsUtil } from "./RequestsUtil.mjs";
 
 /**
  * Utility class for managing module settings
@@ -114,7 +114,7 @@ export class SettingsUtil {
   static applyRollRequestsSetting(value){
     const SETTINGS = getSettings();
     const isEnabled = value!==undefined ? value : SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    RollUtil.requestsEnabled = isEnabled;
+    RequestsUtil.requestsEnabled = isEnabled;
     const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
     if(!rollRequestsToggle){ return; }
     if (isEnabled === false) {
