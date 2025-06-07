@@ -21,7 +21,8 @@
         "dcFieldLabel": "DC"
       },
       "notifications": {
-        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib."
+        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib.",
+        "rollRequestSent": "Roll Request sent to "
       },
       "cards": {
         "rollRequestFlavor": "Roll request"

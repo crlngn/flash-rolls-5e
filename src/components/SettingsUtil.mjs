@@ -43,6 +43,7 @@ export class SettingsUtil {
       }
       LogUtil.log("registerSettings",[setting.tag, SettingsUtil.get(setting.tag)]);
     });
+    SettingsUtil.applyRollRequestsSetting();
   }
   
   /**
@@ -113,7 +114,8 @@ export class SettingsUtil {
 
   static applyRollRequestsSetting(value){
     const SETTINGS = getSettings();
-    const isEnabled = value!==undefined ? value : SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    LogUtil.log("applyRollRequestsSetting", [value]);
+    const isEnabled = value || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     RequestsUtil.requestsEnabled = isEnabled;
     const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
     if(!rollRequestsToggle){ return; }
@@ -128,7 +130,7 @@ export class SettingsUtil {
       "CRLNGN_ROLLS.ui.buttons.rollRequestsToggleOff");
     rollRequestsToggle.dataset.tooltip = tooltipStr;
 
-    if (game.tooltip) {
+    if (game.user.isGM && game.tooltip) {
       game.tooltip.activate(rollRequestsToggle, {text: tooltipStr});
     }
     

@@ -1,12 +1,29 @@
 <ul class="pc-actors">
-  <li>
+  <li class="options">
     <input type="checkbox" id="crlngn-pc-actors-all" value="all">
     <label for="crlngn-pc-actors-all">Select All</label>
+    <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="crlngn-actors-lock"></i>
   </li>
   {{#each actors as |actor|}}
-    <li class="pc-actor">
-      <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}">
-      <label for="crlngn-pc-{{ actor.id }}">{{ actor.name }}</label>
+    <li class="pc-actor" data-id="{{ actor.id }}" data-selected="false">
+      {{!-- <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}"> --}}
+      <div class="actor-select" data-id="{{ actor.id }}">
+        <i class="icon fas fa-circle"></i>
+      </div>
+      <div class="actor-data">
+        {{#if ../showName}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
+        <ul class="actor-stats">
+          {{#each actor.crlngnStats as |prop|}}
+            <li class="actor-stat">
+              <span class="stat-abbrev">{{ prop.abbrev }}</span>
+              <span class="stat-value">{{ prop.value }}</span>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+      <div class="actor-img">
+        <img src="../{{ actor.img }}" alt="{{ actor.name }}" />
+      </div>
     </li>
   {{/each}}
 </ul>

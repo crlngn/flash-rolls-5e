@@ -64,13 +64,13 @@ export const BUTTON_ACTION_TYPES = {
 }
 
 export const ROLL_REQUEST_OPTIONS = {
-  SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
-  TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
   ABILITY_CHECK: { name: "abilityCheck", label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
   SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.savingThrows' },
-  DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
+  SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
+  TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
   CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },
-  INITIATIVE: { name: "initiativeDialog", label: "Roll Initiative", subList: null, actorPath: '' },
+  INITIATIVE: { name: "initiativeDialog", label: "Initiative Roll", subList: null, actorPath: '' },
+  DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
   // INITIATIVE_DIALOG: { name: "initiativeDialog", label: "Initiative", subList: null, actorPath: '' },
   // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }

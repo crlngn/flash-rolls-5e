@@ -43,12 +43,14 @@ export class Main {
       
       if(game.user.isGM){
         RollRequestsMenu.injectRollRequestsMenu();
-        
+
         Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
         // Only run this on the GM client
         game.users.forEach(user => {
           Main.onUserConnected(user);
         });
+      }else{
+        Main.getDiceConfig();
       }
     });
     ActivityUtil.init();
@@ -98,7 +100,7 @@ export class Main {
       RequestsUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
       
       LogUtil.log(`Received dice configuration from user ${userId}`, [RequestsUtil.playerDiceConfigs]);
-    };
+    }
   }
 
   /**

@@ -14,6 +14,7 @@ import { Main } from "./Main.mjs";
  * https://github.com/foundryvtt/dnd5e/wiki/Hooks
  */
 export class RequestsUtil {
+  static forcePublicRoll = false;
   static requestsEnabled = false;
   static SOCKET_CALLS = {
     triggerRollRequest: { action:"triggerRollRequest", type: CALL_TYPE.CHECK },
@@ -42,16 +43,19 @@ export class RequestsUtil {
     // Hooks.on(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, RequestsUtil.#onPreRollAbilityCheck);
     // Hooks.on(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, RequestsUtil.#onPreRollSavingThrow);
 
-    // Roll Resolver
-    Hooks.on(HOOKS_CORE.RENDER_ROLL_RESOLVER, RequestsUtil.#onRenderRollResolver);
-
     // // ACTIVITY
-    // Hooks.on(HOOKS_DND5E.PRE_USE_ACTIVITY, RequestsUtil.#onPreUseActivity);
+    Hooks.on(HOOKS_DND5E.PRE_USE_ACTIVITY, RequestsUtil.#onPreUseActivity); 
     // Hooks.on(HOOKS_DND5E.POST_USE_ACTIVITY, RequestsUtil.#onPostUseActivity);
     
     // // Roll Config
-    Hooks.on(HOOKS_CORE.RENDER_ROLL_CONFIGURATION_DIALOG, RequestsUtil.#onRenderRollConfigurationDialog);
+    Hooks.on(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, RequestsUtil.#onRenderRollConfigurationDialog);
     Hooks.on(HOOKS_DND5E.POST_ROLL_CONFIG, RequestsUtil.#onPostRollConfiguration);
+
+    // Roll Resolver
+    Hooks.on(HOOKS_CORE.RENDER_ROLL_RESOLVER, RequestsUtil.#onRenderRollResolver);
+
+    // Chat Messages
+    Hooks.on(HOOKS_CORE.RENDER_CHAT_MESSAGE, RequestsUtil.#onRenderChatMessage);
 
     // Enable debug mode for hooks to see all hook calls in the console
     // CONFIG.debug.hooks = true;
@@ -76,42 +80,61 @@ export class RequestsUtil {
    * @param {Actor5e} actor 
    * @param {Object} data 
    */
-  static sendRollRequest(actor, data={config:{}, dialog: {}, message: {}}){ 
+  static sendRollRequest(actor, data={config:{}, dialog: {configure: true}, message: {}, actors: [], activityUuid: null}){ 
     const actionHandler = RequestsUtil.SOCKET_CALLS.triggerRollRequest.action;
     const user = GeneralUtil.getPlayerOwner(actor.id);
     const handlerData = { actorId: actor.id, ...data};
+    LogUtil.log("sendRollRequest #A", [handlerData]);
 
-    if(user){
-      LogUtil.log("sendRollRequest - found user", [user, handlerData]);
-      data.config = {
-        ...data.config,
-        flags: {
-          ...data.config.flags,
-          [MODULE_ID]: {
-            rollRequest: true,
-            triggerOnRender: true,
-            type: data.type
-          }
+    data.config = {
+      ...data.config,
+      flags: {
+        ...data.config.flags,
+        [MODULE_ID]: {
+          rollRequest: true,
+          triggerOnRender: true,
+          type: data.type
         }
       }
-      const triggerData = {
-        ...handlerData
-      }
-      triggerData.config.tool = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name ? handlerData.dataset?.abbreviation : null;
-      triggerData.config.skill = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name ? handlerData.dataset?.abbreviation : null;
-      triggerData.config.ability = handlerData.dataset?.abbreviation || handlerData.dataset?.ability || null;
-      triggerData.config.abilityId = handlerData.dataset?.abbreviation || handlerData.dataset?.ability || null;
-      RequestsUtil.triggerRollRequest(triggerData);
-      // SocketUtil.execForUser(actionHandler, user.id, handlerData);
-    }else{
-      // RequestsUtil.triggerRollRequest({
-      //   actorId: actor.id,
-      //   ...data
-      // })
-      LogUtil.log("sendRollRequest - no user", [handlerData]);
     }
-    
-    
+
+    const triggerData = {
+      ...handlerData, 
+      message: {
+        ...data.message
+      },
+      actors: data.actors.map(actor => actor.id)
+    }
+
+    if(RequestsUtil.forcePublicRoll) {
+      triggerData.message.rollMode = CONST.DICE_ROLL_MODES.PUBLIC
+    }
+
+    // triggerData.dialog.configure = true;
+    triggerData.config.tool = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name ? handlerData.dataset?.abbreviation : "";
+    triggerData.config.skill = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name ? handlerData.dataset?.abbreviation : "";
+    const abbrev = handlerData.dataset?.abbreviation;
+    let ability = "";
+    if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name){
+      ability = actor.system?.tools?.[abbrev]?.ability || CONFIG.DND5E.tools[abbrev]?.ability;
+    }else if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name){
+      ability = actor.system?.skills?.[abbrev]?.ability || CONFIG.DND5E.skills[abbrev]?.ability;
+    }else if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SAVING_THROW.name || 
+      triggerData.dataset?.type===ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name){
+      ability = abbrev;
+    }else if(handlerData.dataset?.type===HOOK_NAMES.ATTACK.name){
+      triggerData.rollOptions = {
+        actorId: actor.id,
+        activityUuid: handlerData.activityUuid,
+        attackMode: "",
+        hookNames: handlerData.config?.hookNames || [],
+      }
+    }
+    triggerData.config.ability = ability;
+    triggerData.config.abilityId = ability;
+
+    LogUtil.log("sendRollRequest #B", [abbrev, triggerData]);
+    RequestsUtil.triggerRollRequest(triggerData);
   }
 
   /**
@@ -120,69 +143,106 @@ export class RequestsUtil {
    * @returns 
    */
   static triggerRollRequest(data){ 
-    let { actorId="", config={}, dialog={}, message={}, rollOptions={} } = data;//SocketUtil.deserializeFromTransport(data);
-
-    LogUtil.log("triggerRollRequest", [ data]);
+    let { actorId="", config={}, dialog={}, message={}, rollOptions=null, actors = [] } = data;
+    let item=null, activity=null;
     const actor = game.actors.get(actorId);
+    LogUtil.log("triggerRollRequest #A", [actor.name, data]);
+    
     if(!actor){
       LogUtil.log("triggerRollRequest - actor not found", [actorId, actor]);
       return;
     }
+    // LogUtil.log("triggerRollRequest #B", [actor.name, data]);
 
-    LogUtil.log("triggerRollRequest - options", [rollOptions, rollOptions.situational]);
+    if(rollOptions?.targetTokens){
+      canvas.tokens.placeables[0]?.setTarget(false, { releaseOthers: true });
+      for(let token of canvas.tokens.placeables){
+        if(rollOptions.targetTokens.includes(token.id)){
+          token.setTarget(true, { releaseOthers: false });
+        }
+      }
+    }
 
     // pass the modified data from rollOptions to the config.rolls[0]
     // before sending via sockets
+    let options = {};
     if(rollOptions){
-      const options = {
+      options = {
+        actorId: actorId,
+        ability: rollOptions.ability,
+        abilityId: rollOptions.ability,
+        tool: rollOptions.tool,
+        skill: rollOptions.skill,
         advantage: rollOptions.advantage || false,
         disadvantage: rollOptions.disadvantage || false,
         situational: rollOptions.situational || "",
+        attackMode: rollOptions.attackMode || "",
         target: rollOptions.target || null,
-        type: rollOptions.rollType || ""
+        dc: rollOptions.dc || null,
+        type: rollOptions.rollType || "",
+        flavor: message?.data?.flavor || "",
+        hookNames: config.hookNames || []
       }
       
       config = {
-        ...config,
+        // ...config,
         ...options,
+        event: null,
         rolls: [{
           // ...config.rolls?.[0],
           parts: [],
           options: {
             // ...config.rolls?.[0]?.options,
             // advantageMode: GeneralUtil.getAdvantageMode(options),
-            target: options.target || null,
+            // target: options.target || null,
+            dc: options.dc || null,
             rollType: options.rollType || ""
           }
         }]
       }
 
-      // if(options.situational && !config.rolls[0].parts.includes('@situational')){
-      //   config.rolls[0].situational = options.situational || "";
-      //   config.rolls[0].parts.push('@situational');
-      // }
-      const type = RequestsUtil.getTypeFromHookNames(config.hookNames || []);
-      message.flags = {
-        ...message.flags,
+      // in case it's an activity...
+      const { itemId, activityId } = rollOptions.activityUuid ? GeneralUtil.getPartsFromActivityUuid(rollOptions.activityUuid) : {};
+      item = itemId ? actor.items.get(itemId) : null;
+      activity = activityId ? item?.system?.activities?.get(activityId) : null;
+    }
+
+    // set the dialog title to the flavor of gm's config
+    dialog = {
+      ...dialog,
+      options: {
+        ...dialog.options,
+        window: {
+          ...dialog.options?.window,
+          subtitle: actor.name
+        }
+      }
+    }
+    if(message?.data?.flavor || config?.flavor){
+      dialog.options.window.title = message?.data?.flavor || config?.flavor;
+    }
+
+    let type = RequestsUtil.getTypeFromHookNames(config.hookNames || []);
+    message = {
+      flags: {
+        // ...message.flags,
+        // whisper: [],
         [MODULE_ID]: {
           rollRequest: true,
           rollOptions: rollOptions,
-          type: type
+          type: type,
+          actors: game.user.isGM ? actors.filter(actorItem => actorItem.id !== actor.id) : []
         }
       }
-      const requestOption = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === type);
-      message.flavor = requestOption?.label;
     }
+    if(RequestsUtil.forcePublicRoll) {
+      message.rollMode = CONST.DICE_ROLL_MODES.PUBLIC
+    }
+    const requestOption = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === type);
+    message.flavor = requestOption?.label;
 
-    const areDiceConfigured = RequestsUtil.areDiceConfigured(["d20"], game.user.id);
-    LogUtil.log("triggerRollRequest - areDiceConfigured", [config, dialog, message]);
-    let type = '';
-
-    // in case it's an activity...
-    const { itemId, activityId } = rollOptions.activityUuid ? GeneralUtil.getPartsFromActivityUuid(rollOptions.activityUuid) : {};
-    const item = itemId ? actor.items.get(itemId) : null;
-    const activity = activityId ? item?.system?.activities?.get(activityId) : null;
-
+    LogUtil.log("triggerRollRequest #C", [config, dialog, message]);
+    
     switch(true){
       case config.hookNames[0] === ROLL_REQUEST_OPTIONS.SKILL.name:
         actor.rollSkill(config, dialog, message);
@@ -216,40 +276,38 @@ export class RequestsUtil {
         actor.rollConcentration(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.CONCENTRATION.name;
         break;
-      // case config.hookNames[0] === ROLL_REQUEST_OPTIONS.HIT_DIE.name:
-      //   actor.rollHitDie();
-      //   type = ROLL_REQUEST_OPTIONS.HIT_DIE.name;
-      //   break;
-      // case config.hookNames.includes(HOOK_NAMES.SHORT_REST.name):
-      //   actor.shortRest();
-      //   break;
-      // case config.hookNames.includes(HOOK_NAMES.LONG_REST.name):
-      //   actor.longRest();
-      //   break;
-      // case config.hookNames.includes(HOOK_NAMES.FORMULA.name):
-      //   break;
-      case config.hookNames.includes(HOOK_NAMES.DAMAGE.name):
-        LogUtil.log("triggerRollRequest - damage #1", [rollOptions.activityUuid]);
+      case config.hookNames[0] === HOOK_NAMES.DAMAGE.name:
+        LogUtil.log("triggerRollRequest - damage #1", [activity, config, dialog, message]);
         if(activity){
+          config.rolls = [];
           activity.rollDamage(config, dialog, message);
         }
-        LogUtil.log("triggerRollRequest - damage #2", [item, activity]);
         break;
-      case config.hookNames.includes(HOOK_NAMES.ATTACK.name):
-        LogUtil.log("triggerRollRequest - attack #1", [rollOptions.activityUuid]);
+      case config.hookNames[0] === HOOK_NAMES.ATTACK.name:
+        LogUtil.log("triggerRollRequest - attack #1", [activity, config, dialog, message]);
         if(activity){
-          activity.rollAttack(config, dialog, message);
+          message.flavor = "";
+          message.content = "";
+          LogUtil.log("triggerRollRequest - use", [message]);
+          activity.use({},{},message);
+          // activity.rollAttack(config, dialog, message);
         }
-        LogUtil.log("triggerRollRequest - attack #2", [item, activity]);
         break;
+        // case config.hookNames[0] === ROLL_REQUEST_OPTIONS.HIT_DIE.name:
+        //   actor.rollHitDie();
+        //   type = ROLL_REQUEST_OPTIONS.HIT_DIE.name;
+        //   break;
+        // case config.hookNames.includes(HOOK_NAMES.SHORT_REST.name):
+        //   actor.shortRest();
+        //   break;
+        // case config.hookNames.includes(HOOK_NAMES.LONG_REST.name):
+        //   actor.longRest();
+        //   break;
+        // case config.hookNames.includes(HOOK_NAMES.FORMULA.name):
+        //   break;
       default:
         break;
     }
-
-    // RequestsUtil.createRequestMessage(actor, {
-    //   type,
-    //   config, dialog, message
-    // }, true);
   }
 
   static createRequestMessage = async(actor, data, triggerOnRender=false) => {
@@ -260,6 +318,7 @@ export class RequestsUtil {
     const dataset = {
       type: data.type,
       ability: data.config.ability,
+      abilityId: data.config.ability,
       skill: data.config.skill,
       tool: data.config.tool,
       dc: data.config.target || "",
@@ -271,11 +330,7 @@ export class RequestsUtil {
       visibility: game.users.find(u=>actor===u.character)?.id,
       target: actor.uuid
     };
-    // const buttons = [{
-    //   buttonLabel: requestType?.label,
-    //   hiddenLabel: requestType?.label,
-    //   dataset: dataset
-    // }];
+    
     const buttons = [];
     
     const chatData = {
@@ -293,11 +348,6 @@ export class RequestsUtil {
       }
     };
     
-    const chatMessage = await ChatMessage.implementation.create(chatData);
-    // const actionButton = chatMessage.querySelector(`button[data-action='roll'][data-type=${dataset.type}]`);
-    // if(triggerAfterPost && actionButton){
-    //   actionButton.click();
-    // }
     if(triggerOnRender){
       const event = {
         type: "click",
@@ -317,7 +367,7 @@ export class RequestsUtil {
     const diceConfig = RequestsUtil.playerDiceConfigs[userId];
     if(!diceConfig){ return false; }
     const configured = diceTypes?.map(diceType => {
-      return diceConfig?.[diceType] !== "";
+      return diceConfig?.[diceType] !== "" && diceConfig?.[diceType] !== undefined && diceConfig?.[diceType] !== null;
     }) || [];
     const isAnyConfigured = configured.includes(true) || false;
     LogUtil.log("areDiceConfigured", [configured, diceTypes, diceConfig, isAnyConfigured]);
@@ -347,6 +397,49 @@ export class RequestsUtil {
   }
 
   /**
+   * Hook handler for dnd5e.renderRollConfigurationDialog
+   * Fires when a roll configuration dialog is rendered
+   * @param {RollConfigurationDialog} rollConfigDialog - The roll configuration dialog
+   * @param {HTMLElement} html - The HTML element of the dialog
+   */
+  static #onRenderRollConfigurationDialog(rollConfigDialog, html){
+    const config = rollConfigDialog.config;
+    const message = rollConfigDialog.message;
+    const actor = config?.subject?.actor || config?.subject;
+    const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
+    LogUtil.log("#onRenderRollConfigurationDialog #1", [playerOwner, RequestsUtil.requestsEnabled]);
+
+    if(!playerOwner?.active || !RequestsUtil.requestsEnabled){
+      return; 
+    }
+
+    let eventTarget = GeneralUtil.getElement(config?.event?.target);
+    const target = eventTarget ? eventTarget.closest(".card-buttons")?.querySelector("button[data-action]") : null;
+    
+    LogUtil.log("#onRenderRollConfigurationDialog #2", []);
+    RequestsUtil.handleRollDialogInputs(target, rollConfigDialog, html);
+    
+    if(!RequestsUtil.requestsEnabled){
+      return; 
+    }
+    if(!game.user.isGM){
+      const submitBtn = html.querySelector('button[autofocus]');
+      const activity = config.subject;
+      const damageParts = activity ? activity.damage?.parts : null;
+      const diceTypes = config.rolls?.[0]?.dice?.map(dice => dice.denomination) || ["d20"];
+      //  parts?.map(part => 'd' + part.denomination) || ['d20'];
+      
+      const areDiceConfigured = RequestsUtil.areDiceConfigured(diceTypes, playerOwner.id);
+      LogUtil.log("#onRenderRollConfigurationDialog #3", [rollConfigDialog, config, areDiceConfigured, diceTypes]);
+
+      if(areDiceConfigured){
+        setTimeout(() => submitBtn.click(), 500);
+      }
+    }
+    LogUtil.log("#onRenderRollConfigurationDialog #4", []);
+  }
+
+  /**
    * Hook handler for dnd5e.postRollConfiguration
    * @param {Array} rolls - BasicRoll[] array of rolls
    * @param {Object} config - BasicRollProcessConfiguration for the roll
@@ -355,146 +448,177 @@ export class RequestsUtil {
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
   static #onPostRollConfiguration(rolls, config, dialog, message){
-    const actor = config.subject?.actor || config.subject;
-    const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
-    const ddbGamelogFlag = config.flags?.["ddb-game-log"] !== undefined && config.flags?.["ddb-game-log"] !== null || false;
-    LogUtil.log("#onPostRollConfiguration #A", [ddbGamelogFlag, rolls, config, dialog, message]);
+    const actorsList = message.flags?.[MODULE_ID]?.actors || [];
+    const ddbGamelogFlags = config.flags?.["ddb-game-log"] || message.data?.flags?.["ddb-game-log"];
+    const isDdbGl = ddbGamelogFlags!==null && ddbGamelogFlags!==undefined ? true : false;
+    LogUtil.log("#onPostRollConfiguration #A", [actorsList, rolls, config, dialog, message]);
 
-    // if(config.rolls?.[0]?.flags){
-    //   config.rolls[0].flags = {
-    //     ...config.rolls[0].flags,
-    //     [MODULE_ID]: {
-    //       isDdbGl: ddbGamelogFlag
-    //     }
-    //   }
-    // }
-
-    // if(rolls?.[0]?.flags){
-    //   rolls[0].flags = {
-    //     ...rolls[0].flags,
-    //     [MODULE_ID]: {
-    //       isDdbGl: ddbGamelogFlag
-    //     }
-    //   }
-    // }
-
-    config.flags = {
-      ...config.flags,
-      [MODULE_ID]: {
-        ...config.flags?.[MODULE_ID],
-        isDdbGl: ddbGamelogFlag
+    if(!actorsList?.length){ return; }
+    // IMPORTANT FOR MAKING SURE DDB GAMELOG ROLLS COME THROUGH DIRECTLY
+    if(rolls?.[0]?.data?.flags){
+      rolls[0].data.flags = {
+        ...rolls[0].data.flags,
+        [MODULE_ID]: {
+          isDdbGl: isDdbGl
+        }
       }
     }
-    actor.setFlag(MODULE_ID, "isDdbGl", ddbGamelogFlag);
+      
+    const diceTypes = rolls?.[0]?.dice?.map(dice => dice.denomination) || [];
+    let forwardedToPlayer = false;
 
-    if(!playerOwner?.active || !RequestsUtil.requestsEnabled || !game.user.isGM){
-      config.event = null;
-      return; 
-    }
-    
-    const actionHandler = RequestsUtil.SOCKET_CALLS.triggerRollRequest.action;
-    const areDiceConfigured = RequestsUtil.areDiceConfigured(["d20"], playerOwner.id);
-    dialog.configure = true;//!areDiceConfigured;
-    message.flags = {
-      ...message.flags,
-      ...(rolls[0]?.data.flags || {})
-    }
-    const isActivity = config.subject instanceof dnd5e.dataModels.activity.BaseActivityData;
-    const handlerData = {
-      actorId: actor.id, 
-      config: config,//SocketUtil.serializeForTransport(config), 
-      dialog, message, 
-      rollOptions: {
-        advantage: rolls[0]?.hasAdvantage || false,
-        disadvantage: rolls[0]?.hasDisadvantage || false,
-        situational: rolls[0]?.data?.situational || "",
-        target: rolls[0]?.options?.target || null,
-        rollType: rolls[0]?.options?.rollType || "",
-        actorId: actor.id,
-        activityUuid: isActivity ? config.subject.uuid : null
+    // Process actors with a delay between each one
+    (async () => {
+      for(let i = 1; i < actorsList.length; i++){
+        const actorId = actorsList[i];
+        const actor = game.actors.get(actorId);
+        const playerOwner = actorId ? GeneralUtil.getPlayerOwner(actorId) : null;
+        LogUtil.log("#onPostRollConfiguration #B", [isDdbGl, actor.name, playerOwner?.name, rolls, config, dialog, message]);
+
+        if(game.user.isGM && playerOwner?.active && RequestsUtil.requestsEnabled){
+          const actionHandler = RequestsUtil.SOCKET_CALLS.triggerRollRequest.action;
+          const areDiceConfigured = RequestsUtil.areDiceConfigured(["d20"], playerOwner.id);
+          dialog.configure = true;
+          // message.flags = {
+          //   ...message.flags //,
+          //   // ...(rolls[0]?.data?.flags || {})
+          // }
+          const isActivity = config.subject instanceof dnd5e.dataModels.activity.BaseActivityData;
+          const targetedTokens = GeneralUtil.getClientTargets() || [];
+          const tokenIds = targetedTokens.map(t=>t.id);
+          const handlerData = {
+            actorId: actorId, 
+            config: config, // SocketUtil.serializeForTransport(config), 
+            dialog, message, 
+            rollOptions: {
+              ability: rolls[0]?.data?.abilityId || config.ability,
+              abilityId: rolls[0]?.data?.abilityId || config.ability,
+              tool: config?.tool,
+              skill: config?.skill,
+              advantage: rolls[0]?.hasAdvantage || false,
+              disadvantage: rolls[0]?.hasDisadvantage || false,
+              situational: rolls[0]?.data?.situational || "",
+              target: config.target || config.dc || null,
+              dc: config.dc || config.target || null,
+              rollType: rolls[0]?.options?.rollType || "",
+              attackMode: rolls[0]?.options?.attackMode || config.attackMode || "",
+              diceTypes: diceTypes,
+              actorId: actorId,
+              activityUuid: isActivity ? config.subject.uuid : null,
+              targetTokens: isActivity ? tokenIds : null,
+              playerOwner: playerOwner?.id || ""
+            }
+          };
+          ui.notifications.info(`Roll Request sent to ${playerOwner.name}`)
+          forwardedToPlayer = true;
+
+          // Send the request and wait for it to complete
+          await SocketUtil.execForUser(actionHandler, playerOwner.id, handlerData);
+          LogUtil.log("#onPostRollConfiguration - sending to...", [actor.name, playerOwner?.name, handlerData]);
+          
+          
+          // Add a small delay before processing the next actor
+          if (i < actorsList.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 750)); // 750ms delay
+          }
+        } else {
+          forwardedToPlayer = false;
+          config.event = null;
+          dialog = {
+            ...dialog,
+            window: {
+              ...dialog.window,
+              subtitle: actor.name
+            }
+          }
+          RequestsUtil.triggerRollRequest({actorId: actorId, config, dialog});
+          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor.name, playerOwner?.name, config, dialog, message]);
+        }
       }
-    };
+    })();
 
-    SocketUtil.execForUser(actionHandler, playerOwner.id, handlerData);
-    LogUtil.log("#onPostRollConfiguration #B !!!", [actionHandler, playerOwner.id, handlerData]);
-    
-    return false;
+    return forwardedToPlayer ? false : undefined;
   }
 
   static #onRenderRollResolver(rollResolver, html){
     const roll = rollResolver.roll;
-    LogUtil.log("#onRenderRollResolver", [roll?.data?.flags?.[MODULE_ID],rollResolver, html]);
-    
+    LogUtil.log("#onRenderRollResolver AAA", [roll?.data, rollResolver, html]);
+
     if(roll?.data?.flags?.[MODULE_ID]?.isDdbGl){
-      // rollResolver.close = ()=>{};
-      html.querySelector("button[type='submit']").click();// dispatchEvent(new Event("click"));
+      rollResolver.close();
+      // html.querySelector("button[type='submit']").click();// dispatchEvent(new Event("click"));
       return false;
     }
     return;
   }
 
   /**
-   * Hook handler for dnd5e.renderRollConfigurationDialog
-   * Fires when a roll configuration dialog is rendered
-   * @param {RollConfigurationDialog} rollConfigDialog - The roll configuration dialog
-   * @param {HTMLElement} html - The HTML element of the dialog
+   * 
+   * @param {Activity} activity 
+   * @param {ActivityUseConfiguration} usageConfig 
+   * @param {ActivityDialogConfiguration} dialogConfig 
+   * @param {ActivityMessageConfiguration} messageConfig 
+   * @returns 
    */
-  static async #onRenderRollConfigurationDialog(rollConfigDialog, html){
-    const actor = rollConfigDialog.config?.subject?.actor || rollConfigDialog.config?.subject;
+  static #onPreUseActivity(activity, usageConfig, dialogConfig, messageConfig){
+    LogUtil.log("#onPreUseActivity #A", [activity, usageConfig, dialogConfig, messageConfig]);
+
+    const actor = activity?.actor;
     const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
-    if(!playerOwner?.active || !RequestsUtil.requestsEnabled || !game.user.isGM){
-      return; 
-    }
-    LogUtil.log("#onRenderRollConfigurationDialog #1", [rollConfigDialog]);
-    const eventTarget = GeneralUtil.getElement(rollConfigDialog.config?.event?.target);
-    const target = eventTarget?.closest(".card-buttons")?.querySelector("button[data-action]");
-    // if(target && target?.dataset.action !== BUTTON_ACTION_TYPES.ROLL_REQUEST){
-    //   return;
-    // }
-    
+    const isForwardedRequest = messageConfig.data?.flags?.[MODULE_ID]?.rollRequest || false;
 
-    await RequestsUtil.handleRollDialogInputs(target, rollConfigDialog, html);
-    const flagAttribute = `data-${MODULE_ID}-${game.user.id}-custom-event`;
-    
-    let dcInput = html.querySelector('input[name="dc"]');
-    const dcValue = target ? Number(target?.dataset?.dc) : rollConfigDialog.config?.dc || undefined;
-    if(dcInput){ dcInput.value = dcValue; }
-
-    const rollOptions = rollConfigDialog.message?.flags?.[MODULE_ID]?.rollOptions;
-    if(!rollOptions){ return; }
-    if (html.hasAttribute(flagAttribute)) {
-      return; 
-    }
-
-    const situationalBonus = Number(target?.dataset?.situational) || rollOptions?.situational || "";
-    const situationalInput = html.querySelector('input[name="roll.0.situational"]');
-    
-    if(situationalInput){
-      html.setAttribute(flagAttribute, "true");
-      situationalInput.value = situationalBonus || "";
-      situationalInput.dispatchEvent(new Event('change', {
-        bubbles: true,
-        cancelable: false
-      }));
-    }
-
-    html.setAttribute(flagAttribute, "true");
-
-    if(!game.user.isGM){
-      const submitBtn = html.querySelector('button[autofocus]');
-      const activity = rollConfigDialog.config.subject;
-      let diceTypes = [];
-
-      const parts = activity ? activity.damage?.parts : null;
-      diceTypes = parts?.map(part => 'd' + part.denomination) || ['d20'];
-      
-      const areDiceConfigured = RequestsUtil.areDiceConfigured(diceTypes, game.user.id);
-      LogUtil.log("#onRenderRollConfigurationDialog ##diceTypes", [diceTypes, areDiceConfigured]);
-      
-      if(areDiceConfigured){
-        setTimeout(() => submitBtn.click(),2000);
+    LogUtil.log("#onPreUseActivity #B", [playerOwner?.active && RequestsUtil.requestsEnabled && !isForwardedRequest]);
+    if(playerOwner?.active && RequestsUtil.requestsEnabled && !isForwardedRequest){
+      messageConfig.create = false;
+      messageConfig.data = {
+        ...messageConfig.data,
+        flags: {
+          ...messageConfig.data?.flags,
+          [MODULE_ID]: {
+            ...messageConfig.data?.flags?.[MODULE_ID],
+            playerOwner: playerOwner?.id || ""
+          }
+        }
       }
+      LogUtil.log("#onPreUseActivity #C", [playerOwner]);
+      RequestsUtil.sendRollRequest(actor, {
+        dataset: {
+          type: activity.type
+        },
+        config:{
+          hookNames: [activity.type],
+        }, 
+        dialog: {configure: true}, 
+        activityUuid: activity.uuid,
+        // message: messageConfig, 
+        actors: [actor]
+      });
+      return false;
     }
+
+    return;
+  }
+
+  static #onPostUseActivity(activity, usageConfig, dialogConfig, messageConfig){
+    LogUtil.log("#onPostUseActivity", [activity.type, ACTIVITY_TYPES.SAVE, activity, usageConfig, dialogConfig, messageConfig]);
+    const playerOwner = RequestsUtil.getPlayerOwner(activity.actor.id);
+    LogUtil.log("#onPostUseActivity #2", [playerOwner, RequestsUtil.requestsEnabled]);
+    if(playerOwner?.active && RequestsUtil.requestsEnabled){
+      messageConfig.create = false;
+      messageConfig.data = {
+        ...messageConfig.data,
+        flags: {
+          ...messageConfig.data?.flags,
+          [MODULE_ID]: {
+            ...messageConfig.data?.flags?.[MODULE_ID],
+            playerOwner: playerOwner?.id || ""
+          }
+        }
+      }
+      LogUtil.log("#onPostUseActivity #3", [playerOwner]);
+      return;
+    }
+    return;
   }
   
   /**
@@ -505,44 +629,78 @@ export class RequestsUtil {
    * @returns {boolean} Whether to allow the roll to proceed
    */
   static #onPreRollV2(config, dialog, message){
-    LogUtil.log("#onPreRollV2", [config.hookNames, config, dialog, message]);
-    //
+    LogUtil.log("#onPreRollV2", [ config.flags, config, dialog, message ]);
+
+    return;
   }
 
   static handleRollDialogInputs = async(target, dialog, html) => {
+    const rollOptions = dialog.message?.flags?.[MODULE_ID]?.rollOptions || {};
     const dcField = html.querySelector('.formulas.dc');
-    if(dcField){
-      return;
-    }
-    LogUtil.log("handleRollDialogInputs", [dialog, html]);
+    let dcInput = html.querySelector('input[name="dc"]');
+    const dcValue = target ? Number(target?.dataset?.dc) : rollOptions?.dc || dialog.config.dc || undefined;
+    if(dcInput){ dcInput.value = dcValue; }
     
-    const renderedHtml = await renderTemplate(
-      `modules/${MODULE_ID}/templates/roll-dc-field.hbs`, 
-      { 
-        label: game.i18n.localize("CRLNGN_ROLLS.ui.forms.dcFieldLabel"), 
-        dc: dialog.config.dc || ""
-      }
-    );
-    
-    if(RequestsUtil.allowsDC(dialog.config.hookNames)){
-      const targetElement = html.querySelector('.window-content .rolls .formulas');
-      targetElement?.insertAdjacentHTML('beforebegin', renderedHtml);
+    if(dialog?.config?.flavor){
+      const windowTitle = html.querySelector('.window-title');
+      windowTitle.textContent = dialog.config.flavor;
     }
-    const dcInput = html.querySelector('input[name="dc"]');
 
+    // add the input DC if not there already
+    if(!dcInput){
+      const renderedHtml = await renderTemplate(
+        `modules/${MODULE_ID}/templates/roll-dc-field.hbs`, 
+        { 
+          label: game.i18n.localize("CRLNGN_ROLLS.ui.forms.dcFieldLabel"), 
+          dc: dcValue
+        }
+      );
+      
+      if(RequestsUtil.allowsDC(dialog.config.hookNames)){
+        const targetElement = html.querySelector('.window-content .rolls .formulas');
+        targetElement?.insertAdjacentHTML('beforebegin', renderedHtml);
+      }
+    }
+  
+    dcInput = html.querySelector('input[name="dc"]');
     if(!game.user.isGM){
       html.querySelector('.formulas.dc')?.classList.add('hidden');
       dcInput?.setAttribute('hidden', true);
     }
     LogUtil.log("handleRollDialogInputs", [html, target, dialog]);
     if(target && dcInput){dcInput.value = target?.dataset?.dc;}
-    if(dcInput){dialog.config.dc = Number(dcInput.value);}
+    if(dcInput){
+      rollOptions.dc = Number(dcInput.value);
+      dialog.config.dc = Number(dcInput.value);
+    }
+
     dcInput?.addEventListener('change', () => {
+      rollOptions.dc = Number(dcInput.value);
       dialog.config.dc = Number(dcInput.value) || "";
     });
-    // dcInput?.addEventListener('blur', () => {
-    //   dialog.config.dc = Number(dcInput.value) || "";
-    // });
+
+    // if(rollOptions?.situational && !dialog.config?.parts?.includes("@situational")){
+    //   if(!dialog.config.parts){dialog.config.parts = []}
+    //   dialog.config.parts.push("@situational");
+    //   // dialog.config.data.situational = dialog.config.situational || rollOptions?.situational || "";
+    // } 
+
+    LogUtil.log("handleRollDialogInputs", [dialog.config, rollOptions]);
+
+    // handle situational bonus input
+    const flagAttribute = `data-${MODULE_ID}-${game.user.id}-custom-event`;
+    const situationalInput = html.querySelector('input[name="roll.0.situational"]');
+    const situationalBonus = Number(target?.dataset?.situational) || rollOptions?.situational || "";
+    if(!html.hasAttribute(flagAttribute) && situationalInput){
+      html.setAttribute(flagAttribute, "true");
+      situationalInput.value = situationalBonus || "";
+      situationalInput.dispatchEvent(new Event('change', {
+        bubbles: true,
+        cancelable: false
+      }));
+    }
+    html.setAttribute(flagAttribute, "true");
+    
   }
 
   static allowsDC(hookNames){

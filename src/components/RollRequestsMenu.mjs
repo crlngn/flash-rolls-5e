@@ -10,11 +10,13 @@ import { RequestsUtil } from "./RequestsUtil.mjs";
  * Class to handle the roll requests toggle and related functionality
  */
 export class RollRequestsMenu {
+  static actorsMenu = null;
   static playerActors = [];
   static selectedActors = [];
   static selectedRequestType = null;
   static selectedOptionType = null;
   static selectAllCheckbox = null;
+  static actorsLocked = false;
 
   static init(){
     RollRequestsMenu.preloadHandlebarsTemplates();
@@ -94,15 +96,24 @@ export class RollRequestsMenu {
     const menuHTML = await renderTemplate("modules/crlngn-roll-requests/templates/requests-menus.hbs", {
       actors: pcActors.map(actor => ({
         id: actor.id,
-        name: actor.name
+        name: actor.name,
+        crlngnStats: [
+          { abbrev: "AC", value: actor.system.attributes.ac.value },
+          { abbrev: "HP", value: actor.system.attributes.hp.value },
+          { abbrev: "DC", value: actor.system.attributes.spelldc },
+          { abbrev: "PRC", value: actor.system.skills.prc.passive }
+        ],
+        ...actor
       })),
-      requestTypes: requestTypes
+      requestTypes: requestTypes,
+      actorsLocked: RollRequestsMenu.actorsLocked
     });
 
     document.body.insertAdjacentHTML("beforeend", `<div id="crlngn-pc-actors-menu">${menuHTML}</div>`);
+    RollRequestsMenu.actorsMenu = document.querySelector("#crlngn-pc-actors-menu");
     
     // Position the menu to the left of the toggle button
-    const menu = document.querySelector("#crlngn-pc-actors-menu");
+    const menu = RollRequestsMenu.actorsMenu;
     menu.addEventListener("mouseleave", RollRequestsMenu.hidePCActorsMenu);
     menu.style.zIndex = 100;
     
@@ -115,7 +126,8 @@ export class RollRequestsMenu {
     
     // Set the menu position to the left of the toggle and vertically centered with it
     const menuWidth = 200; // Match the width from CSS
-    menu.style.left = `${toggleLeft - menuWidth - 5}px`;
+    // menu.style.left = `${toggleLeft - menuWidth - 5}px`;
+    menu.style.right = `var(--current-sidebar-width, 0px)`;
     menu.style.top = `${toggleTop}px`; // 20px above the toggle top
     
     // After the menu is rendered, check if it fits in the viewport
@@ -136,19 +148,25 @@ export class RollRequestsMenu {
     const selectAllCheckbox = menu.querySelector('#crlngn-pc-actors-all');
     selectAllCheckbox.addEventListener("change", RollRequestsMenu.onAllActorsToggle);
     RollRequestsMenu.selectAllCheckbox = selectAllCheckbox;
-    const actorCheckboxes = menu.querySelectorAll('input[id^="crlngn-pc-"]');
-    actorCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener("change", RollRequestsMenu.onActorToggle);
+    const lockIcon = menu.querySelector('#crlngn-actors-lock');
+    lockIcon.addEventListener("click", RollRequestsMenu.onActorLockClick);
+
+    const actorItems = menu.querySelectorAll('.pc-actor .actor-select');
+    actorItems.forEach(actorItem => {
+      actorItem.addEventListener("click", RollRequestsMenu.onActorToggle);
     });
-    const actorItem = menu.querySelector('li.pc-actor');
-    actorItem.addEventListener("dblclick", RollRequestsMenu.onActorDblClick);
+    // const actorItem = menu.querySelector('li.pc-actor');
+    // actorItem.addEventListener("dblclick", RollRequestsMenu.onActorDblClick);
+
+    RollRequestsMenu.markSelectedActors();
   }
 
   /**
    * Hide the PC actors menu when moving away from the roll requests toggle
    */
   static hidePCActorsMenu() {
-    const menu = document.querySelector("#crlngn-pc-actors-menu");
+    const menu = RollRequestsMenu.actorsMenu;
+    if(RollRequestsMenu.actorsLocked){ return; }
     if (menu) {
       // Add a small delay to allow clicking on the menu
       setTimeout(() => {
@@ -158,7 +176,7 @@ export class RollRequestsMenu {
           RollRequestsMenu.selectedActors = [];
           RollRequestsMenu.selectedRequestType = null;
         }
-      }, 250);
+      }, 750);
     }
   }
   
@@ -167,7 +185,7 @@ export class RollRequestsMenu {
    * Builds the menu items and adds click listeners
    */
   static showRequestTypes() {
-    const requestTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.request-types");
+    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
     if (requestTypesMenu) {
       requestTypesMenu.classList.add("visible");
       
@@ -187,7 +205,7 @@ export class RollRequestsMenu {
    * Hide the request types menu
    */
   static hideRequestTypes() {
-    const requestTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.request-types");
+    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
     if (requestTypesMenu) {
       requestTypesMenu.classList.remove("visible");
     }
@@ -210,17 +228,22 @@ export class RollRequestsMenu {
     }
 
     // If there's no sublist, send the roll request
-    if(requestType.subList === null){
-      actors.forEach(actor => {
-        RequestsUtil.sendRollRequest(actor, {
-          config: { hookNames: [requestTypeId] }
-        });
-        LogUtil.log("showOptionsForRequestType - Sending roll request", [actor, requestTypeId]);
+    if(requestType.subList === null && actors.length > 0){
+      RequestsUtil.sendRollRequest(actors[0], {
+        config: { hookNames: [requestTypeId] },
+        actors: actors || []
       });
+
+      LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
+      // actors.forEach(actor => {
+      //   RequestsUtil.sendRollRequest(actor, {
+      //     config: { hookNames: [requestTypeId], actors: actors }
+      //   });
+      // });
       return;
     }
     
-    const rollTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.roll-types");
+    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
     if (!rollTypesMenu) { return; }
     
     // Clear existing options
@@ -243,7 +266,7 @@ export class RollRequestsMenu {
         const toolName = toolUUID ? Trait.getBaseItem(toolUUID.id, { indexOnly: true })?.name : null;
         li.dataset.label = toolName;
       }
-      li.textContent = li.dataset.label;
+      li.innerHTML = `<i class="icon fas fa-dice-d20"></i>${li.dataset.label}`;
 
       // Add click event listener
       li.addEventListener("click", RollRequestsMenu.#onSublistItemClick);
@@ -259,11 +282,40 @@ export class RollRequestsMenu {
    * Hide the roll types menu
    */
   static hideRollTypes() {
-    const rollTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.roll-types");
+    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
     if (rollTypesMenu) {
       rollTypesMenu.classList.remove("visible");
       rollTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
       RollRequestsMenu.selectedOptionType = null;
+    }
+  }
+
+  static onActorLockClick(e){
+    const lockIcon = e.target;
+    RollRequestsMenu.actorsLocked = !RollRequestsMenu.actorsLocked;
+
+    if(RollRequestsMenu.actorsLocked){
+      lockIcon.classList.add("fa-lock-keyhole");
+      lockIcon.classList.remove("fa-lock-keyhole-open");
+    } else {
+      lockIcon.classList.add("fa-lock-keyhole-open");
+      lockIcon.classList.remove("fa-lock-keyhole");
+    }
+  }
+
+  static setItemSelection(item, markSelection){
+    item.dataset.selected = markSelection ? "true" : "false"; // alternate the value
+    const icon = item.querySelector(".actor-select i");
+    LogUtil.log("setItemSelection", [item, markSelection]);
+
+    if(markSelection){
+      item.classList.add("selected");
+      icon.classList.add("fa-circle-dot");
+      icon.classList.remove("fa-circle");
+    }else{
+      item.classList.remove("selected");
+      icon.classList.remove("fa-circle-dot");
+      icon.classList.add("fa-circle");
     }
   }
 
@@ -272,24 +324,28 @@ export class RollRequestsMenu {
    * @param {Event} e 
    */
   static onActorToggle(e){
-    const actorCheckboxes = document.querySelectorAll('input[id^="crlngn-pc-"]');
-    const allChecked = Array.from(actorCheckboxes).every(cb => cb.checked);
-    RollRequestsMenu.selectAllCheckbox.checked = allChecked;
-    
-    const someChecked = Array.from(actorCheckboxes).some(cb => cb.checked);
-    RollRequestsMenu.selectAllCheckbox.indeterminate = someChecked && !allChecked;
+    const currItem = e.currentTarget.parentElement;
+    RollRequestsMenu.setItemSelection(currItem, !(currItem.dataset.selected == "true"));
+
+    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.pc-actor');
+    const allChecked = Array.from(actorItems).every(item => item.dataset.selected === "true");
+    const someChecked = Array.from(actorItems).some(item => item.dataset.selected === "true");
+    // RollRequestsMenu.selectAllCheckbox.checked = allChecked;
+    // RollRequestsMenu.selectAllCheckbox.indeterminate = someChecked && !allChecked;
+
+    LogUtil.log("onActorToggle", [allChecked, someChecked, e.currentTarget.parentElement.dataset.selected]);
 
     // if some actors are checked, show request types menu
+    const selectedActorItems = Array.from(actorItems).filter(item => item.dataset.selected === "true");
+    const actorIds = selectedActorItems.map(item => item.dataset.id);
     if(someChecked) {
-      const checkedActors = Array.from(actorCheckboxes).filter(cb => cb.checked);
-      const actorIds = checkedActors.map(cb => cb.dataset.id);
       RollRequestsMenu.selectedActors = RollRequestsMenu.playerActors.filter(actor => actorIds.includes(actor.id));
       RollRequestsMenu.showRequestTypes();
     } else {
-      RollRequestsMenu.hideRequestTypes();
       RollRequestsMenu.selectedActors = [];
+      RollRequestsMenu.hideRequestTypes();
     }
-    LogUtil.log("actors", [RollRequestsMenu.selectedActors]);
+    LogUtil.log("actors", [actorIds, RollRequestsMenu.selectedActors]);
   }
 
   static onActorDblClick(e){
@@ -302,11 +358,14 @@ export class RollRequestsMenu {
 
   static onAllActorsToggle(e){
     const isChecked = e.target.checked;
-    const actorCheckboxes = document.querySelectorAll('input[id^="crlngn-pc-"]');
-    actorCheckboxes.forEach(checkbox => {
-      checkbox.checked = isChecked;
+    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.pc-actor');
+    RollRequestsMenu.selectedActors = [];
+    actorItems.forEach(item => {
+      RollRequestsMenu.setItemSelection(item, isChecked);  
+      RollRequestsMenu.selectedActors.push(RollRequestsMenu.playerActors.find(actor => actor.id === item.dataset.id));
     });
     
+    // RollRequestsMenu.markSelectedActors();
     // Show or hide request types based on selection
     if (isChecked) {
       RollRequestsMenu.showRequestTypes();
@@ -315,22 +374,42 @@ export class RollRequestsMenu {
     }
   }
 
+  static markSelectedActors(){
+    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.pc-actor');
+    actorItems.forEach(item => {
+      if(RollRequestsMenu.selectedActors.includes(item.dataset.id)){
+        RollRequestsMenu.setItemSelection(item, true);
+      }else{
+        RollRequestsMenu.setItemSelection(item, false);
+      }
+    });
+  }
+
   static #onRequestTypeClick = (e) => {
-    const requestTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.request-types");
+    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
     if (!requestTypesMenu) { return; }
     
     RollRequestsMenu.hideRollTypes();
-    requestTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
-    e.target.classList.add("selected");
+    requestTypesMenu.querySelectorAll(".selected").forEach(item => {
+      if(item !== e.target){
+        item.classList.remove("selected")
+      }
+    });
+    e.target.classList.toggle("selected");
     
-    RollRequestsMenu.selectedRequestType = e.target.dataset.id;
-    RollRequestsMenu.showOptionsForRequestType(RollRequestsMenu.selectedRequestType);
+    if(e.target.classList.contains("selected")){
+      RollRequestsMenu.selectedRequestType = e.target.dataset.id;
+      RollRequestsMenu.showOptionsForRequestType(RollRequestsMenu.selectedRequestType);
+    }else{
+      RollRequestsMenu.selectedRequestType = null;
+      RollRequestsMenu.hideRollTypes();
+    }
     LogUtil.log("showRequestTypes - item clicked", [e.target.dataset, RollRequestsMenu.selectedRequestType]);
   }
     
 
   static #onSublistItemClick = (e) => {
-    const rollTypesMenu = document.querySelector("#crlngn-pc-actors-menu ul.roll-types");
+    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
     if (!rollTypesMenu) { return; }
 
     rollTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
@@ -341,13 +420,20 @@ export class RollRequestsMenu {
       fullKey: e.target.dataset.fullKey,
       label: e.target.dataset.label
     };
-    RollRequestsMenu.selectedActors.forEach(actor => {
-      RequestsUtil.sendRollRequest(actor, {
-        config: { hookNames: [requestTypeId] },
-        dataset: e.target.dataset
-      });
-      LogUtil.log("showOptionsForRequestType - Sending roll request", [actor, requestTypeId]);
+
+    RequestsUtil.sendRollRequest(RollRequestsMenu.selectedActors[0], {
+      config: { hookNames: [requestTypeId] },
+      dataset: e.target.dataset, 
+      actors: RollRequestsMenu.selectedActors
     });
+
+    // RollRequestsMenu.selectedActors.forEach(actor => {
+    //   RequestsUtil.sendRollRequest(actor, {
+    //     config: { hookNames: [requestTypeId], actors: actors }
+    //     dataset: e.target.dataset
+    //   });
+    //   LogUtil.log("showOptionsForRequestType - Sending roll request", [actor, requestTypeId]);
+    // });
     LogUtil.log("Selected option", [RollRequestsMenu.selectedOptionType]);
   }
 }

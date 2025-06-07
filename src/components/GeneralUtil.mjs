@@ -25,8 +25,8 @@ export class GeneralUtil {
       game.user.id, 
       selectedTargets, 
       selectedTargets.filter(target => target.actor) 
-    ]);
-    return selectedTargets;
+    ]); 
+    return selectedTargets; 
   };
 
 
@@ -233,14 +233,14 @@ export class GeneralUtil {
     }
   }
 
-  static getElement(target) {
+  static getElement(elem) {
     // Check if it's a jQuery object
-    if (target && typeof target.jquery !== 'undefined') {
-      // It's a jQuery object, get the first DOM element
-      return target[0];
-    }
+    // if (target && typeof target.jquery !== 'undefined') {
+    //   // It's a jQuery object, get the first DOM element
+    //   return target[0];
+    // }
     // It's already a DOM element
-    return target;
+    return elem?.[0] || elem;
   }
 
   /**

@@ -2,21 +2,30 @@
   "CRLNGN_ROLLS": {
     "settings": {
       "debugMode": {
-        "label": "Ativar Debug",
-        "hint": "Habilita o log de debug no navegador. Use apenas quando houver um problema com o módulo."
+        "label": "Debug Mode",
+        "hint": "Enable debug mode to show additional logging information"
+      },
+      "rollRequestsEnabled": {
+        "label": "Roll Requests Enabled",
+        "hint": "Enable or disable roll requests functionality"
       }
     },
     "ui": {
       "buttons": {
-        "rollRequestsToggleOn": "Roll Requests Ativado",
-        "rollRequestsToggleOff": "Roll Requests Desativado"
+        "rollRequestsToggleOn": "Roll Requests ON",
+        "rollRequestsToggleOff": "Roll Requests OFF"
       },
       "forms": {
-        "pixelsRollTitle": "Pixels Dice",
-        "pixelsWaitingTitle": "Aguardando Rolagem"
+        "pixelsRollTitle": "Pixels Dice - Roll Resolver",
+        "pixelsWaitingTitle": "Waiting for Roll",
+        "dcFieldLabel": "DC"
       },
       "notifications": {
-        "socketlibMissing": "Roll Requests depende do módulo SocketLib, mas ele não está ativo. O módulo não funcionará como deveria até que você ative SocketLib."
+        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib.",
+        "rollRequestSent": "Roll Request sent to "
+      },
+      "cards": {
+        "rollRequestFlavor": "Roll request"
       }
     }
   }
