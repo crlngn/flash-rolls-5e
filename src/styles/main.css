@@ -1,6 +1,14 @@
 /* Import additional stylesheets */
 @import url('./roll-requests-menu.css');
 
+body{
+  --current-sidebar-width: 5px;
+
+  &.sidebar-expanded{
+    --current-sidebar-width: var(--sidebar-width, 200px);
+  }
+}
+
 /* Base Styles */
 .application.roll-resolver section[data-application-part] {
   display: flex;

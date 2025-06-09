@@ -30,30 +30,48 @@ export class Main {
       LogUtil.log("Initiating module...", [], true);
       SettingsUtil.registerSettings();
       RequestsUtil.init();
+      ActivityUtil.init();
       RollRequestsMenu.init();
       Main.setDiceConfig();
     });
 
     Hooks.once(HOOKS_CORE.READY, () => {
-      LogUtil.log("Core Ready", []);
+      LogUtil.log("Core Ready", [ui?.sidebar, ui?.sidebar?._collapsed]);
       const SETTINGS = getSettings();
       
       var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
       if(isDebugOn){CONFIG.debug.hooks = true};
       
       if(game.user.isGM){
-        RollRequestsMenu.injectRollRequestsMenu();
-
         Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
         // Only run this on the GM client
         game.users.forEach(user => {
           Main.onUserConnected(user);
         });
+        SettingsUtil.applyRollRequestsSetting();
+        RollRequestsMenu.injectRollRequestsMenu();
+        Hooks.on(HOOKS_CORE.COLLAPSE_SIDE_BAR, (sidebar) => { 
+          LogUtil.log(HOOKS_CORE.COLLAPSE_SIDE_BAR, [sidebar._collapsed]);
+          if(sidebar){ Main.checkSideBar(!sidebar._collapsed); }
+        });
+        Main.checkSideBar(!ui?.sidebar?._collapsed);
       }else{
         Main.getDiceConfig();
       }
     });
-    ActivityUtil.init();
+  }
+
+  /**
+   * Adds or removes the sidebar-expanded class based on the isExpanded parameter
+   * @param {boolean} isExpanded 
+   */
+  static checkSideBar = (isExpanded) => {
+    const body = document.querySelector("body");
+    if(isExpanded){
+      body.classList.add("sidebar-expanded");
+    }else{
+      body.classList.remove("sidebar-expanded");
+    }
   }
 
   /**
@@ -89,7 +107,6 @@ export class Main {
     }else{
       RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig ? JSON.parse(Main.diceConfig) : {};
     }
-    
   }
 
   // Add the receiveDiceConfig method that will be called on the GM's client

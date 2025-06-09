@@ -71,6 +71,6 @@ export const ROLL_REQUEST_OPTIONS = {
   CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },
   INITIATIVE: { name: "initiativeDialog", label: "Initiative Roll", subList: null, actorPath: '' },
   DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
-  // INITIATIVE_DIALOG: { name: "initiativeDialog", label: "Initiative", subList: null, actorPath: '' },
+  CUSTOM: { name: "custom", label: "Custom Roll", subList: null, actorPath: '' },
   // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }

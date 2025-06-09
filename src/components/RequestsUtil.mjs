@@ -7,6 +7,7 @@ import { SettingsUtil } from "./SettingsUtil.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { ActivityUtil } from "./ActivityUtil.mjs";
 import { Main } from "./Main.mjs";
+import { RollRequestsMenu } from "./RollRequestsMenu.mjs";
 
 /**
  * Utility class for handling roll-related functionality
@@ -16,6 +17,7 @@ import { Main } from "./Main.mjs";
 export class RequestsUtil {
   static forcePublicRoll = false;
   static requestsEnabled = false;
+  static skipDialogs = false;
   static SOCKET_CALLS = {
     triggerRollRequest: { action:"triggerRollRequest", type: CALL_TYPE.CHECK },
     // triggerActivity: { action:"triggerActivity", type: CALL_TYPE.ACTIVITY }
@@ -30,24 +32,12 @@ export class RequestsUtil {
      * ROLLS
      */
     Hooks.on(HOOKS_DND5E.PRE_ROLL_V2, RequestsUtil.#onPreRollV2);
-    Hooks.on(HOOKS_CORE.RENDER_CHAT_MESSAGE, RequestsUtil.#onRenderChatMessage);
 
-    // // Skills & Tools
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_SKILL_V2, RequestsUtil.#onPreRollSkillToolV2);
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_TOOL_V2, RequestsUtil.#onPreRollSkillToolV2);
-    // // Attacks
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, RequestsUtil.#onPreRollAttackV2);
-    // // Damage Rolls
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, RequestsUtil.#onPreRollDamageV2);
-    // // Ability Checks & Saving Throws
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, RequestsUtil.#onPreRollAbilityCheck);
-    // Hooks.on(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, RequestsUtil.#onPreRollSavingThrow);
-
-    // // ACTIVITY
+    // ACTIVITY
     Hooks.on(HOOKS_DND5E.PRE_USE_ACTIVITY, RequestsUtil.#onPreUseActivity); 
     // Hooks.on(HOOKS_DND5E.POST_USE_ACTIVITY, RequestsUtil.#onPostUseActivity);
     
-    // // Roll Config
+    // Roll Config
     Hooks.on(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, RequestsUtil.#onRenderRollConfigurationDialog);
     Hooks.on(HOOKS_DND5E.POST_ROLL_CONFIG, RequestsUtil.#onPostRollConfiguration);
 
@@ -154,7 +144,10 @@ export class RequestsUtil {
     }
     // LogUtil.log("triggerRollRequest #B", [actor.name, data]);
 
-    if(rollOptions?.targetTokens){
+    const SETTINGS = getSettings();
+    const useGMTargetTokens = SettingsUtil.get(SETTINGS.useGMTargetTokens.tag);
+    const playerTargets = GeneralUtil.getTargets(game.user);
+    if((useGMTargetTokens || playerTargets.length === 0) && rollOptions?.targetTokens){
       canvas.tokens.placeables[0]?.setTarget(false, { releaseOthers: true });
       for(let token of canvas.tokens.placeables){
         if(rollOptions.targetTokens.includes(token.id)){
@@ -244,23 +237,23 @@ export class RequestsUtil {
     LogUtil.log("triggerRollRequest #C", [config, dialog, message]);
     
     switch(true){
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.SKILL.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.SKILL.name.toLowerCase():
         actor.rollSkill(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.SKILL.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.TOOL.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.TOOL.name.toLowerCase():
         actor.rollToolCheck(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.TOOL.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name.toLowerCase():
         actor.rollAbilityCheck(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.SAVING_THROW.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.SAVING_THROW.name.toLowerCase():
         actor.rollSavingThrow(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.SAVING_THROW.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.INITIATIVE.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.INITIATIVE.name.toLowerCase():
         actor.rollInitiativeDialog({
           situational: config.situational || "",
           advantage: config.advantage,
@@ -268,30 +261,33 @@ export class RequestsUtil {
         });
         type = ROLL_REQUEST_OPTIONS.INITIATIVE.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.DEATH_SAVE.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.DEATH_SAVE.name.toLowerCase():
         actor.rollDeathSave(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.DEATH_SAVE.name;
         break;
-      case config.hookNames[0] === ROLL_REQUEST_OPTIONS.CONCENTRATION.name:
+      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.CONCENTRATION.name.toLowerCase():
         actor.rollConcentration(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.CONCENTRATION.name;
         break;
-      case config.hookNames[0] === HOOK_NAMES.DAMAGE.name:
+      case config.hookNames[0].toLowerCase() === HOOK_NAMES.DAMAGE.name.toLowerCase():
         LogUtil.log("triggerRollRequest - damage #1", [activity, config, dialog, message]);
         if(activity){
           config.rolls = [];
           activity.rollDamage(config, dialog, message);
         }
         break;
-      case config.hookNames[0] === HOOK_NAMES.ATTACK.name:
+      case config.hookNames[0].toLowerCase() === HOOK_NAMES.ATTACK.name.toLowerCase():
         LogUtil.log("triggerRollRequest - attack #1", [activity, config, dialog, message]);
         if(activity){
           message.flavor = "";
           message.content = "";
           LogUtil.log("triggerRollRequest - use", [message]);
-          activity.use({},{},message);
+          activity.use({}, dialog, message);
           // activity.rollAttack(config, dialog, message);
         }
+        break;
+      case config.hookNames.includes(HOOK_NAMES.FORMULA.name):
+        LogUtil.log("triggerRollRequest - formula", [config, dialog, message]);
         break;
         // case config.hookNames[0] === ROLL_REQUEST_OPTIONS.HIT_DIE.name:
         //   actor.rollHitDie();
@@ -305,7 +301,8 @@ export class RequestsUtil {
         //   break;
         // case config.hookNames.includes(HOOK_NAMES.FORMULA.name):
         //   break;
-      default:
+      default: 
+        LogUtil.log("triggerRollRequest - default", [config, dialog, message]);
         break;
     }
   }
@@ -375,6 +372,11 @@ export class RequestsUtil {
     return isAnyConfigured;
   }
 
+  /**
+   * 
+   * @param {*} chatMessage 
+   * @param {*} html 
+   */
   static #onRenderChatMessage(chatMessage, html){
     const isRequest = chatMessage.getFlag(MODULE_ID, "rollRequest");
     const rollType = chatMessage.getFlag(MODULE_ID, "type");
@@ -407,22 +409,35 @@ export class RequestsUtil {
     const message = rollConfigDialog.message;
     const actor = config?.subject?.actor || config?.subject;
     const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
-    LogUtil.log("#onRenderRollConfigurationDialog #1", [playerOwner, RequestsUtil.requestsEnabled]);
+    LogUtil.log("#onRenderRollConfigurationDialog #1", [playerOwner, rollConfigDialog, message, RequestsUtil.requestsEnabled]);
+
+
+    
+    // const subtitle = html.querySelector('.window-subtitle');
+    // const formulaLine = html.querySelector('.formula-line');
+    // const actorsList = message?.data?.flags?.[MODULE_ID]?.actors || message?.flags?.[MODULE_ID]?.actors || [];
+    // LogUtil.log("#onRenderRollConfigurationDialog #1B", [message, subtitle, actorsList]);
+    // if(actorsList?.length > 1){
+    //   subtitle.textContent = "Multiple actors";
+    //   if(formulaLine){ formulaLine.style.opacity = 0; }
+    // }
 
     if(!playerOwner?.active || !RequestsUtil.requestsEnabled){
       return; 
     }
 
+    if(game.user.isGM){
+      RequestsUtil.addModuleFlags(message, config, actor);
+    }
+    
     let eventTarget = GeneralUtil.getElement(config?.event?.target);
     const target = eventTarget ? eventTarget.closest(".card-buttons")?.querySelector("button[data-action]") : null;
     
     LogUtil.log("#onRenderRollConfigurationDialog #2", []);
     RequestsUtil.handleRollDialogInputs(target, rollConfigDialog, html);
+    // rollConfigDialog.rolls = [];
     
-    if(!RequestsUtil.requestsEnabled){
-      return; 
-    }
-    if(!game.user.isGM){
+    if(!game.user.isGM || RollRequestsMenu.selectedTab !== "pc"){
       const submitBtn = html.querySelector('button[autofocus]');
       const activity = config.subject;
       const damageParts = activity ? activity.damage?.parts : null;
@@ -448,12 +463,19 @@ export class RequestsUtil {
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
   static #onPostRollConfiguration(rolls, config, dialog, message){
-    const actorsList = message.flags?.[MODULE_ID]?.actors || [];
-    const ddbGamelogFlags = config.flags?.["ddb-game-log"] || message.data?.flags?.["ddb-game-log"];
-    const isDdbGl = ddbGamelogFlags!==null && ddbGamelogFlags!==undefined ? true : false;
-    LogUtil.log("#onPostRollConfiguration #A", [actorsList, rolls, config, dialog, message]);
+    const moduleFlags = message.data?.flags?.[MODULE_ID] || message.flags?.[MODULE_ID] || {};
+    const actorsList = moduleFlags?.actors || [];
+    const ddbGamelogFlags = moduleFlags?.["ddb-game-log"] || message.data?.flags?.["ddb-game-log"];
+    const isDdbGl = ddbGamelogFlags ? true : false;
+    const configSubject = config.subject?.actor || config.subject;
 
-    if(!actorsList?.length){ return; }
+    // const firstActorIndex = actorsList.length > 0 && game.user.isGM ? 1 : 0;
+    LogUtil.log("#onPostRollConfiguration #A", [actorsList?.length, rolls?.[0], configSubject]);
+    
+    if(!actorsList?.length && configSubject instanceof dnd5e.dataModels.actor.Actor5e){ 
+      actorsList = [configSubject.id];
+    } // || !RequestsUtil.requestsEnabled
+
     // IMPORTANT FOR MAKING SURE DDB GAMELOG ROLLS COME THROUGH DIRECTLY
     if(rolls?.[0]?.data?.flags){
       rolls[0].data.flags = {
@@ -465,12 +487,14 @@ export class RequestsUtil {
     }
       
     const diceTypes = rolls?.[0]?.dice?.map(dice => dice.denomination) || [];
-    let forwardedToPlayer = false;
+    let forwardedToPlayer = message.data?.flags?.[MODULE_ID]?.requestType === "activity" || false;
+    LogUtil.log("#onPostRollConfiguration #A1", [forwardedToPlayer, diceTypes]);
 
     // Process actors with a delay between each one
     (async () => {
-      for(let i = 1; i < actorsList.length; i++){
-        const actorId = actorsList[i];
+      LogUtil.log("#onPostRollConfiguration #A2", [actorsList]);
+      for(let i = 0; i < actorsList.length; i++){
+        const actorId = actorsList[i].id || actorsList[i];
         const actor = game.actors.get(actorId);
         const playerOwner = actorId ? GeneralUtil.getPlayerOwner(actorId) : null;
         LogUtil.log("#onPostRollConfiguration #B", [isDdbGl, actor.name, playerOwner?.name, rolls, config, dialog, message]);
@@ -502,8 +526,8 @@ export class RequestsUtil {
               dc: config.dc || config.target || null,
               rollType: rolls[0]?.options?.rollType || "",
               attackMode: rolls[0]?.options?.attackMode || config.attackMode || "",
-              diceTypes: diceTypes,
-              actorId: actorId,
+              diceTypes: diceTypes, 
+              actorId: actorId, 
               activityUuid: isActivity ? config.subject.uuid : null,
               targetTokens: isActivity ? tokenIds : null,
               playerOwner: playerOwner?.id || ""
@@ -512,27 +536,26 @@ export class RequestsUtil {
           ui.notifications.info(`Roll Request sent to ${playerOwner.name}`)
           forwardedToPlayer = true;
 
-          // Send the request and wait for it to complete
+          // Send the request and wait for it to complete 
           await SocketUtil.execForUser(actionHandler, playerOwner.id, handlerData);
-          LogUtil.log("#onPostRollConfiguration - sending to...", [actor.name, playerOwner?.name, handlerData]);
-          
+          LogUtil.log("#onPostRollConfiguration - sending to...", [forwardedToPlayer, actionHandler, playerOwner?.id, handlerData]);
           
           // Add a small delay before processing the next actor
-          if (i < actorsList.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 750)); // 750ms delay
-          }
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+          
         } else {
           forwardedToPlayer = false;
           config.event = null;
           dialog = {
             ...dialog,
+            configure: dialog.configure,
             window: {
               ...dialog.window,
               subtitle: actor.name
             }
           }
           RequestsUtil.triggerRollRequest({actorId: actorId, config, dialog});
-          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor.name, playerOwner?.name, config, dialog, message]);
+          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor, playerOwner?.name, config, dialog, message]);
         }
       }
     })();
@@ -565,10 +588,11 @@ export class RequestsUtil {
 
     const actor = activity?.actor;
     const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
-    const isForwardedRequest = messageConfig.data?.flags?.[MODULE_ID]?.rollRequest || false;
+    const isRollRequest = messageConfig?.flags?.[MODULE_ID]?.rollRequest || false;
 
-    LogUtil.log("#onPreUseActivity #B", [playerOwner?.active && RequestsUtil.requestsEnabled && !isForwardedRequest]);
-    if(playerOwner?.active && RequestsUtil.requestsEnabled && !isForwardedRequest){
+    LogUtil.log("#onPreUseActivity #B", [playerOwner?.active, RequestsUtil.requestsEnabled, isRollRequest]);
+
+    if(playerOwner?.active && RequestsUtil.requestsEnabled && !isRollRequest){
       messageConfig.create = false;
       messageConfig.data = {
         ...messageConfig.data,
@@ -580,20 +604,11 @@ export class RequestsUtil {
           }
         }
       }
+
       LogUtil.log("#onPreUseActivity #C", [playerOwner]);
-      RequestsUtil.sendRollRequest(actor, {
-        dataset: {
-          type: activity.type
-        },
-        config:{
-          hookNames: [activity.type],
-        }, 
-        dialog: {configure: true}, 
-        activityUuid: activity.uuid,
-        // message: messageConfig, 
-        actors: [actor]
-      });
-      return false;
+      // return false;
+    }else{
+      LogUtil.log("#onPreUseActivity #D", [playerOwner, isRollRequest]);
     }
 
     return;
@@ -615,7 +630,20 @@ export class RequestsUtil {
           }
         }
       }
+
       LogUtil.log("#onPostUseActivity #3", [playerOwner]);
+      // RequestsUtil.sendRollRequest(actor, {
+      //   dataset: {
+      //     type: activity.type
+      //   },
+      //   config:{
+      //     hookNames: [activity.type],
+      //   }, 
+      //   dialog: {configure: true}, 
+      //   activityUuid: activity.uuid,
+      //   // message: messageConfig, 
+      //   actors: [actor]
+      // });
       return;
     }
     return;
@@ -629,8 +657,11 @@ export class RequestsUtil {
    * @returns {boolean} Whether to allow the roll to proceed
    */
   static #onPreRollV2(config, dialog, message){
-    LogUtil.log("#onPreRollV2", [ config.flags, config, dialog, message ]);
-
+    LogUtil.log("#onPreRollV2", [ config.flags, config, dialog, message, RequestsUtil.skipDialogs ]);
+    const skipConfigure = game.user.isGM ? RequestsUtil.skipDialogs : false;
+    if(skipConfigure){
+      dialog.configure = false;
+    }
     return;
   }
 
@@ -667,7 +698,7 @@ export class RequestsUtil {
       html.querySelector('.formulas.dc')?.classList.add('hidden');
       dcInput?.setAttribute('hidden', true);
     }
-    LogUtil.log("handleRollDialogInputs", [html, target, dialog]);
+
     if(target && dcInput){dcInput.value = target?.dataset?.dc;}
     if(dcInput){
       rollOptions.dc = Number(dcInput.value);
@@ -691,6 +722,7 @@ export class RequestsUtil {
     const flagAttribute = `data-${MODULE_ID}-${game.user.id}-custom-event`;
     const situationalInput = html.querySelector('input[name="roll.0.situational"]');
     const situationalBonus = Number(target?.dataset?.situational) || rollOptions?.situational || "";
+    
     if(!html.hasAttribute(flagAttribute) && situationalInput){
       html.setAttribute(flagAttribute, "true");
       situationalInput.value = situationalBonus || "";
@@ -725,4 +757,40 @@ export class RequestsUtil {
     return type;
   }
 
+  /**
+   * Add module flags to the message
+   * @param {ChatMessageData} message 
+   * @param {ActivityUseConfiguration} config 
+   * @param {Actor5e} actor 
+   * @returns {ChatMessageData}
+   */
+  static addModuleFlags(message, config, actor){
+    const moduleFlags = {
+      ...message.data?.flags?.[MODULE_ID],
+      ...message.flags?.[MODULE_ID]
+    }
+
+    if(!message.data?.flags || !message.data?.flags?.[MODULE_ID]){
+      message.data = {
+        ...message.data,
+        flags: {
+          ...message.data?.flags,
+          [MODULE_ID]: moduleFlags
+        }
+      }
+    }
+
+    if(!message.data.flags[MODULE_ID].actors?.length){
+      message.data.flags[MODULE_ID].actors = [actor.id];
+    }
+
+    if(config.subject instanceof dnd5e.dataModels.activity.BaseActivityData){
+      message.data.flags[MODULE_ID].activityUuid = config.subject.uuid;
+      message.data.flags[MODULE_ID].requestType = "activity";
+    }
+
+    LogUtil.log("addModuleFlags", [message]);
+
+    return message;
+  }
 }

@@ -2,6 +2,7 @@ import { MODULE_ID } from "../constants/General.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { RequestsUtil } from "./RequestsUtil.mjs";
+import { RollRequestsMenu } from "./RollRequestsMenu.mjs";
 
 /**
  * Utility class for managing module settings
@@ -43,7 +44,7 @@ export class SettingsUtil {
       }
       LogUtil.log("registerSettings",[setting.tag, SettingsUtil.get(setting.tag)]);
     });
-    SettingsUtil.applyRollRequestsSetting();
+    SettingsUtil.applySkipDialogsSetting();
   }
   
   /**
@@ -107,6 +108,9 @@ export class SettingsUtil {
       case SETTINGS.rollRequestsEnabled.tag:
         SettingsUtil.applyRollRequestsSetting(newValue);
         break;
+      case SETTINGS.skipDialogs.tag:
+        SettingsUtil.applySkipDialogsSetting(newValue);
+        break;
       default:
         break;
     }
@@ -117,6 +121,8 @@ export class SettingsUtil {
     LogUtil.log("applyRollRequestsSetting", [value]);
     const isEnabled = value || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     RequestsUtil.requestsEnabled = isEnabled;
+
+    // update the layout
     const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
     if(!rollRequestsToggle){ return; }
     if (isEnabled === false) {
@@ -133,8 +139,17 @@ export class SettingsUtil {
     if (game.user.isGM && game.tooltip) {
       game.tooltip.activate(rollRequestsToggle, {text: tooltipStr});
     }
+
+    RollRequestsMenu.hideActorsMenu();
+    RollRequestsMenu.showActorsMenu();
     
     LogUtil.log("Roll Requests Toggle", [isEnabled, rollRequestsToggle]);
+  }
+
+  static applySkipDialogsSetting(value){
+    const SETTINGS = getSettings();
+    RequestsUtil.skipDialogs = value || SettingsUtil.get(SETTINGS.skipDialogs.tag);
+    LogUtil.log("applySkipDialogsSetting", [value]);
   }
 
 }

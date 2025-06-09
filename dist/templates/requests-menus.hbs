@@ -1,17 +1,45 @@
-<ul class="pc-actors">
+<ul class="actors">
   <li class="options">
-    <input type="checkbox" id="crlngn-pc-actors-all" value="all">
-    <label for="crlngn-pc-actors-all">Select All</label>
-    <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="crlngn-actors-lock"></i>
+    <div class="selection-row">
+      <label for="crlngn-request-toggle" class="switch">
+        <input type="checkbox" id="crlngn-request-toggle" {{#if requestsEnabled}}checked{{/if}} />
+        <div class="track"></div>
+        <div class="handle"></div>
+        {{localize "CRLNGN_ROLLS.ui.inputs.toggleRollRequests"}}
+      </label>
+      <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="crlngn-actors-lock"></i>
+    </div>
+
+    {{!-- Skip Dialogs Toggle --}}
+    <div class="selection-row">
+      <label for="crlngn-skip-dialogs" class="switch">
+        <input type="checkbox" id="crlngn-skip-dialogs" {{#if skipDialogs}}checked{{/if}}>
+        <div class="track"></div>
+        <div class="handle"></div>
+        {{localize "CRLNGN_ROLLS.ui.inputs.skipDialogs"}}
+      </label>
+    </div>
+
+    {{!-- Select All Toggle --}}
+    <div class="selection-row">
+      <label for="crlngn-actors-all" class="switch">
+        <input type="checkbox" id="crlngn-actors-all" {{#if selectAllOn}}checked{{/if}}>
+        <div class="track"></div>
+        <div class="handle"></div>
+        {{localize "CRLNGN_ROLLS.ui.inputs.selectAll"}}
+      </label>
+    </div>
   </li>
+
   {{#each actors as |actor|}}
-    <li class="pc-actor" data-id="{{ actor.id }}" data-selected="false">
+    <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
       {{!-- <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}"> --}}
-      <div class="actor-select" data-id="{{ actor.id }}">
+      <div class="actor-select" data-id="{{actor.id}}">
         <i class="icon fas fa-circle"></i>
       </div>
       <div class="actor-data">
-        {{#if ../showName}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
+        {{!-- <span class="actor-name">{{actor.name}}</span> --}}
+        {{#if ../showNames}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
         <ul class="actor-stats">
           {{#each actor.crlngnStats as |prop|}}
             <li class="actor-stat">
@@ -26,6 +54,12 @@
       </div>
     </li>
   {{/each}}
+
+
+  <li class="actors-tabs">
+    <button class="npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc">NPCs</button>
+    <button class="pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc">PCs</button>
+  </li>
 </ul>
 
 <!-- Request Types -->

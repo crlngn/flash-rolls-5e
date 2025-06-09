@@ -8,12 +8,25 @@
       "rollRequestsEnabled": {
         "label": "Roll Requests Enabled",
         "hint": "Enable or disable roll requests functionality"
+      },
+      "useGMTargetTokens": {
+        "label": "Use GM Targeted Tokens",
+        "hint": "When players confirm a requested roll, this setting will force use of GM targeted tokens instead of player targeted tokens. If this setting is disabled, the GM targets will only be transferred if the player has no targets."
+      },
+      "skipDialogs": {
+        "label": "Skip Roll Dialogs on Requests",
+        "hint": "Enable this to skip the Roll Configuration windows when you request rolls from a player or when rolling for groups of multiple NPCs."
       }
     },
     "ui": {
       "buttons": {
         "rollRequestsToggleOn": "Roll Requests ON",
         "rollRequestsToggleOff": "Roll Requests OFF"
+      },
+      "inputs": {
+        "selectAll": "Select All",
+        "toggleRollRequests": "Request Rolls",
+        "skipDialogs": "Skip Roll Dialog"
       },
       "forms": {
         "pixelsRollTitle": "Pixels Dice - Roll Resolver",
