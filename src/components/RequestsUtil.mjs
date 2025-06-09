@@ -168,7 +168,7 @@ export class RequestsUtil {
     if(rollOptions){
       rollConfigOptions = {
         isTemplateRoll: isTemplateRoll,
-        actors: [],
+        actors: actors,
         ability: rollOptions.ability,
         abilityId: rollOptions.ability,
         tool: rollOptions.tool,
@@ -422,11 +422,10 @@ export class RequestsUtil {
   static #onRenderRollConfigurationDialog(rollConfigDialog, html){
     const config = rollConfigDialog.config;
     const message = rollConfigDialog.message;
+    const moduleFlags = {...message.data?.flags?.[MODULE_ID], ...message.flags?.[MODULE_ID]};
     const actor = config?.subject?.actor || config?.subject;
     const playerOwner = actor ? GeneralUtil.getPlayerOwner(actor.id) : null;
     LogUtil.log("#onRenderRollConfigurationDialog #1", [playerOwner, rollConfigDialog, message, RequestsUtil.requestsEnabled]);
-
-
     
     // const subtitle = html.querySelector('.window-subtitle');
     // const formulaLine = html.querySelector('.formula-line');
@@ -502,15 +501,15 @@ export class RequestsUtil {
     }
       
     const diceTypes = rolls?.[0]?.dice?.map(dice => dice.denomination) || [];
-    let forwardedToPlayer = message.data?.flags?.[MODULE_ID]?.requestType === "activity" || false;
+    let proceedWithRoll; // message.data?.flags?.[MODULE_ID]?.requestType === "activity" || false;
 
     // Process actors with a delay between each one
     (async () => {
       for(let i = 0; i < actorsList.length; i++){
-        LogUtil.log("#onPostRollConfiguration #Ai", [i, actorsList[i]]);
+        LogUtil.log("#onPostRollConfiguration #Ai", [i, actorsList]);
         dialog.configure = i===0 ? !RequestsUtil.skipDialogs : false; // first roll config is passed to all other actor rolls
 
-        const actorId = actorsList[i].id || actorsList[i];
+        const actorId = actorsList[i];
         const actor5e = game.actors.get(actorId);
         const playerOwner = actorId ? GeneralUtil.getPlayerOwner(actorId) : null;
         LogUtil.log("#onPostRollConfiguration #B", [isDdbGl, actor5e.name, playerOwner, rolls, config, dialog, message]);
@@ -548,18 +547,19 @@ export class RequestsUtil {
             }
           };
           ui.notifications.info(`Roll Request sent for ${actor5e.name} (${playerOwner.name})`)
-          forwardedToPlayer = true;
+          proceedWithRoll = false;
 
           // Send the request and wait for it to complete 
           await SocketUtil.execForUser(actionHandler, playerOwner.id, handlerData);
-          LogUtil.log("#onPostRollConfiguration - sending to...", [forwardedToPlayer, actionHandler, playerOwner?.id, handlerData]);
+          LogUtil.log("#onPostRollConfiguration - sending to...", [proceedWithRoll, actionHandler, playerOwner?.id, handlerData]);
           
           // Add a small delay before processing the next actor
           await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
           
         } else {
-          forwardedToPlayer = false;
+          proceedWithRoll = moduleFlags?.isTemplateRoll ? false : undefined;
           config.event = null;
+
           dialog = {
             ...dialog,
             window: {
@@ -569,17 +569,17 @@ export class RequestsUtil {
           }
           
           RequestsUtil.triggerRollRequest({config, dialog, actors: [actor5e.id], message}, false);
-          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor5e, playerOwner?.name, config, dialog, message]);
+          LogUtil.log("#onPostRollConfiguration - rolling?", [moduleFlags?.isTemplateRoll ? false : true, actor5e.name, config, dialog, message, moduleFlags]);
         }
       }
     })();
 
-    return forwardedToPlayer ? false : undefined;
+    return proceedWithRoll;
   }
 
   static #onRenderRollResolver(rollResolver, html){
     const roll = rollResolver.roll;
-    LogUtil.log("#onRenderRollResolver AAA", [roll?.data, rollResolver, html]);
+    LogUtil.log("#onRenderRollResolver A", [roll?.data, rollResolver, html]);
 
     if(roll?.data?.flags?.[MODULE_ID]?.isDdbGl){
       rollResolver.close();
@@ -673,6 +673,10 @@ export class RequestsUtil {
   static #onPreRollV2(config, dialog, message){
     const moduleFlags = message?.flags?.[MODULE_ID] || message?.data?.flags?.[MODULE_ID] || {};
     LogUtil.log("#onPreRollV2", [ config, dialog, message, moduleFlags ]);
+
+    if(moduleFlags?.isTemplateRoll && config.rolls?.[0]) {
+      config.rolls[0].parts = [];
+    }
     // const skipConfigure = game.user.isGM ? RequestsUtil.skipDialogs : false;
     // if(skipConfigure){
     //   dialog.configure = false;
