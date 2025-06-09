@@ -123,7 +123,7 @@ export class SettingsUtil {
     RequestsUtil.requestsEnabled = isEnabled;
 
     // update the layout
-    const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
+    const rollRequestsToggle = document.querySelector("#crlngn-requests-toggle");
     if(!rollRequestsToggle){ return; }
     if (isEnabled === false) {
       rollRequestsToggle.classList.remove("active");

@@ -71,11 +71,11 @@ export class RollRequestsMenu {
    * @returns {HTMLElement} The roll requests toggle element
    */
   static injectRollRequestsMenu() {
-    const rollRequestsToggleHTML = `<label class="chat-control-icon active" id="crlngn-request-toggle" ` +
+    const rollRequestsToggleHTML = `<label class="chat-control-icon active" id="crlngn-requests-icon" ` +
     `data-tooltip-direction="RIGHT"><i class="fas fa-bolt"></i></label>`;
     
     document.querySelector("#chat-controls").insertAdjacentHTML("afterbegin", rollRequestsToggleHTML);
-    const rollRequestsToggle = document.querySelector("#crlngn-request-toggle");
+    const rollRequestsToggle = document.querySelector("#crlngn-requests-icon");
     const isEnabled = RequestsUtil.requestsEnabled;
     
     // Add toggle event listeners
@@ -97,7 +97,7 @@ export class RollRequestsMenu {
     const pcActors = RollRequestsMenu.getPlayerActors();
     const npcActors = RollRequestsMenu.getNPCActors();
     const existingMenu = document.querySelector("#crlngn-actors-menu");
-    const toggleButton = document.querySelector("#crlngn-request-toggle");
+    const toggleButton = document.querySelector("#crlngn-requests-icon");
     const tab = RollRequestsMenu.selectedTab;
 
     // Remove existing menu if it exists
@@ -198,7 +198,7 @@ export class RollRequestsMenu {
     const actorImgs = menuHtml.querySelectorAll('.actor .actor-img');
     const selectAllCheckbox = menuHtml.querySelector('#crlngn-actors-all');
     const actorsLockButton = menuHtml.querySelector('#crlngn-actors-lock');
-    const requestsToggle = menuHtml.querySelector('#crlngn-request-toggle');
+    const requestsToggle = menuHtml.querySelector('#crlngn-requests-toggle');
     const dialogsToggle = menuHtml.querySelector('#crlngn-skip-dialogs');
     const tabButtons = menuHtml.querySelectorAll('.actors-tabs button');
 
@@ -228,9 +228,9 @@ export class RollRequestsMenu {
 
   static onRequestsToggleClick(event){
     const SETTINGS = getSettings();
-    const boltToggle = document.querySelector("#crlngn-request-toggle");
+    const boltToggle = document.querySelector("#crlngn-requests-toggle");
     const menuToggle = RollRequestsMenu.actorsMenu?.querySelector("#crlngn-rolls-toggle-requests input[type='checkbox']");
-    const isBoltTarget = event.target.id === "crlngn-request-toggle";
+    const isBoltTarget = event.target.id === "crlngn-requests-toggle";
     const isEnabled = isBoltTarget ? !event.target.classList.contains("active") : menuToggle?.checked;
 
     LogUtil.log("onRequestsToggleClick", [isEnabled, isBoltTarget]);
@@ -330,14 +330,14 @@ export class RollRequestsMenu {
 
     // If there's no sublist, send the roll request
     if(requestType.subList === null && actors.length > 0){
-      RequestsUtil.sendRollRequest(actors[0], {
+      RequestsUtil.initRollRequest({
         config: { hookNames: [requestTypeId] },
-        actors: actors || []
+        actors: actors.map(actor => actor.id)
       });
 
       LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
       // actors.forEach(actor => {
-      //   RequestsUtil.sendRollRequest(actor, {
+      //   RequestsUtil.initRollRequest(actor, {
       //     config: { hookNames: [requestTypeId], actors: actors }
       //   });
       // });
@@ -438,14 +438,14 @@ static showOptionsForRequestType(requestTypeId) {
 
   // If there's no sublist, send the roll request
   if(requestType.subList === null && actors.length > 0){
-    RequestsUtil.sendRollRequest(actors[0], {
+    RequestsUtil.initRollRequest({
       config: { hookNames: [requestTypeId] },
-      actors: actors || []
+      actors: actors.map(actor => actor.id)
     });
 
     LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
     // actors.forEach(actor => {
-    //   RequestsUtil.sendRollRequest(actor, {
+    //   RequestsUtil.initRollRequest({
     //     config: { hookNames: [requestTypeId], actors: actors }
     //   });
     // });
@@ -667,20 +667,12 @@ static onActorLockClick(e){
       label: e.target.dataset.label
     };
 
-    RequestsUtil.sendRollRequest(RollRequestsMenu.selectedActors[tab][0], {
+    LogUtil.log("Selected option", [RollRequestsMenu.selectedOptionType]);
+    RequestsUtil.initRollRequest({
       config: { hookNames: [requestTypeId] },
       dataset: e.target.dataset, 
-      actors: RollRequestsMenu.selectedActors[tab]
+      actors: RollRequestsMenu.selectedActors[tab].map(actor => actor.id)
     });
-
-    // RollRequestsMenu.selectedActors.forEach(actor => {
-    //   RequestsUtil.sendRollRequest(actor, {
-    //     config: { hookNames: [requestTypeId], actors: actors }
-    //     dataset: e.target.dataset
-    //   });
-    //   LogUtil.log("showOptionsForRequestType - Sending roll request", [actor, requestTypeId]);
-    // });
-    LogUtil.log("Selected option", [RollRequestsMenu.selectedOptionType]);
   }
   
   /**

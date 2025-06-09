@@ -66,65 +66,71 @@ export class RequestsUtil {
   }
 
   /**
-   * Send a roll request to the player owner of the actor
+   * Initiate a roll request to the player owner of the actor
    * @param {Actor5e} actor 
    * @param {Object} data 
    */
-  static sendRollRequest(actor, data={config:{}, dialog: {configure: true}, message: {}, actors: [], activityUuid: null}){ 
+  static initRollRequest(data={config:{}, dialog: {configure: true}, message: {}, actors: [], activityUuid: null}){ 
+    const actorIds = data.actors;
+    LogUtil.log("initRollRequest #A", [data, actorIds]);
+    if(!actorIds[0]){
+      if(game.users.isGM) ui.notifications.error("No actor selected for this roll request");
+      return;
+    }
+    const actor = game.actors.get(actorIds[0]);
     const actionHandler = RequestsUtil.SOCKET_CALLS.triggerRollRequest.action;
-    const user = GeneralUtil.getPlayerOwner(actor.id);
-    const handlerData = { actorId: actor.id, ...data};
-    LogUtil.log("sendRollRequest #A", [handlerData]);
 
+    // add a flag to mark this as a requested roll
     data.config = {
       ...data.config,
       flags: {
         ...data.config.flags,
         [MODULE_ID]: {
           rollRequest: true,
-          triggerOnRender: true,
-          type: data.type
+          type: data.dataset?.type
         }
       }
     }
 
+    // add actors
     const triggerData = {
-      ...handlerData, 
+      ...data, 
       message: {
         ...data.message
       },
-      actors: data.actors.map(actor => actor.id)
+      actors: actorIds
     }
 
-    if(RequestsUtil.forcePublicRoll) {
+    if(RequestsUtil.forcePublicRoll && RollRequestsMenu.selectedTab === "pc") {
       triggerData.message.rollMode = CONST.DICE_ROLL_MODES.PUBLIC
     }
 
     // triggerData.dialog.configure = true;
-    triggerData.config.tool = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name ? handlerData.dataset?.abbreviation : "";
-    triggerData.config.skill = handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name ? handlerData.dataset?.abbreviation : "";
-    const abbrev = handlerData.dataset?.abbreviation;
+    triggerData.config.tool = data.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name ? data.dataset?.abbreviation : "";
+    triggerData.config.skill = data.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name ? data.dataset?.abbreviation : "";
+    const abbrev = data.dataset?.abbreviation;
     let ability = "";
-    if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name){
+    if(data.dataset?.type===ROLL_REQUEST_OPTIONS.TOOL.name){
       ability = actor.system?.tools?.[abbrev]?.ability || CONFIG.DND5E.tools[abbrev]?.ability;
-    }else if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name){
+    }else if(data.dataset?.type===ROLL_REQUEST_OPTIONS.SKILL.name){
       ability = actor.system?.skills?.[abbrev]?.ability || CONFIG.DND5E.skills[abbrev]?.ability;
-    }else if(handlerData.dataset?.type===ROLL_REQUEST_OPTIONS.SAVING_THROW.name || 
+    }else if(data.dataset?.type===ROLL_REQUEST_OPTIONS.SAVING_THROW.name || 
       triggerData.dataset?.type===ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name){
       ability = abbrev;
-    }else if(handlerData.dataset?.type===HOOK_NAMES.ATTACK.name){
+    }else if(data.dataset?.type===HOOK_NAMES.ATTACK.name){
       triggerData.rollOptions = {
         actorId: actor.id,
-        activityUuid: handlerData.activityUuid,
+        activityUuid: data.activityUuid,
         attackMode: "",
-        hookNames: handlerData.config?.hookNames || [],
+        hookNames: data.config?.hookNames || [],
       }
     }
     triggerData.config.ability = ability;
     triggerData.config.abilityId = ability;
 
-    LogUtil.log("sendRollRequest #B", [abbrev, triggerData]);
-    RequestsUtil.triggerRollRequest(triggerData);
+    LogUtil.log("initRollRequest #B", [abbrev, triggerData]);
+
+    RequestsUtil.triggerRollRequest(triggerData, true);
   }
 
   /**
@@ -132,17 +138,17 @@ export class RequestsUtil {
    * @param {Object} data - Roll request data
    * @returns 
    */
-  static triggerRollRequest(data){ 
-    let { actorId="", config={}, dialog={}, message={}, rollOptions=null, actors = [] } = data;
+  static triggerRollRequest(data, isTemplateRoll=false){ 
+    let { config={}, dialog={}, message={}, rollOptions=null, actors = [] } = data;
     let item=null, activity=null;
-    const actor = game.actors.get(actorId);
-    LogUtil.log("triggerRollRequest #A", [actor.name, data]);
+    const actor5e = game.actors.get(actors[0]);
+    LogUtil.log("triggerRollRequest #A", [actors, actor5e, data]);
     
-    if(!actor){
-      LogUtil.log("triggerRollRequest - actor not found", [actorId, actor]);
+    if(!actor5e){
+      LogUtil.log("triggerRollRequest - no actor found", []);
       return;
     }
-    // LogUtil.log("triggerRollRequest #B", [actor.name, data]);
+    // LogUtil.log("triggerRollRequest #B", [actor5e.name, data]);
 
     const SETTINGS = getSettings();
     const useGMTargetTokens = SettingsUtil.get(SETTINGS.useGMTargetTokens.tag);
@@ -158,10 +164,11 @@ export class RequestsUtil {
 
     // pass the modified data from rollOptions to the config.rolls[0]
     // before sending via sockets
-    let options = {};
+    let rollConfigOptions = {};
     if(rollOptions){
-      options = {
-        actorId: actorId,
+      rollConfigOptions = {
+        isTemplateRoll: isTemplateRoll,
+        actors: [],
         ability: rollOptions.ability,
         abilityId: rollOptions.ability,
         tool: rollOptions.tool,
@@ -179,8 +186,15 @@ export class RequestsUtil {
       
       config = {
         // ...config,
-        ...options,
+        ...rollConfigOptions,
         event: null,
+        flags: {
+          ...config.flags,
+          [MODULE_ID]: {
+            ...config.flags?.[MODULE_ID],
+            isTemplateRoll: isTemplateRoll
+          }
+        },
         rolls: [{
           // ...config.rolls?.[0],
           parts: [],
@@ -196,21 +210,33 @@ export class RequestsUtil {
 
       // in case it's an activity...
       const { itemId, activityId } = rollOptions.activityUuid ? GeneralUtil.getPartsFromActivityUuid(rollOptions.activityUuid) : {};
-      item = itemId ? actor.items.get(itemId) : null;
+      item = itemId ? actor5e.items.get(itemId) : null;
       activity = activityId ? item?.system?.activities?.get(activityId) : null;
+    }else{
+      // rollConfigOptions.isTemplateRoll = true;
+      config.flags = {
+        ...config.flags,
+        [MODULE_ID]: {
+          ...config.flags?.[MODULE_ID],
+          isTemplateRoll: isTemplateRoll
+        }
+      }
     }
 
-    // set the dialog title to the flavor of gm's config
+    // set the dialog title to the flavor of GM's config
     dialog = {
       ...dialog,
+      configure: isTemplateRoll ? !RequestsUtil.skipDialogs : dialog.configure,
       options: {
         ...dialog.options,
         window: {
           ...dialog.options?.window,
-          subtitle: actor.name
+          subtitle: isTemplateRoll && actors.length > 1 ? game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.multipleActors") : actor5e.name
         }
       }
     }
+
+    // For cases where the ability is changed in the config dialog
     if(message?.data?.flavor || config?.flavor){
       dialog.options.window.title = message?.data?.flavor || config?.flavor;
     }
@@ -222,61 +248,64 @@ export class RequestsUtil {
         // whisper: [],
         [MODULE_ID]: {
           rollRequest: true,
-          rollOptions: rollOptions,
+          rollOptions: rollConfigOptions,
           type: type,
-          actors: game.user.isGM ? actors.filter(actorItem => actorItem.id !== actor.id) : []
+          actors: isTemplateRoll ? actors : [],
+          isTemplateRoll: isTemplateRoll
         }
       }
     }
-    if(RequestsUtil.forcePublicRoll) {
-      message.rollMode = CONST.DICE_ROLL_MODES.PUBLIC
-    }
+
+    // if(RequestsUtil.forcePublicRoll) {
+    //   message.rollMode = CONST.DICE_ROLL_MODES.PUBLIC
+    // }
+
     const requestOption = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === type);
     message.flavor = requestOption?.label;
 
     LogUtil.log("triggerRollRequest #C", [config, dialog, message]);
     
     switch(true){
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.SKILL.name.toLowerCase():
-        actor.rollSkill(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.SKILL.name.toLowerCase():
+        actor5e.rollSkill(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.SKILL.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.TOOL.name.toLowerCase():
-        actor.rollToolCheck(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.TOOL.name.toLowerCase():
+        actor5e.rollToolCheck(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.TOOL.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name.toLowerCase():
-        actor.rollAbilityCheck(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name.toLowerCase():
+        actor5e.rollAbilityCheck(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.ABILITY_CHECK.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.SAVING_THROW.name.toLowerCase():
-        actor.rollSavingThrow(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.SAVING_THROW.name.toLowerCase():
+        actor5e.rollSavingThrow(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.SAVING_THROW.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.INITIATIVE.name.toLowerCase():
-        actor.rollInitiativeDialog({
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.INITIATIVE.name.toLowerCase():
+        actor5e.rollInitiativeDialog({
           situational: config.situational || "",
           advantage: config.advantage,
           disadvantage: config.disadvantage
         });
         type = ROLL_REQUEST_OPTIONS.INITIATIVE.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.DEATH_SAVE.name.toLowerCase():
-        actor.rollDeathSave(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.DEATH_SAVE.name.toLowerCase():
+        actor5e.rollDeathSave(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.DEATH_SAVE.name;
         break;
-      case config.hookNames[0].toLowerCase() === ROLL_REQUEST_OPTIONS.CONCENTRATION.name.toLowerCase():
-        actor.rollConcentration(config, dialog, message);
+      case config.hookNames?.[0]?.toLowerCase() === ROLL_REQUEST_OPTIONS.CONCENTRATION.name.toLowerCase():
+        actor5e.rollConcentration(config, dialog, message);
         type = ROLL_REQUEST_OPTIONS.CONCENTRATION.name;
         break;
-      case config.hookNames[0].toLowerCase() === HOOK_NAMES.DAMAGE.name.toLowerCase():
+      case config.hookNames?.[0]?.toLowerCase() === HOOK_NAMES.DAMAGE.name.toLowerCase():
         LogUtil.log("triggerRollRequest - damage #1", [activity, config, dialog, message]);
         if(activity){
           config.rolls = [];
           activity.rollDamage(config, dialog, message);
         }
         break;
-      case config.hookNames[0].toLowerCase() === HOOK_NAMES.ATTACK.name.toLowerCase():
+      case config.hookNames?.[0]?.toLowerCase() === HOOK_NAMES.ATTACK.name.toLowerCase():
         LogUtil.log("triggerRollRequest - attack #1", [activity, config, dialog, message]);
         if(activity){
           message.flavor = "";
@@ -286,7 +315,7 @@ export class RequestsUtil {
           // activity.rollAttack(config, dialog, message);
         }
         break;
-      case config.hookNames.includes(HOOK_NAMES.FORMULA.name):
+      case config.hookNames?.[0]?.toLowerCase() === HOOK_NAMES.FORMULA.name.toLowerCase():
         LogUtil.log("triggerRollRequest - formula", [config, dialog, message]);
         break;
         // case config.hookNames[0] === ROLL_REQUEST_OPTIONS.HIT_DIE.name:
@@ -307,8 +336,8 @@ export class RequestsUtil {
     }
   }
 
-  static createRequestMessage = async(actor, data, triggerOnRender=false) => {
-    LogUtil.log("createRequestMessage", [actor, data, triggerOnRender]);
+  static createRequestMessage = async(actor, data) => {
+    LogUtil.log("createRequestMessage", [actor, data]);
     const requestType = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === data.type);
     if(!requestType){ return; }
     
@@ -339,24 +368,10 @@ export class RequestsUtil {
       flags: {
         [MODULE_ID]: {
           rollRequest: true,
-          triggerOnRender: triggerOnRender,
           type: dataset.type
         }
       }
     };
-    
-    if(triggerOnRender){
-      const event = {
-        type: "click",
-        target: {
-          dataset: {
-            actorId: actor.id,
-            action: "roll",
-            type: dataset.type
-          }
-        }
-      };
-    }
     LogUtil.log("createRequestMessage", [chatMessage]);
   }
 
@@ -463,7 +478,7 @@ export class RequestsUtil {
    * @returns {boolean|void} Return false to prevent the normal rolling process
    */
   static #onPostRollConfiguration(rolls, config, dialog, message){
-    const moduleFlags = message.data?.flags?.[MODULE_ID] || message.flags?.[MODULE_ID] || {};
+    const moduleFlags = {...message.data?.flags?.[MODULE_ID], ...message.flags?.[MODULE_ID]};
     const actorsList = moduleFlags?.actors || [];
     const ddbGamelogFlags = moduleFlags?.["ddb-game-log"] || message.data?.flags?.["ddb-game-log"];
     const isDdbGl = ddbGamelogFlags ? true : false;
@@ -472,10 +487,10 @@ export class RequestsUtil {
     // const firstActorIndex = actorsList.length > 0 && game.user.isGM ? 1 : 0;
     LogUtil.log("#onPostRollConfiguration #A", [actorsList?.length, rolls?.[0], configSubject]);
     
-    if(!actorsList?.length && configSubject instanceof dnd5e.dataModels.actor.Actor5e){ 
-      actorsList = [configSubject.id];
-    } // || !RequestsUtil.requestsEnabled
-
+    // if(!actorsList?.length && configSubject instanceof dnd5e.documents.Actor5e){ 
+    //   actorsList[0] = configSubject.id;
+    // } // || !RequestsUtil.requestsEnabled
+    const actor5e = game.actors.get(actorsList[0]);
     // IMPORTANT FOR MAKING SURE DDB GAMELOG ROLLS COME THROUGH DIRECTLY
     if(rolls?.[0]?.data?.flags){
       rolls[0].data.flags = {
@@ -488,52 +503,51 @@ export class RequestsUtil {
       
     const diceTypes = rolls?.[0]?.dice?.map(dice => dice.denomination) || [];
     let forwardedToPlayer = message.data?.flags?.[MODULE_ID]?.requestType === "activity" || false;
-    LogUtil.log("#onPostRollConfiguration #A1", [forwardedToPlayer, diceTypes]);
 
     // Process actors with a delay between each one
     (async () => {
-      LogUtil.log("#onPostRollConfiguration #A2", [actorsList]);
       for(let i = 0; i < actorsList.length; i++){
+        LogUtil.log("#onPostRollConfiguration #Ai", [i, actorsList[i]]);
+        dialog.configure = i===0 ? !RequestsUtil.skipDialogs : false; // first roll config is passed to all other actor rolls
+
         const actorId = actorsList[i].id || actorsList[i];
-        const actor = game.actors.get(actorId);
+        const actor5e = game.actors.get(actorId);
         const playerOwner = actorId ? GeneralUtil.getPlayerOwner(actorId) : null;
-        LogUtil.log("#onPostRollConfiguration #B", [isDdbGl, actor.name, playerOwner?.name, rolls, config, dialog, message]);
+        LogUtil.log("#onPostRollConfiguration #B", [isDdbGl, actor5e.name, playerOwner, rolls, config, dialog, message]);
 
         if(game.user.isGM && playerOwner?.active && RequestsUtil.requestsEnabled){
           const actionHandler = RequestsUtil.SOCKET_CALLS.triggerRollRequest.action;
           const areDiceConfigured = RequestsUtil.areDiceConfigured(["d20"], playerOwner.id);
-          dialog.configure = true;
-          // message.flags = {
-          //   ...message.flags //,
-          //   // ...(rolls[0]?.data?.flags || {})
-          // }
+          
           const isActivity = config.subject instanceof dnd5e.dataModels.activity.BaseActivityData;
           const targetedTokens = GeneralUtil.getClientTargets() || [];
           const tokenIds = targetedTokens.map(t=>t.id);
           const handlerData = {
-            actorId: actorId, 
             config: config, // SocketUtil.serializeForTransport(config), 
             dialog, message, 
             rollOptions: {
               ability: rolls[0]?.data?.abilityId || config.ability,
               abilityId: rolls[0]?.data?.abilityId || config.ability,
-              tool: config?.tool,
-              skill: config?.skill,
-              advantage: rolls[0]?.hasAdvantage || false,
-              disadvantage: rolls[0]?.hasDisadvantage || false,
-              situational: rolls[0]?.data?.situational || "",
-              target: config.target || config.dc || null,
-              dc: config.dc || config.target || null,
-              rollType: rolls[0]?.options?.rollType || "",
-              attackMode: rolls[0]?.options?.attackMode || config.attackMode || "",
-              diceTypes: diceTypes, 
-              actorId: actorId, 
               activityUuid: isActivity ? config.subject.uuid : null,
+              actors: actorsList[i] ? [actorsList[i]] : [], 
+              advantage: rolls[0]?.hasAdvantage || false,
+              attackMode: rolls[0]?.options?.attackMode || config.attackMode || "",
+              dc: config.dc || config.target || null,
+              diceTypes: diceTypes, 
+              disadvantage: rolls[0]?.hasDisadvantage || false,
+              flavor: message?.data?.flavor || "",
+              hookNames: config.hookNames || [],
+              isTemplateRoll: false,//i===0 ? true : false,
+              playerOwner: playerOwner?.id || "",
+              rollType: rolls[0]?.options?.rollType || "",
+              situational: rolls[0]?.data?.situational || "",
+              skill: config?.skill,
+              target: config.target || config.dc || null,
               targetTokens: isActivity ? tokenIds : null,
-              playerOwner: playerOwner?.id || ""
+              tool: config?.tool,
             }
           };
-          ui.notifications.info(`Roll Request sent to ${playerOwner.name}`)
+          ui.notifications.info(`Roll Request sent for ${actor5e.name} (${playerOwner.name})`)
           forwardedToPlayer = true;
 
           // Send the request and wait for it to complete 
@@ -548,14 +562,14 @@ export class RequestsUtil {
           config.event = null;
           dialog = {
             ...dialog,
-            configure: dialog.configure,
             window: {
               ...dialog.window,
-              subtitle: actor.name
+              subtitle: actor5e.name
             }
           }
-          RequestsUtil.triggerRollRequest({actorId: actorId, config, dialog});
-          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor, playerOwner?.name, config, dialog, message]);
+          
+          RequestsUtil.triggerRollRequest({config, dialog, actors: [actor5e.id], message}, false);
+          LogUtil.log("#onPostRollConfiguration - rolling for...", [actor5e, playerOwner?.name, config, dialog, message]);
         }
       }
     })();
@@ -632,7 +646,7 @@ export class RequestsUtil {
       }
 
       LogUtil.log("#onPostUseActivity #3", [playerOwner]);
-      // RequestsUtil.sendRollRequest(actor, {
+      // RequestsUtil.initRollRequest(actor, {
       //   dataset: {
       //     type: activity.type
       //   },
@@ -657,11 +671,12 @@ export class RequestsUtil {
    * @returns {boolean} Whether to allow the roll to proceed
    */
   static #onPreRollV2(config, dialog, message){
-    LogUtil.log("#onPreRollV2", [ config.flags, config, dialog, message, RequestsUtil.skipDialogs ]);
-    const skipConfigure = game.user.isGM ? RequestsUtil.skipDialogs : false;
-    if(skipConfigure){
-      dialog.configure = false;
-    }
+    const moduleFlags = message?.flags?.[MODULE_ID] || message?.data?.flags?.[MODULE_ID] || {};
+    LogUtil.log("#onPreRollV2", [ config, dialog, message, moduleFlags ]);
+    // const skipConfigure = game.user.isGM ? RequestsUtil.skipDialogs : false;
+    // if(skipConfigure){
+    //   dialog.configure = false;
+    // }
     return;
   }
 

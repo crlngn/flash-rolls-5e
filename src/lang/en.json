@@ -39,6 +39,9 @@
       },
       "cards": {
         "rollRequestFlavor": "Roll request"
+      },
+      "dialogs": {
+        "multipleActors": "Multiple Actors"
       }
     }
   }

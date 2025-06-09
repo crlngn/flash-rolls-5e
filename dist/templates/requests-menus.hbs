@@ -1,8 +1,8 @@
 <ul class="actors">
   <li class="options">
     <div class="selection-row">
-      <label for="crlngn-request-toggle" class="switch">
-        <input type="checkbox" id="crlngn-request-toggle" {{#if requestsEnabled}}checked{{/if}} />
+      <label for="crlngn-requests-toggle" class="switch">
+        <input type="checkbox" name="crlngn-requests-toggle" id="crlngn-requests-toggle" {{#if requestsEnabled}}checked{{/if}} />
         <div class="track"></div>
         <div class="handle"></div>
         {{localize "CRLNGN_ROLLS.ui.inputs.toggleRollRequests"}}
@@ -13,7 +13,7 @@
     {{!-- Skip Dialogs Toggle --}}
     <div class="selection-row">
       <label for="crlngn-skip-dialogs" class="switch">
-        <input type="checkbox" id="crlngn-skip-dialogs" {{#if skipDialogs}}checked{{/if}}>
+        <input type="checkbox" name="crlngn-skip-dialogs" id="crlngn-skip-dialogs" {{#if skipDialogs}}checked{{/if}}>
         <div class="track"></div>
         <div class="handle"></div>
         {{localize "CRLNGN_ROLLS.ui.inputs.skipDialogs"}}
@@ -23,7 +23,7 @@
     {{!-- Select All Toggle --}}
     <div class="selection-row">
       <label for="crlngn-actors-all" class="switch">
-        <input type="checkbox" id="crlngn-actors-all" {{#if selectAllOn}}checked{{/if}}>
+        <input type="checkbox" name="crlngn-actors-all" id="crlngn-actors-all" {{#if selectAllOn}}checked{{/if}}>
         <div class="track"></div>
         <div class="handle"></div>
         {{localize "CRLNGN_ROLLS.ui.inputs.selectAll"}}
