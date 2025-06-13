@@ -65,7 +65,7 @@
 <!-- Request Types -->
 <ul class="request-types">
   {{#each requestTypes as |requestType|}}
-    <li data-id="{{ requestType.id }}">
+    <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}">
       {{#if requestType.rollable}}
         <i class="icon fas fa-dice-d20"></i>
       {{else}}

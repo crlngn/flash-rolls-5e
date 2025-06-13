@@ -45,7 +45,7 @@ export class RollRequestsMenu {
    */
   static getNPCActors(){
     const onSceneActors = game.scenes.viewed?.tokens.map(token => token.actor);
-    LogUtil.log("getNPCActors", [onSceneActors]);
+    // LogUtil.log("getNPCActors", [onSceneActors]);
     const npcActors = onSceneActors.filter((actor, index) => {
       const isNPC = actor.type === "npc";
       return isNPC;
@@ -312,73 +312,7 @@ export class RollRequestsMenu {
     // Also hide the roll types menu
     RollRequestsMenu.hideRollTypes();
   }
-  
-  /**
-   * Show options for the selected request type
-   * @param {string} requestTypeId - The ID of the selected request type
-   */
-  static showOptionsForRequestType(requestTypeId) {
-    const tab = RollRequestsMenu.selectedTab;
-    const actors = RollRequestsMenu.selectedActors[tab];
-    
-    // Find the request type configuration
-    const requestType = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === requestTypeId);
-    LogUtil.log("showOptionsForRequestType", [actors, requestType, requestTypeId]);
-    if (!requestType) {
-      return;
-    }
 
-    // If there's no sublist, send the roll request
-    if(requestType.subList === null && actors.length > 0){
-      RequestsUtil.initRollRequest({
-        config: { hookNames: [requestTypeId] },
-        actors: actors.map(actor => actor.id)
-      });
-
-      LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
-      // actors.forEach(actor => {
-      //   RequestsUtil.initRollRequest(actor, {
-      //     config: { hookNames: [requestTypeId], actors: actors }
-      //   });
-      // });
-      return;
-    }
-    
-    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
-    if (!rollTypesMenu) { return; }
-    
-    // Clear existing options
-    rollTypesMenu.innerHTML = "";
-    
-    // Get the system list for the selected request type
-    const subList = CONFIG.DND5E[requestType.subList];
-    LogUtil.log("System list for request type", [requestTypeId, subList, CONFIG.DND5E]);
-    if (!subList) { return; }
-      
-    // Create options for each item in the sublist
-    for (const [key, config] of Object.entries(subList)) {
-      const li = document.createElement("li");
-      li.dataset.abbreviation = key;
-      li.dataset.fullKey = config.fullKey || key;
-      li.dataset.label = config.label || "";
-      li.dataset.type = requestTypeId;
-      if(requestType.subList === ROLL_REQUEST_OPTIONS.TOOL.subList){
-        const toolUUID = CONFIG.DND5E.enrichmentLookup.tools[key];
-        const toolName = toolUUID ? Trait.getBaseItem(toolUUID.id, { indexOnly: true })?.name : null;
-        li.dataset.label = toolName;
-      }
-      li.innerHTML = `<i class="icon fas fa-dice-d20"></i>${li.dataset.label}`;
-
-      // Add click event listener
-      li.addEventListener("click", RollRequestsMenu.#onSublistItemClick);
-      
-      rollTypesMenu.appendChild(li);
-    }
-    
-    // Show the roll types menu
-    rollTypesMenu.classList.add("visible");
-  }
-  
   /**
    * Hide the roll types menu
    */
@@ -438,12 +372,13 @@ static showOptionsForRequestType(requestTypeId) {
 
   // If there's no sublist, send the roll request
   if(requestType.subList === null && actors.length > 0){
-    RequestsUtil.initRollRequest({
-      config: { hookNames: [requestTypeId] },
-      actors: actors.map(actor => actor.id)
-    });
+    // RequestsUtil.initRollRequest({
+    //   config: { hookNames: [requestTypeId] },
+    //   actors: actors.map(actor => actor.id)
+    // });
 
     LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
+
     // actors.forEach(actor => {
     //   RequestsUtil.initRollRequest({
     //     config: { hookNames: [requestTypeId], actors: actors }
@@ -640,7 +575,9 @@ static onActorLockClick(e){
         item.classList.remove("selected")
       }
     });
-    e.target.classList.toggle("selected");
+    if(!e.target.classList.contains("rollable")){
+      e.target.classList.toggle("selected");
+    }
     
     if(e.target.classList.contains("selected")){
       RollRequestsMenu.selectedRequestType = e.target.dataset.id;
@@ -648,6 +585,7 @@ static onActorLockClick(e){
     }else{
       RollRequestsMenu.selectedRequestType = null;
       RollRequestsMenu.hideRollTypes();
+
     }
     LogUtil.log("showRequestTypes - item clicked", [e.target.dataset, RollRequestsMenu.selectedRequestType]);
   }

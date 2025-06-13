@@ -65,7 +65,7 @@ export class RequestsUtil {
     });
   }
 
-  /**
+  /** 
    * Initiate a roll request to the player owner of the actor
    * @param {Actor5e} actor 
    * @param {Object} data 
@@ -484,7 +484,7 @@ export class RequestsUtil {
     const configSubject = config.subject?.actor || config.subject;
 
     // const firstActorIndex = actorsList.length > 0 && game.user.isGM ? 1 : 0;
-    LogUtil.log("#onPostRollConfiguration #A", [actorsList?.length, rolls?.[0], configSubject]);
+    LogUtil.log("#onPostRollConfiguration #A", [actorsList?.length, rolls?.[0], message, configSubject]);
     
     // if(!actorsList?.length && configSubject instanceof dnd5e.documents.Actor5e){ 
     //   actorsList[0] = configSubject.id;
@@ -536,7 +536,7 @@ export class RequestsUtil {
               disadvantage: rolls[0]?.hasDisadvantage || false,
               flavor: message?.data?.flavor || "",
               hookNames: config.hookNames || [],
-              isTemplateRoll: false,//i===0 ? true : false,
+              isTemplateRoll: false, // i===0 ? true : false,
               playerOwner: playerOwner?.id || "",
               rollType: rolls[0]?.options?.rollType || "",
               situational: rolls[0]?.data?.situational || "",
