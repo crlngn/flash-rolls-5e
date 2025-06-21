@@ -7,6 +7,7 @@ export const HOOKS_CORE = {
   INIT: "init",
   READY: "ready",
   RENDER_CHAT_MESSAGE: "renderChatMessage",
+  RENDER_SIDEBAR_TAB: "renderSidebarTab",
   UPDATE_SCENE: "updateScene",
   RENDER_SCENE_NAVIGATION: "renderSceneNavigation",
   RENDER_ROLL_RESOLVER: "renderRollResolver",

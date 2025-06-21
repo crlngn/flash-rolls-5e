@@ -1,12 +1,10 @@
 import { HOOKS_CORE } from "../constants/Hooks.mjs"; 
 import { LogUtil } from "./LogUtil.mjs"; 
 import { SettingsUtil } from "./SettingsUtil.mjs";
-import { RollRequestsMenu } from "./RollRequestsMenu.mjs"; 
 import { getSettings } from "../constants/Settings.mjs";
 import { MODULE_ID } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
-import { RequestsUtil } from "./RequestsUtil.mjs";
-import { ActivityUtil } from "./ActivityUtil.mjs";
+import RollRequestsMenu from "./RollRequestsMenu.mjs";
 
 /**
  * Main class handling core module initialization and setup
@@ -14,6 +12,8 @@ import { ActivityUtil } from "./ActivityUtil.mjs";
  */
 export class Main {
   static diceConfig = {};
+  static playerDiceConfigs = {};
+  static rollRequestsMenu = null;
   static SOCKET_CALLS = {
     receiveDiceConfig: "receiveDiceConfig",
     getDiceConfig: "getDiceConfig"
@@ -29,10 +29,10 @@ export class Main {
       const SETTINGS = getSettings();
       LogUtil.log("Initiating module...", [], true);
       SettingsUtil.registerSettings();
-      RequestsUtil.init();
-      ActivityUtil.init();
-      RollRequestsMenu.init();
       Main.setDiceConfig();
+      
+      // Register sidebar tab hook to add chat control
+      Hooks.on(HOOKS_CORE.RENDER_SIDEBAR_TAB, Main.addChatControl);
     });
 
     Hooks.once(HOOKS_CORE.READY, () => {
@@ -47,12 +47,6 @@ export class Main {
         // Only run this on the GM client
         game.users.forEach(user => {
           Main.onUserConnected(user);
-        });
-        SettingsUtil.applyRollRequestsSetting();
-        RollRequestsMenu.injectRollRequestsMenu();
-        Hooks.on(HOOKS_CORE.COLLAPSE_SIDE_BAR, (sidebar) => { 
-          LogUtil.log(HOOKS_CORE.COLLAPSE_SIDE_BAR, [sidebar._collapsed]);
-          if(sidebar){ Main.checkSideBar(!sidebar._collapsed); }
         });
         Main.checkSideBar(!ui?.sidebar?._collapsed);
       }else{
@@ -101,11 +95,8 @@ export class Main {
     Main.setDiceConfig();
     
     if(game.user.isGM) {
-      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig;
       SocketUtil.execForGMs(Main.SOCKET_CALLS.receiveDiceConfig, game.user.id, Main.diceConfig);
       return;
-    }else{
-      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig ? JSON.parse(Main.diceConfig) : {};
     }
   }
 
@@ -113,10 +104,10 @@ export class Main {
   static receiveDiceConfig(userId, diceConfig) {
     if (game.user?.isGM || userId===game.user.id){ // for GM or own user
       // Store the dice configuration for this user
-      if (!RequestsUtil.playerDiceConfigs) RequestsUtil.playerDiceConfigs = {};
-      RequestsUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
+      if (!Main.playerDiceConfigs) Main.playerDiceConfigs = {};
+      Main.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
       
-      LogUtil.log(`Received dice configuration from user ${userId}`, [RequestsUtil.playerDiceConfigs]);
+      LogUtil.log(`Received dice configuration from user ${userId}`, [Main.playerDiceConfigs]);
     }
   }
 
@@ -126,7 +117,92 @@ export class Main {
   static registerSocketCalls() {
     SocketUtil.registerCall(Main.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
     SocketUtil.registerCall(Main.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
-    RequestsUtil.registerSocketCalls();
+  }
+
+  /**
+   * Add the roll request icon to chat controls
+   * @param {SidebarTab} app - The sidebar tab application
+   * @param {jQuery} html - The rendered HTML
+   * @param {Object} options - Render options
+   */
+  static addChatControl(app, html, options) {
+    // Only add to chat tab for GM users
+    if (!game.user.isGM || app.id !== "chat") return;
+    
+    LogUtil.log("Adding chat control for chat tab");
+    
+    // Get the HTML element from jQuery object
+    const htmlElement = html[0] || html;
+    
+    // Find the chat controls container
+    const chatControls = htmlElement.querySelector("#chat-controls");
+    
+    if (!chatControls) {
+      LogUtil.log("Could not find #chat-controls");
+      return;
+    }
+    
+    // Check if icon already exists
+    if (chatControls.querySelector('.roll-requests-icon')) {
+      return;
+    }
+    
+    // Get current settings to determine initial state
+    const SETTINGS = getSettings();
+    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    
+    // Create the roll request icon
+    const rollRequestIcon = document.createElement('a');
+    rollRequestIcon.id = "crlngn-requests-icon";
+    rollRequestIcon.setAttribute("data-tooltip-direction", "RIGHT");
+    rollRequestIcon.className = `chat-control-icon roll-requests-icon${rollRequestsEnabled ? ' active' : ''}`;
+    rollRequestIcon.title = game.i18n.localize('CRLNGN_ROLLS.ui.menus.rollRequestsTitle');
+    rollRequestIcon.innerHTML = `<i class="fas fa-bolt${rollRequestsEnabled ? '' : '-slash'}"></i>`;
+    
+    // Find the first .chat-control-icon (the d20 dice icon)
+    const firstChatControlIcon = chatControls.querySelector('.chat-control-icon');
+    
+    if (firstChatControlIcon) {
+      // Insert before the d20 dice icon
+      firstChatControlIcon.parentNode.insertBefore(rollRequestIcon, firstChatControlIcon);
+    } else {
+      // If no chat-control-icon found, append to chat controls
+      chatControls.appendChild(rollRequestIcon);
+    }
+    
+    // Add click listener
+    rollRequestIcon.addEventListener("click", Main.toggleRollRequestsMenu);
+    
+    LogUtil.log("Added roll requests icon to chat controls");
+  }
+
+  /**
+   * Toggle the roll requests menu open/closed
+   */
+  static toggleRollRequestsMenu() {
+    if (!Main.rollRequestsMenu) {
+      Main.rollRequestsMenu = new RollRequestsMenu();
+      Main.rollRequestsMenu.render(true);
+    } else {
+      // Toggle visibility of existing menu
+      if (Main.rollRequestsMenu.rendered) {
+        Main.rollRequestsMenu.close();
+        LogUtil.log("Closed roll requests menu");
+      } else {
+        Main.rollRequestsMenu.render(true);
+        LogUtil.log("Opened roll requests menu");
+      }
+    }
+  }
+
+  /**
+   * Update the roll requests icon based on enabled state
+   */
+  static updateRollRequestsIcon(enabled) {
+    const icon = document.querySelector('#crlngn-requests-icon i');
+    if (icon) {
+      icon.className = `fas fa-bolt${enabled ? '' : '-slash'}`;
+    }
   }
 
 }

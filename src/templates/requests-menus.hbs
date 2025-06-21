@@ -1,87 +1,92 @@
-<ul class="actors">
-  <li class="options">
-    <div class="selection-row">
-      <label for="crlngn-requests-toggle" class="switch">
-        <input type="checkbox" name="crlngn-requests-toggle" id="crlngn-requests-toggle" {{#if requestsEnabled}}checked{{/if}} />
-        <div class="track"></div>
-        <div class="handle"></div>
-        {{localize "CRLNGN_ROLLS.ui.inputs.toggleRollRequests"}}
-      </label>
-      <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="crlngn-actors-lock"></i>
-    </div>
-
-    {{!-- Skip Dialogs Toggle --}}
-    <div class="selection-row">
-      <label for="crlngn-skip-dialogs" class="switch">
-        <input type="checkbox" name="crlngn-skip-dialogs" id="crlngn-skip-dialogs" {{#if skipDialogs}}checked{{/if}}>
-        <div class="track"></div>
-        <div class="handle"></div>
-        {{localize "CRLNGN_ROLLS.ui.inputs.skipDialogs"}}
-      </label>
-    </div>
-
-    {{!-- Select All Toggle --}}
-    <div class="selection-row">
-      <label for="crlngn-actors-all" class="switch">
-        <input type="checkbox" name="crlngn-actors-all" id="crlngn-actors-all" {{#if selectAllOn}}checked{{/if}}>
-        <div class="track"></div>
-        <div class="handle"></div>
-        {{localize "CRLNGN_ROLLS.ui.inputs.selectAll"}}
-      </label>
-    </div>
-  </li>
-
-  {{#each actors as |actor|}}
-    <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
-      {{!-- <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}"> --}}
-      <div class="actor-select" data-id="{{actor.id}}">
-        <i class="icon fas fa-circle"></i>
+<div>
+  <ul class="actors">
+    <li class="options">
+      <div class="selection-row">
+        <label for="crlngn-requests-toggle" class="switch">
+          <input type="checkbox" name="crlngn-requests-toggle" id="crlngn-requests-toggle" {{#if rollRequestsEnabled}}checked{{/if}} />
+          <div class="track"></div>
+          <div class="handle"></div>
+          {{localize "CRLNGN_ROLLS.ui.inputs.toggleRollRequests"}}
+        </label>
+        <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="crlngn-actors-lock"></i>
       </div>
-      <div class="actor-data">
-        {{!-- <span class="actor-name">{{actor.name}}</span> --}}
-        {{#if ../showNames}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
-        <ul class="actor-stats">
-          {{#each actor.crlngnStats as |prop|}}
-            <li class="actor-stat">
-              <span class="stat-abbrev">{{ prop.abbrev }}</span>
-              <span class="stat-value">{{ prop.value }}</span>
-            </li>
-          {{/each}}
-        </ul>
+
+      {{!-- Skip Dialogs Toggle --}}
+      <div class="selection-row">
+        <label for="crlngn-skip-dialogs" class="switch">
+          <input type="checkbox" name="crlngn-skip-dialogs" id="crlngn-skip-dialogs" {{#if skipDialogs}}checked{{/if}}>
+          <div class="track"></div>
+          <div class="handle"></div>
+          {{localize "CRLNGN_ROLLS.ui.inputs.skipDialogs"}}
+        </label>
       </div>
-      <div class="actor-img">
-        <img src="../{{ actor.img }}" alt="{{ actor.name }}" />
+
+      {{!-- Select All Toggle --}}
+      <div class="selection-row">
+        <label for="crlngn-actors-all" class="switch">
+          <input type="checkbox" name="crlngn-actors-all" id="crlngn-actors-all" {{#if selectAllOn}}checked{{/if}}>
+          <div class="track"></div>
+          <div class="handle"></div>
+          {{localize "CRLNGN_ROLLS.ui.inputs.selectAll"}}
+        </label>
       </div>
     </li>
-  {{/each}}
 
+    <li class="actor-list">
+      <ul>
+      {{#each actors as |actor|}}
+        <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
+          {{!-- <input type="checkbox" id="crlngn-pc-{{ actor.id }}" data-id="{{ actor.id }}"> --}}
+          <div class="actor-select" data-id="{{actor.id}}">
+            <i class="icon fas fa-{{#if actor.selected}}circle-dot{{else}}circle{{/if}}"></i>
+          </div>
+          <div class="actor-data">
+            {{!-- <span class="actor-name">{{actor.name}}</span> --}}
+            {{#if ../showNames}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
+            <ul class="actor-stats">
+              {{#each actor.crlngnStats as |prop|}}
+                <li class="actor-stat">
+                  <span class="stat-abbrev">{{ prop.abbrev }}</span>
+                  <span class="stat-value">{{ prop.value }}</span>
+                </li>
+              {{/each}}
+            </ul>
+          </div>
+          <div class="actor-img">
+            <img src="{{ actor.img }}" alt="{{ actor.name }}" />
+          </div>
+        </li>
+      {{/each}}
+      </ul>
+    </li>
 
-  <li class="actors-tabs">
-    <button class="npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc">NPCs</button>
-    <button class="pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc">PCs</button>
-  </li>
-</ul>
+    <li class="actors-tabs">
+      <button class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc">NPCs</button>
+      <button class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc">PCs</button>
+    </li>
+  </ul>
 
-<!-- Request Types -->
-<ul class="request-types">
-  {{#each requestTypes as |requestType|}}
-    <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}">
-      {{#if requestType.rollable}}
+  <!-- Request Types -->
+  <ul class="request-types">
+    {{#each requestTypes as |requestType|}}
+      <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}">
+        {{#if requestType.rollable}}
+          <i class="icon fas fa-dice-d20"></i>
+        {{else}}
+          <i class="icon fas fa-caret-left"></i>
+        {{/if}} 
+        {{ requestType.name }}
+      </li>
+    {{/each}}
+  </ul>
+
+  <!-- Roll Types -->
+  <ul class="roll-types">
+    {{#each rollTypes as |rollType|}}
+      <li class="rollable">
         <i class="icon fas fa-dice-d20"></i>
-      {{else}}
-        <i class="icon fas fa-caret-left"></i>
-      {{/if}} 
-      {{ requestType.name }}
-    </li>
-  {{/each}}
-</ul>
-
-<!-- Roll Types -->
-<ul class="roll-types">
-  {{#each rollTypes as |rollType|}}
-    <li>
-      <i class="icon fas fa-dice-d20"></i>
-      {{ rollType.name }}
-    </li>
-  {{/each}}
-</ul>
+        {{ rollType.name }}
+      </li>
+    {{/each}}
+  </ul>
+</div>

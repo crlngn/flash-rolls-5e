@@ -1,14 +1,11 @@
 import { MODULE_ID } from "../constants/General.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { LogUtil } from "./LogUtil.mjs";
-import { RequestsUtil } from "./RequestsUtil.mjs";
-import { RollRequestsMenu } from "./RollRequestsMenu.mjs";
 
 /**
  * Utility class for managing module settings
  */
 export class SettingsUtil {
-  
   /**
    * Register all module settings
    * @static
@@ -44,7 +41,6 @@ export class SettingsUtil {
       }
       LogUtil.log("registerSettings",[setting.tag, SettingsUtil.get(setting.tag)]);
     });
-    SettingsUtil.applySkipDialogsSetting();
   }
   
   /**
@@ -106,50 +102,21 @@ export class SettingsUtil {
     const SETTINGS = getSettings();
     switch(settingName){
       case SETTINGS.rollRequestsEnabled.tag:
-        SettingsUtil.applyRollRequestsSetting(newValue);
-        break;
-      case SETTINGS.skipDialogs.tag:
-        SettingsUtil.applySkipDialogsSetting(newValue);
+        SettingsUtil.applyRollRequestsEnabled(newValue);
         break;
       default:
         break;
     }
   }
 
-  static applyRollRequestsSetting(value){
-    const SETTINGS = getSettings();
-    LogUtil.log("applyRollRequestsSetting", [value]);
-    const isEnabled = value || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    RequestsUtil.requestsEnabled = isEnabled;
-
-    // update the layout
-    const rollRequestsToggle = document.querySelector("#crlngn-requests-toggle");
-    if(!rollRequestsToggle){ return; }
-    if (isEnabled === false) {
-      rollRequestsToggle.classList.remove("active");
-    } else {
-      rollRequestsToggle.classList.add("active");
-    }
-
-    const tooltipStr = game.i18n.localize(rollRequestsToggle.classList.contains("active") ? 
-      "CRLNGN_ROLLS.ui.buttons.rollRequestsToggleOn" : 
-      "CRLNGN_ROLLS.ui.buttons.rollRequestsToggleOff");
-    rollRequestsToggle.dataset.tooltip = tooltipStr;
-
-    if (game.user.isGM && game.tooltip) {
-      game.tooltip.activate(rollRequestsToggle, {text: tooltipStr});
-    }
-
-    RollRequestsMenu.hideActorsMenu();
-    RollRequestsMenu.showActorsMenu();
+  static applyRollRequestsEnabled(newValue){
+    const requestsIcon = document.querySelector("#chat-controls .chat-control-icon.roll-requests-icon");
+    if(!requestsIcon){ return; }
     
-    LogUtil.log("Roll Requests Toggle", [isEnabled, rollRequestsToggle]);
+    if(newValue){
+      requestsIcon.classList.add("active");
+    }else{
+      requestsIcon.classList.remove("active");
+    }
   }
-
-  static applySkipDialogsSetting(value){
-    const SETTINGS = getSettings();
-    RequestsUtil.skipDialogs = value || SettingsUtil.get(SETTINGS.skipDialogs.tag);
-    LogUtil.log("applySkipDialogsSetting", [value]);
-  }
-
 }

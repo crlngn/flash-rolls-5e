@@ -1,638 +1,460 @@
-import { SettingsUtil } from "./SettingsUtil.mjs";
-import { LogUtil } from "./LogUtil.mjs";
-import { getSettings } from "../constants/Settings.mjs";
-import { GeneralUtil } from "./GeneralUtil.mjs";
-import { ROLL_REQUEST_OPTIONS } from "../constants/General.mjs";
-import * as Trait from "../../dnd5e/module/documents/actor/trait.mjs";
-import { RequestsUtil } from "./RequestsUtil.mjs";
-import { HOOKS_CORE } from "../constants/Hooks.mjs";
+import { MODULE } from '../constants/General.mjs';
+import { LogUtil } from './LogUtil.mjs';
+import { SettingsUtil } from './SettingsUtil.mjs';
+import { getSettings } from '../constants/Settings.mjs';
+import { Main } from './Main.mjs';
 
 /**
- * Class to handle the roll requests toggle and related functionality
+ * Roll Requests Menu Application
+ * Extends Foundry's ApplicationV2 with Handlebars support to provide a menu interface for GMs to request rolls from players
  */
-export class RollRequestsMenu {
-  static actorsMenu = null;
-  static actors = { pc: [], npc: [] };
-  static selectedActors = { pc: [], npc: [] };
-  static selectedRequestType = null;
-  static selectedOptionType = null;
-  static selectAllCheckbox = null;
-  static actorsLocked = false;
-  static selectAllOn = false;
-  static selectedTab = "pc";
-
-  static init(){
-    RollRequestsMenu.preloadHandlebarsTemplates();
-  }
-
-  /**
-   * Get all player character actors
-   * @returns {Array} Array of player character actors
-   */
-  static getPlayerActors(){
-    const pcActors = game.actors.filter((actor, index) => {
-      const isCharacter = actor.type === "character";
-      return isCharacter;
-    });
-    pcActors.sort((a, b) => a.name.localeCompare(b.name));
-    RollRequestsMenu.actors.pc = pcActors;
-    return pcActors;
-  }
-
-  /**
-   * Get all non-player character actors
-   * @returns {Array} Array of non-player character actors
-   */
-  static getNPCActors(){
-    const onSceneActors = game.scenes.viewed?.tokens.map(token => token.actor);
-    // LogUtil.log("getNPCActors", [onSceneActors]);
-    const npcActors = onSceneActors.filter((actor, index) => {
-      const isNPC = actor.type === "npc";
-      return isNPC;
-    });
-    npcActors.sort((a, b) => a.name.localeCompare(b.name));
-
-    RollRequestsMenu.actors.npc = npcActors;
-    return npcActors;
-  }
-
-  /**
-   * Preload the handlebars templates for the PC actors menu
-   */
-  static preloadHandlebarsTemplates() {
-    const templatePaths = [
-      "modules/crlngn-roll-requests/templates/requests-menus.hbs"
-    ];
-    return loadTemplates(templatePaths);
-  }
-
-  /**
-   * Inject the roll requests toggle into the chat controls
-   * @returns {HTMLElement} The roll requests toggle element
-   */
-  static injectRollRequestsMenu() {
-    const rollRequestsToggleHTML = `<label class="chat-control-icon active" id="crlngn-requests-icon" ` +
-    `data-tooltip-direction="RIGHT"><i class="fas fa-bolt"></i></label>`;
+export default class RollRequestsMenu extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
+  constructor(options = {}) {
+    super(options);
     
-    document.querySelector("#chat-controls").insertAdjacentHTML("afterbegin", rollRequestsToggleHTML);
-    const rollRequestsToggle = document.querySelector("#crlngn-requests-icon");
-    const isEnabled = RequestsUtil.requestsEnabled;
-    
-    // Add toggle event listeners
-    rollRequestsToggle.addEventListener("click", RollRequestsMenu.onRequestsToggleClick);
-    rollRequestsToggle.addEventListener("mouseenter", RollRequestsMenu.showActorsMenu);
-    rollRequestsToggle.addEventListener("mouseleave", RollRequestsMenu.hideActorsMenu);
-    
-    LogUtil.log("TEST", [game, CONFIG.DND5E]);
-    return rollRequestsToggle;
+    // Track selected actors and current state
+    this.selectedActors = new Set();
+    this.currentTab = 'pc'; // 'pc' or 'npc'
+    this.selectedRequestType = null;
   }
 
-  /**
-   * Show the actors menu when hovering over the roll requests toggle
-   * @param {Event} event - The mouseenter event
-   */
-  static async showActorsMenu(event) {
-    const SETTINGS = getSettings();
-    // Get actors based on selected tab
-    const pcActors = RollRequestsMenu.getPlayerActors();
-    const npcActors = RollRequestsMenu.getNPCActors();
-    const existingMenu = document.querySelector("#crlngn-actors-menu");
-    const toggleButton = document.querySelector("#crlngn-requests-icon");
-    const tab = RollRequestsMenu.selectedTab;
+  static DEFAULT_OPTIONS = {
+    id: 'crlngn-requests-menu',
+    classes: ['roll-requests-menu'],
+    tag: 'div',
+    window: {
+      frame: false,
+      resizable: false,
+      minimizable: false
+    },
+    position: null
+  };
 
-    // Remove existing menu if it exists
-    if (existingMenu) {
-      existingMenu.remove();
+  static PARTS = {
+    main: {
+      template: `modules/${MODULE.ID}/templates/requests-menus.hbs`
     }
+  };
 
-    // Determine which actors to display based on selected tab
-    const displayActors = tab === "pc" ? pcActors : npcActors;
+  /**
+   * Prepare data for the template
+   */
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
     
-    LogUtil.log("showActorsMenu", [tab, RollRequestsMenu.selectedActors[tab], RollRequestsMenu.selectedTab]);
-    LogUtil.log("NPCs", [RollRequestsMenu.getNPCActors()]);
-    const requestTypes = Object.values(ROLL_REQUEST_OPTIONS).map(option => ({
-      id: option.name,
-      name: option.label,
-      selected: false,
-      rollable: option.subList === null
-    }));
-    const actorIds = RollRequestsMenu.selectedActors[tab].map(actor => actor.id);
+    // Get all actors and separate by ownership
+    const actors = game.actors.contents;
+    const pcActors = [];
+    const npcActors = [];
     
-    const menuHtml = await renderTemplate("modules/crlngn-roll-requests/templates/requests-menus.hbs", {
-      actors: displayActors.map(actor => {
-        const isSelected = RollRequestsMenu.selectedActors[tab].some(selectedActor => selectedActor.id === actor.id);
-        let crlngnStats = [];
-        
-        if (actor.type === "character") {
-          crlngnStats = [
-            { abbrev: "AC", value: actor.system.attributes.ac.value },
-            { abbrev: "HP", value: actor.system.attributes.hp.value },
-            { abbrev: "DC", value: actor.system.attributes.spelldc },
-            { abbrev: "PRC", value: actor.system.skills.prc.passive }
-          ];
-        } else if (actor.type === "npc") {
-          // For NPCs, use the same stats if available, otherwise leave blank
-          crlngnStats = [
-            { abbrev: "AC", value: actor.system.attributes.ac.value || "" },
-            { abbrev: "HP", value: actor.system.attributes.hp.value || "" },
-            { abbrev: "DC", value: actor.system.attributes.spelldc || "" },
-            { abbrev: "PRC", value: actor.system.skills?.prc?.passive || "" }
-          ];
-        }
-        
-        return {
-          id: actor.id,
-          name: actor.name,
-          img: actor.img,
-          selected: isSelected,
-          crlngnStats
-        };
-      }),
-      selectedTab: RollRequestsMenu.selectedTab,
-      showNames: false,
-      requestTypes: requestTypes,
-      actorsLocked: RollRequestsMenu.actorsLocked,
-      requestsEnabled: RequestsUtil.requestsEnabled,
-      selectAllOn: RollRequestsMenu.selectAllOn,
-      skipDialogs: RequestsUtil.skipDialogs
-    });
-
-    document.body.insertAdjacentHTML("beforeend", `<div id="crlngn-actors-menu">${menuHtml}</div>`);
-    RollRequestsMenu.actorsMenu = document.querySelector("#crlngn-actors-menu");
+    // Get current scene to check for NPC tokens
+    const currentScene = game.scenes.active;
     
-    // Get the toggle button's position
-    const toggleRect = toggleButton.getBoundingClientRect();
-    const toggleTop = toggleRect.top;
-    const toggleHeight = toggleRect.height;
-    
-    const menu = RollRequestsMenu.actorsMenu;
-    menu.addEventListener("mouseleave", RollRequestsMenu.hideActorsMenu);
-    menu.style.zIndex = 100;
-    // Set the menu position to the left of the toggle and vertically centered with it
-    const menuWidth = 200; // Match the width from CSS
-    menu.style.right = `var(--current-sidebar-width, 0px)`;
-    menu.style.top = `${toggleTop}px`;
-    
-    // After the menu is rendered, check if it fits in the viewport
-    // and if not, add class to grow upward
-    // Also add listeners to toggles and buttons
-    setTimeout(() => {
-      const menuRect = menu.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
+    for (const actor of actors) {
+      // Skip non-character actors
+      if (actor.type !== 'character' && actor.type !== 'npc') continue;
       
-      if (menuRect.bottom > viewportHeight) {
-        menu.style.top = 'auto';
-        menu.classList.add('grow-up');
+      const actorData = {
+        id: actor.id,
+        uuid: actor.uuid,
+        name: actor.name,
+        img: actor.img,
+        selected: this.selectedActors.has(actor.id),
+        crlngnStats: this._getActorStats(actor)
+      };
+      
+      // Check if owned by a player (not GM)
+      const isPlayerOwned = Object.entries(actor.ownership)
+        .some(([userId, level]) => {
+          const user = game.users.get(userId);
+          return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+        });
+      
+      if (isPlayerOwned) {
+        pcActors.push(actorData);
       } else {
-        menu.classList.remove('grow-up');
-      }
-
-      RollRequestsMenu.addMenuListeners(RollRequestsMenu.actorsMenu);
-    }, 0);
-
-    RollRequestsMenu.markSelectedActors();
-  }
-
-  static addMenuListeners(menuHtml){
-    const actorItems = menuHtml.querySelectorAll('.actor');
-    const actorImgs = menuHtml.querySelectorAll('.actor .actor-img');
-    const selectAllCheckbox = menuHtml.querySelector('#crlngn-actors-all');
-    const actorsLockButton = menuHtml.querySelector('#crlngn-actors-lock');
-    const requestsToggle = menuHtml.querySelector('#crlngn-requests-toggle');
-    const dialogsToggle = menuHtml.querySelector('#crlngn-skip-dialogs');
-    const tabButtons = menuHtml.querySelectorAll('.actors-tabs button');
-
-    RollRequestsMenu.selectAllCheckbox = selectAllCheckbox;
-
-    // Add event listeners to actor items
-    actorItems.forEach(item => {
-      item.addEventListener('click', RollRequestsMenu.onActorToggle);
-      item.addEventListener('contextmenu', RollRequestsMenu.onActorContext);
-    });
-
-    actorImgs.forEach(itemImg => {
-      itemImg.addEventListener('click', RollRequestsMenu.onActorOpenSheet);
-    });
-
-    // Add event listener to select all checkbox
-    selectAllCheckbox.addEventListener('change', RollRequestsMenu.onAllActorsToggle);
-    actorsLockButton.addEventListener('click', RollRequestsMenu.onActorLockClick);
-    requestsToggle.addEventListener('change', RollRequestsMenu.onRequestsToggleClick);
-    dialogsToggle.addEventListener('change', RollRequestsMenu.onDialogsToggleClick);
-    
-    // Add event listeners to tab buttons
-    tabButtons.forEach(tab => {
-      tab.addEventListener('click', RollRequestsMenu.onTabClick);
-    });
-  }
-
-  static onRequestsToggleClick(event){
-    const SETTINGS = getSettings();
-    const boltToggle = document.querySelector("#crlngn-requests-toggle");
-    const menuToggle = RollRequestsMenu.actorsMenu?.querySelector("#crlngn-rolls-toggle-requests input[type='checkbox']");
-    const isBoltTarget = event.target.id === "crlngn-requests-toggle";
-    const isEnabled = isBoltTarget ? !event.target.classList.contains("active") : menuToggle?.checked;
-
-    LogUtil.log("onRequestsToggleClick", [isEnabled, isBoltTarget]);
-    
-    if(isEnabled){
-      boltToggle.classList.add("active");
-      if(menuToggle){ menuToggle.checked = true; }
-    }else{
-      boltToggle.classList.remove("active");
-      if(menuToggle){ menuToggle.checked = false; }
-    }
-    
-    RequestsUtil.requestsEnabled = isEnabled;
-    SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, isEnabled);
-  }
-
-  static onDialogsToggleClick(event){
-    const SETTINGS = getSettings();
-    const target = event.target;
-    const isEnabled = target.checked;
-
-    LogUtil.log("onDialogsToggleClick", [isEnabled]);
-    
-    RequestsUtil.skipDialogs = isEnabled;
-    SettingsUtil.set(SETTINGS.skipDialogs.tag, isEnabled);
-
-    // RollRequestsMenu.hideActorsMenu();
-    // RollRequestsMenu.showActorsMenu();
-  }
-
-  /**
-   * Hide the PC actors menu when moving away from the roll requests toggle
-   */
-  static hideActorsMenu() {
-    const menu = RollRequestsMenu.actorsMenu;
-    if(RollRequestsMenu.actorsLocked){ return; }
-    if (menu) {
-      // Add a small delay to allow clicking on the menu
-      setTimeout(() => {
-        if (!menu.matches(":hover")) {
-          menu.remove();
-          // Reset selections
-          // RollRequestsMenu.selectedActors = [];
-          RollRequestsMenu.selectedRequestType = null;
+        // For NPCs, only include if they have a token in the current scene
+        if (currentScene) {
+          const hasTokenInScene = currentScene.tokens.some(token => token.actorId === actor.id);
+          if (hasTokenInScene) {
+            npcActors.push(actorData);
+          }
         }
-      }, 750);
-    }
-  }
-  
-  /**
-   * Shows the request types menu after the actor selection is made
-   * Builds the menu items and adds click listeners
-   */
-  static showRequestTypes() {
-    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
-    if (requestTypesMenu) {
-      requestTypesMenu.classList.add("visible");
-      
-      const requestTypeItems = requestTypesMenu.querySelectorAll("li");
-      requestTypeItems.forEach(item => {
-        if (!item._hasClickListener) {
-          item.addEventListener("click", RollRequestsMenu.#onRequestTypeClick);
-          item._hasClickListener = true;
-        }
-      });
-    } else {
-      LogUtil.log("Request types menu not found", []);
-    }
-  }
-  
-  /**
-   * Hide the request types menu
-   */
-  static hideRequestTypes() {
-    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
-    if (requestTypesMenu) {
-      requestTypesMenu.classList.remove("visible");
-    }
-    // Also hide the roll types menu
-    RollRequestsMenu.hideRollTypes();
-  }
-
-  /**
-   * Hide the roll types menu
-   */
-  static hideRollTypes() {
-    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
-    if (rollTypesMenu) {
-      rollTypesMenu.classList.remove("visible");
-      rollTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
-      RollRequestsMenu.selectedOptionType = null;
-    }
-  }
-
-  static onActorLockClick(e){
-    const lockIcon = e.target;
-    RollRequestsMenu.actorsLocked = !RollRequestsMenu.actorsLocked;
-
-    if(RollRequestsMenu.actorsLocked){
-      lockIcon.classList.add("fa-lock-keyhole");
-      lockIcon.classList.remove("fa-lock-keyhole-open");
-    } else {
-      lockIcon.classList.add("fa-lock-keyhole-open");
-      lockIcon.classList.remove("fa-lock-keyhole");
-    }
-  }
-
-  static setItemSelection(item, markSelection){
-    item.dataset.selected = markSelection ? "true" : "false"; // alternate the value
-    const icon = item.querySelector(".actor-select i");
-    LogUtil.log("setItemSelection", [item, markSelection]);
-
-    if(markSelection){
-      item.classList.add("selected");
-      icon.classList.add("fa-circle-dot");
-      icon.classList.remove("fa-circle");
-    }else{
-      item.classList.remove("selected");
-      icon.classList.remove("fa-circle-dot");
-  }
-  // Also hide the roll types menu
-  RollRequestsMenu.hideRollTypes();
-}
-
-/**
- * Show options for the selected request type
- * @param {string} requestTypeId - The ID of the selected request type
- */
-static showOptionsForRequestType(requestTypeId) {
-  const tab = RollRequestsMenu.selectedTab;
-  const actors = RollRequestsMenu.selectedActors[tab];
-  
-  // Find the request type configuration
-  const requestType = Object.values(ROLL_REQUEST_OPTIONS).find(option => option.name === requestTypeId);
-  LogUtil.log("showOptionsForRequestType", [actors, requestType, requestTypeId]);
-  if (!requestType) {
-    return;
-  }
-
-  // If there's no sublist, send the roll request
-  if(requestType.subList === null && actors.length > 0){
-    // RequestsUtil.initRollRequest({
-    //   config: { hookNames: [requestTypeId] },
-    //   actors: actors.map(actor => actor.id)
-    // });
-
-    LogUtil.log("showOptionsForRequestType - Sending roll request", [actors, requestTypeId]);
-
-    // actors.forEach(actor => {
-    //   RequestsUtil.initRollRequest({
-    //     config: { hookNames: [requestTypeId], actors: actors }
-    //   });
-    // });
-    return;
-  }
-  
-  const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
-  if (!rollTypesMenu) { return; }
-  
-  // Clear existing options
-  rollTypesMenu.innerHTML = "";
-  
-  // Get the system list for the selected request type
-  const subList = CONFIG.DND5E[requestType.subList];
-  LogUtil.log("System list for request type", [requestTypeId, subList, CONFIG.DND5E]);
-  if (!subList) { return; }
-      
-  // Create options for each item in the sublist
-  for (const [key, config] of Object.entries(subList)) {
-    const li = document.createElement("li");
-    li.dataset.abbreviation = key;
-    li.dataset.fullKey = config.fullKey || key;
-    li.dataset.label = config.label || "";
-    li.dataset.type = requestTypeId;
-    if(requestType.subList === ROLL_REQUEST_OPTIONS.TOOL.subList){
-      const toolUUID = CONFIG.DND5E.enrichmentLookup.tools[key];
-      const toolName = toolUUID ? Trait.getBaseItem(toolUUID.id, { indexOnly: true })?.name : null;
-      li.dataset.label = toolName;
-    }
-    li.innerHTML = `<i class="icon fas fa-dice-d20"></i>${li.dataset.label}`;
-
-    // Add click event listener
-    li.addEventListener("click", RollRequestsMenu.#onSublistItemClick);
-    
-    rollTypesMenu.appendChild(li);
-  }
-  
-  // Show the roll types menu
-  rollTypesMenu.classList.add("visible");
-}
-
-/**
- * Hide the roll types menu
- */
-static hideRollTypes() {
-  const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
-  if (rollTypesMenu) {
-    rollTypesMenu.classList.remove("visible");
-    rollTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
-    RollRequestsMenu.selectedOptionType = null;
-  }
-}
-
-static onActorLockClick(e){
-  const lockIcon = e.target;
-  RollRequestsMenu.actorsLocked = !RollRequestsMenu.actorsLocked;
-
-  if(RollRequestsMenu.actorsLocked){
-    lockIcon.classList.add("fa-lock-keyhole");
-    lockIcon.classList.remove("fa-lock-keyhole-open");
-  } else {
-    lockIcon.classList.add("fa-lock-keyhole-open");
-    lockIcon.classList.remove("fa-lock-keyhole");
-  }
-}
-
-  static setItemSelection(item, markSelection){
-    item.dataset.selected = markSelection ? "true" : "false"; // alternate the value
-    const icon = item.querySelector(".actor-select i");
-    LogUtil.log("setItemSelection", [item, markSelection]);
-
-    if(markSelection){
-      item.classList.add("selected");
-      icon.classList.add("fa-circle-dot");
-      icon.classList.remove("fa-circle");
-    }else{
-      item.classList.remove("selected");
-      icon.classList.remove("fa-circle-dot");
-      icon.classList.add("fa-circle");
-    }
-  }
-
-  /**
-   * Handle actor selection
-   * @param {Event} e 
-   */
-  static onActorToggle(e){
-    LogUtil.log("onActorToggle", [e]);
-    
-    const currItem = e.target.closest('.actor');
-    if (!currItem) return;
-    
-    RollRequestsMenu.setItemSelection(currItem, !(currItem.dataset.selected == "true"));
-
-    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.actor');
-    const allChecked = Array.from(actorItems).every(item => item.dataset.selected === "true");
-    const someChecked = Array.from(actorItems).some(item => item.dataset.selected === "true");
-    RollRequestsMenu.selectAllCheckbox.checked = allChecked;
-    RollRequestsMenu.selectAllCheckbox.indeterminate = someChecked && !allChecked;
-
-    LogUtil.log("onActorToggle - checked states", [allChecked, someChecked]);
-
-    // if some actors are checked, show request types menu
-    const selectedActorItems = Array.from(actorItems).filter(item => item.dataset.selected === "true");
-    const actorIds = selectedActorItems.map(item => item.dataset.id);
-    const tab = RollRequestsMenu.selectedTab;
-    RollRequestsMenu.selectedActors[tab] = RollRequestsMenu.actors[tab].filter(actor => actorIds.includes(actor.id));
-    RollRequestsMenu.selectAllOn = allChecked;
-
-    if(someChecked) {
-      RollRequestsMenu.showRequestTypes();
-    } else {
-      RollRequestsMenu.hideRequestTypes();
-    }
-    LogUtil.log("onActorToggle - selected actors", [actorIds, RollRequestsMenu.selectedActors]);
-  }
-
-  static onActorContext(e){
-    const actorElement = e.target.closest('.actor');
-    if (!actorElement) return;
-    const tab = RollRequestsMenu.selectedTab;
-    const actorId = actorElement.dataset.id;
-    const actor = RollRequestsMenu.actors[tab].find(actor => actor.id === actorId);
-    const token = actor.token;
-    if(token){
-      canvas.animatePan({x: token.x, y: token.y, scale: 1}); 
-    }
-  }
-
-  static onActorOpenSheet(e){
-    // Prevent event from bubbling up to parent elements
-    e.stopPropagation();
-    
-    // Find the closest parent with class actor that has the data-id attribute
-    const actorElement = e.target.closest('.actor');
-    if (!actorElement) return;
-    const tab = RollRequestsMenu.selectedTab;
-    const actorId = actorElement.dataset.id;
-    const actor = RollRequestsMenu.actors[tab].find(actor => actor.id === actorId);
-    if(actor){
-      actor.sheet.render(true);
-    }
-  }
-
-  static onAllActorsToggle(e){
-    const tab = RollRequestsMenu.selectedTab;
-    const isChecked = e.target.checked;
-    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.actor');
-    RollRequestsMenu.selectedActors[tab] = [];
-    RollRequestsMenu.selectAllOn = isChecked;
-
-    actorItems.forEach(item => {
-      RollRequestsMenu.setItemSelection(item, isChecked);  
-      RollRequestsMenu.selectedActors[tab].push(RollRequestsMenu.actors[tab].find(actor => actor.id === item.dataset.id));
-    });
-    
-    // RollRequestsMenu.markSelectedActors();
-    // Show or hide request types based on selection
-    if (isChecked) {
-      RollRequestsMenu.showRequestTypes();
-    } else {
-      RollRequestsMenu.hideRequestTypes();
-    }
-  }
-
-  static markSelectedActors(){
-    const tab = RollRequestsMenu.selectedTab;
-    const actorItems = RollRequestsMenu.actorsMenu.querySelectorAll('.actor');
-    const selectedActorIds = RollRequestsMenu.selectedActors[tab].map(actor => actor.id);
-    
-    actorItems.forEach(item => {
-      if(selectedActorIds.includes(item.dataset.id)){
-        RollRequestsMenu.setItemSelection(item, true);
-      }else{
-        RollRequestsMenu.setItemSelection(item, false);
       }
-    });
-    if(RollRequestsMenu.selectedActors[tab].length > 0){
-      RollRequestsMenu.showRequestTypes();
-    }else{
-      RollRequestsMenu.hideRequestTypes();
-    }
-  }
-
-  static #onRequestTypeClick = (e) => {
-    const requestTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.request-types");
-    if (!requestTypesMenu) { return; }
-    
-    RollRequestsMenu.hideRollTypes();
-    requestTypesMenu.querySelectorAll(".selected").forEach(item => {
-      if(item !== e.target){
-        item.classList.remove("selected")
-      }
-    });
-    if(!e.target.classList.contains("rollable")){
-      e.target.classList.toggle("selected");
     }
     
-    if(e.target.classList.contains("selected")){
-      RollRequestsMenu.selectedRequestType = e.target.dataset.id;
-      RollRequestsMenu.showOptionsForRequestType(RollRequestsMenu.selectedRequestType);
-    }else{
-      RollRequestsMenu.selectedRequestType = null;
-      RollRequestsMenu.hideRollTypes();
-
-    }
-    LogUtil.log("showRequestTypes - item clicked", [e.target.dataset, RollRequestsMenu.selectedRequestType]);
-  }
+    // Get current settings
+    const SETTINGS = getSettings();
+    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
     
-
-  static #onSublistItemClick = (e) => {
-    const tab = RollRequestsMenu.selectedTab;
-    const rollTypesMenu = RollRequestsMenu.actorsMenu.querySelector("ul.roll-types");
-    if (!rollTypesMenu) { return; }
-
-    rollTypesMenu.querySelectorAll(".selected").forEach(item => item.classList.remove("selected"));
-    e.target.classList.add("selected");
-    const requestTypeId = e.target.dataset.type;
-    RollRequestsMenu.selectedOptionType = {
-      key: e.target.dataset.abbreviation,
-      fullKey: e.target.dataset.fullKey,
-      label: e.target.dataset.label
+    // Check if all actors in current tab are selected
+    const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
+    const selectAllOn = currentActors.length > 0 && 
+      currentActors.every(actor => this.selectedActors.has(actor.id));
+    
+    return {
+      ...context,
+      actors: currentActors,
+      currentTab: this.currentTab,
+      isPCTab: this.currentTab === 'pc',
+      isNPCTab: this.currentTab === 'npc',
+      selectedTab: this.currentTab,
+      rollRequestsEnabled,
+      skipDialogs,
+      selectAllOn,
+      hasSelectedActors: this.selectedActors.size > 0,
+      rollOptions: MODULE.ROLL_REQUEST_OPTIONS,
+      showNames: true // You can make this configurable later
     };
+  }
 
-    LogUtil.log("Selected option", [RollRequestsMenu.selectedOptionType]);
-    RequestsUtil.initRollRequest({
-      config: { hookNames: [requestTypeId] },
-      dataset: e.target.dataset, 
-      actors: RollRequestsMenu.selectedActors[tab].map(actor => actor.id)
+  /**
+   * Get formatted stats for an actor
+   */
+  _getActorStats(actor) {
+    const system = actor.system;
+    const stats = [];
+    
+    // HP
+    if (system.attributes?.hp) {
+      stats.push({
+        abbrev: 'HP',
+        value: system.attributes.hp.value
+      });
+    }
+    
+    // AC
+    if (system.attributes?.ac) {
+      stats.push({
+        abbrev: 'AC',
+        value: system.attributes.ac.value
+      });
+    }
+    
+    // Spell DC
+    if (system.attributes?.spelldc) {
+      stats.push({
+        abbrev: 'DC',
+        value: system.attributes.spelldc
+      });
+    }
+    
+    // Passive Perception
+    if (system.skills?.prc?.passive) {
+      stats.push({
+        abbrev: 'PP',
+        value: system.skills.prc.passive
+      });
+    }
+    
+    return stats;
+  }
+
+  /**
+   * Called after the application is rendered
+   */
+  _onRender(context, options) {
+    super._onRender(context, options);
+    this._attachListeners();
+  }
+
+  /**
+   * Attach event listeners
+   */
+  _attachListeners() {
+    LogUtil.log('Attaching listeners');
+    
+    const html = this.element;
+    
+    // Settings toggles
+    html.querySelector('#crlngn-requests-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
+    html.querySelector('#crlngn-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
+    html.querySelector('#crlngn-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
+    
+    // Tab switching
+    const tabs = html.querySelectorAll('.actor-tab');
+    LogUtil.log('Found tabs:', [tabs.length]);
+    tabs.forEach(tab => {
+      tab.addEventListener('click', this._onTabClick.bind(this));
     });
+    
+    // Actor selection - handle clicks on actor rows or select buttons
+    html.querySelectorAll('.actor').forEach(actor => {
+      actor.addEventListener('click', this._onActorClick.bind(this));
+    });
+    
+    html.querySelectorAll('.actor-select').forEach(selectBtn => {
+      selectBtn.addEventListener('click', this._onActorSelectClick.bind(this));
+    });
+    
+    // Request type selection
+    html.querySelectorAll('.request-type-item').forEach(item => {
+      item.addEventListener('click', this._onRequestTypeClick.bind(this));
+    });
+    
+    // Roll type selection
+    html.querySelectorAll('.roll-type-item').forEach(item => {
+      item.addEventListener('click', this._onRollTypeClick.bind(this));
+    });
+  }
+
+  /**
+   * Handle roll requests toggle
+   */
+  async _onToggleRollRequests(event) {
+    const SETTINGS = getSettings();
+    const enabled = event.target.checked;
+    await SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, enabled);
+    
+    // Update the icon in the chat controls
+    Main.updateRollRequestsIcon(enabled);
+    
+    LogUtil.log('Roll requests enabled:', [enabled]);
+  }
+
+  /**
+   * Handle skip dialogs toggle
+   */
+  async _onToggleSkipDialogs(event) {
+    const SETTINGS = getSettings();
+    const skip = event.target.checked;
+    await SettingsUtil.set(SETTINGS.skipDialogs.tag, skip);
+    LogUtil.log('Skip dialogs:', [skip]);
+  }
+
+  /**
+   * Handle select all toggle
+   */
+  _onToggleSelectAll(event) {
+    const selectAll = event.target.checked;
+    
+    // Get the current actors based on the active tab
+    const actors = this.currentTab === 'pc' ? 
+      game.actors.contents.filter(a => this._isPlayerOwned(a)) :
+      game.actors.contents.filter(a => !this._isPlayerOwned(a) && this._hasTokenInScene(a));
+    
+    // Update selection for all visible actors
+    actors.forEach(actor => {
+      if (selectAll) {
+        this.selectedActors.add(actor.id);
+      } else {
+        this.selectedActors.delete(actor.id);
+      }
+    });
+    
+    // Re-render to update UI
+    this.render();
+    
+    this._updateRequestTypesVisibility();
+    LogUtil.log('Select all:', [selectAll, 'for', this.currentTab]);
   }
   
   /**
-   * Handle tab click events to switch between PC and NPC actors
-   * @param {Event} e - The click event
+   * Check if actor is player owned
    */
-  static onTabClick(e) {
-    const tabType = e.target.dataset.tab;
-    if (tabType === RollRequestsMenu.selectedTab) return;
+  _isPlayerOwned(actor) {
+    // Skip non-character actors
+    if (actor.type !== 'character' && actor.type !== 'npc') return false;
     
-    RollRequestsMenu.selectedTab = tabType;
+    return Object.entries(actor.ownership)
+      .some(([userId, level]) => {
+        const user = game.users.get(userId);
+        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+      });
+  }
+  
+  /**
+   * Check if actor has token in current scene
+   */
+  _hasTokenInScene(actor) {
+    // Skip non-character actors
+    if (actor.type !== 'character' && actor.type !== 'npc') return false;
     
-    // Update UI to show active tab
-    const tabsContainer = e.target.closest('.actors-tabs');
-    tabsContainer.querySelectorAll('button').forEach(tab => {
-      tab.classList.remove('active');
+    const currentScene = game.scenes.active;
+    return currentScene && currentScene.tokens.some(token => token.actorId === actor.id);
+  }
+
+  /**
+   * Handle tab click
+   */
+  async _onTabClick(event) {
+    const tab = event.currentTarget.dataset.tab;
+    LogUtil.log('Tab clicked:', [tab, this.currentTab]);
+    if (tab === this.currentTab) return;
+    
+    this.currentTab = tab;
+    await this.render();
+    LogUtil.log('Switched to tab:', [tab]);
+  }
+
+  /**
+   * Handle click on actor row
+   */
+  _onActorClick(event) {
+    // Ignore if clicking on the select button itself
+    if (event.target.closest('.actor-select')) return;
+    
+    const actorElement = event.currentTarget;
+    const actorId = actorElement.dataset.id;
+    this._toggleActorSelection(actorId);
+  }
+  
+  /**
+   * Handle click on actor select button
+   */
+  _onActorSelectClick(event) {
+    event.stopPropagation(); // Prevent triggering the actor row click
+    const actorId = event.currentTarget.dataset.id;
+    this._toggleActorSelection(actorId);
+  }
+  
+  /**
+   * Toggle actor selection state
+   */
+  _toggleActorSelection(actorId) {
+    if (this.selectedActors.has(actorId)) {
+      this.selectedActors.delete(actorId);
+    } else {
+      this.selectedActors.add(actorId);
+    }
+    
+    // Re-render to update the UI
+    this.render();
+    
+    this._updateRequestTypesVisibility();
+    this._updateSelectAllState();
+    LogUtil.log('Actor selected:', [actorId, this.selectedActors.has(actorId)]);
+  }
+
+  /**
+   * Update request types visibility based on actor selection
+   */
+  _updateRequestTypesVisibility() {
+    const requestTypes = this.element.querySelector('.request-types');
+    if (this.selectedActors.size > 0) {
+      requestTypes.classList.remove('hidden');
+    } else {
+      requestTypes.classList.add('hidden');
+      // Also hide roll types if no actors selected
+      this.element.querySelector('.roll-types').classList.add('hidden');
+    }
+  }
+
+  /**
+   * Update select all checkbox state
+   */
+  _updateSelectAllState() {
+    const selectAllCheckbox = this.element.querySelector('#crlngn-actors-all');
+    const currentActors = this.currentTab === 'pc' ? 'pc' : 'npc';
+    const checkboxes = this.element.querySelectorAll(`.${currentActors}-actors .actor-item input[type="checkbox"]`);
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    selectAllCheckbox.checked = checkedCount > 0 && checkedCount === checkboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+  }
+
+  /**
+   * Handle request type click
+   */
+  async _onRequestTypeClick(event) {
+    const requestItem = event.currentTarget;
+    const requestType = requestItem.dataset.requestType;
+    const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
+    
+    if (!rollOption) {
+      LogUtil.error('Unknown request type:', requestType);
+      return;
+    }
+    
+    this.selectedRequestType = requestType;
+    
+    // If this type has a sublist, show roll types
+    if (rollOption.subList) {
+      await this._populateRollTypes(rollOption);
+      this.element.querySelector('.roll-types').classList.remove('hidden');
+    } else {
+      // Direct roll without sublist
+      this._triggerRoll(requestType, null);
+    }
+    
+    LogUtil.log('Request type selected:', requestType);
+  }
+
+  /**
+   * Populate roll types based on selected request type
+   */
+  async _populateRollTypes(rollOption) {
+    const rollTypesContainer = this.element.querySelector('.roll-types-list');
+    rollTypesContainer.innerHTML = '';
+    
+    // Get roll options from first selected actor as reference
+    const firstActorId = Array.from(this.selectedActors)[0];
+    const actor = game.actors.get(firstActorId);
+    
+    if (!actor) return;
+    
+    const rollData = foundry.utils.getProperty(actor, rollOption.actorPath) || {};
+    
+    for (const [key, data] of Object.entries(rollData)) {
+      const item = document.createElement('li');
+      item.className = 'roll-type-item';
+      item.dataset.rollKey = key;
+      
+      const label = data.label || game.i18n.localize(data.name || key);
+      item.innerHTML = `<span>${label}</span>`;
+      
+      rollTypesContainer.appendChild(item);
+    }
+    
+    // Re-attach listeners for new elements
+    rollTypesContainer.querySelectorAll('.roll-type-item').forEach(item => {
+      item.addEventListener('click', this._onRollTypeClick.bind(this));
     });
-    e.target.classList.add('active');
+  }
+
+  /**
+   * Handle roll type click
+   */
+  _onRollTypeClick(event) {
+    const rollKey = event.currentTarget.dataset.rollKey;
+    this._triggerRoll(this.selectedRequestType, rollKey);
+    LogUtil.log('Roll type selected:', rollKey);
+  }
+
+  /**
+   * Trigger the roll (placeholder for now)
+   */
+  _triggerRoll(requestType, rollKey) {
+    const SETTINGS = getSettings();
+    const selectedActorIds = Array.from(this.selectedActors);
+    LogUtil.log('Roll triggered!', {
+      actors: selectedActorIds,
+      requestType,
+      rollKey,
+      skipDialogs: SettingsUtil.get(SETTINGS.skipDialogs.tag)
+    });
     
-    // Re-render the menu with the new tab's actors
-    RollRequestsMenu.showActorsMenu();
+    // Close the menu after triggering
+    this.close();
+  }
+
+  /**
+   * Clean up when closing
+   */
+  async _onClose(options) {
+    await super._onClose(options);
     
-    LogUtil.log("Tab changed", [tabType, RollRequestsMenu.selectedTab]);
+    // Reset state
+    this.selectedActors.clear();
+    this.selectedRequestType = null;
+  }
+
+  /**
+   * Override render positioning to use CSS instead of inline styles
+   */
+  setPosition(position={}) {
+    // Don't set any inline position styles - let CSS handle it
+    return this;
   }
 }

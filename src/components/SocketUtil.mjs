@@ -184,7 +184,6 @@ export class SocketUtil {
         }else {
           roll = Roll.fromJSON(JSON.stringify(r));
         }
-        LogUtil.log("ROLL", [roll, r]);
         return roll;
       })
       result.rolls = [...rolls];

@@ -21,7 +21,10 @@ export class LogUtil {
       if(!isDebugModeOn) { return; }
       console.log(...DEBUG_TAG, ref, ...data);
     } catch(e) {
-      console.log(...DEBUG_TAG, ref, ...data);
+      // If settings aren't available yet, check bypassSettings
+      if (bypassSettings || LogUtil.debugOn) {
+        console.log(...DEBUG_TAG, ref, ...data);
+      }
     }
   }
 

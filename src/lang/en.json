@@ -42,6 +42,9 @@
       },
       "dialogs": {
         "multipleActors": "Multiple Actors"
+      },
+      "menus": {
+        "rollRequestsTitle": "Roll Requests"
       }
     }
   }

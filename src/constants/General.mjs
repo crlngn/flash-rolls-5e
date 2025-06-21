@@ -74,3 +74,13 @@ export const ROLL_REQUEST_OPTIONS = {
   CUSTOM: { name: "custom", label: "Custom Roll", subList: null, actorPath: '' },
   // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }
+
+/**
+ * Module configuration object
+ * @constant
+ * @type {Object}
+ */
+export const MODULE = {
+  ID: MODULE_ID,
+  ROLL_REQUEST_OPTIONS: ROLL_REQUEST_OPTIONS
+}
