@@ -65,7 +65,7 @@ export const BUTTON_ACTION_TYPES = {
 
 export const ROLL_REQUEST_OPTIONS = {
   ABILITY_CHECK: { name: "abilityCheck", label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
-  SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.savingThrows' },
+  SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.abilities' },
   SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
   TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
   CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },

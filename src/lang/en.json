@@ -46,6 +46,16 @@
       "menus": {
         "rollRequestsTitle": "Roll Requests"
       }
+    },
+    "rollTypes": {
+      "abilityCheck": "Ability Check",
+      "savingThrow": "Saving Throw",
+      "skill": "Skill Check",
+      "tool": "Tool Check",
+      "concentration": "Concentration Check",
+      "initiativeDialog": "Initiative Roll",
+      "deathSave": "Death Save",
+      "custom": "Custom Roll"
     }
   }
 }

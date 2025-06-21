@@ -141,7 +141,7 @@
       outline: 0;
       box-shadow: none;
     }
-    
+
     &:hover {
       background: var(--color-warm-2);
     }
@@ -297,6 +297,7 @@
   min-height: 230px;
   position: absolute;
   display: none;
+  overflow-y: auto;
 }
 
 #crlngn-requests-menu > div > ul.request-types.visible {
@@ -333,6 +334,7 @@
   min-height:265px;
   position: absolute;
   display: none;
+  overflow-y: auto;
 }
 
 #crlngn-requests-menu > div > ul.roll-types.visible {

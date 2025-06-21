@@ -93,6 +93,95 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const selectAllOn = currentActors.length > 0 && 
       currentActors.every(actor => this.selectedActors.has(actor.id));
     
+    // Build request types array for template
+    const requestTypes = [];
+    if (this.selectedActors.size > 0) {
+      for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
+        requestTypes.push({
+          id: key,
+          name: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${option.name}`) || option.label,
+          rollable: true,
+          hasSubList: !!option.subList
+        });
+      }
+    }
+    
+    // Build roll types array based on selected request type
+    const rollTypes = [];
+    if (this.selectedRequestType && this.selectedActors.size > 0) {
+      const selectedOption = MODULE.ROLL_REQUEST_OPTIONS[this.selectedRequestType];
+      if (selectedOption && selectedOption.subList) {
+        // Get first selected actor as reference for available options
+        const firstActorId = Array.from(this.selectedActors)[0];
+        const actor = game.actors.get(firstActorId);
+        
+        // Special handling for tools - show all available tools
+        if (selectedOption.subList === 'tools') {
+          // Get all tools from CONFIG.DND5E.tools or enrichmentLookup
+          const allTools = CONFIG.DND5E.enrichmentLookup?.tools || CONFIG.DND5E.tools || {};
+          
+          for (const [key, toolData] of Object.entries(allTools)) {
+            let label = key;
+            
+            // Use enrichmentLookup to get tool UUID and then fetch the name
+            if (toolData?.id) {
+              // Get the tool name using Trait.getBaseItem
+              const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+              label = toolItem?.name || key;
+            }
+            // Fallback - format the key
+            else {
+              label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+            }
+            
+            rollTypes.push({
+              id: key,
+              name: label,
+              rollable: true
+            });
+          }
+          
+          // Sort tools alphabetically by name
+          rollTypes.sort((a, b) => a.name.localeCompare(b.name));
+        }
+        // For other types, use actor data
+        else if (actor && selectedOption.actorPath) {
+          const rollData = foundry.utils.getProperty(actor, selectedOption.actorPath) || {};
+          
+          // Check if we should use CONFIG.DND5E for enrichment
+          const configData = CONFIG.DND5E[selectedOption.subList];
+          
+          for (const [key, data] of Object.entries(rollData)) {
+            let label = '';
+            
+            // For skills, use CONFIG.DND5E.skills for full names
+            if (selectedOption.subList === 'skills' && configData?.[key]) {
+              label = configData[key].label;
+            }
+            // For abilities (saving throws), use the label from data
+            else if (selectedOption.subList === 'abilities' && configData?.[key]) {
+              label = configData[key].label;
+            }
+            // Default fallback
+            else {
+              label = data.label || game.i18n.localize(data.name || key) || key;
+            }
+            
+            rollTypes.push({
+              id: key,
+              name: label,
+              rollable: true
+            });
+          }
+          
+          // Sort skills alphabetically by name
+          if (selectedOption.subList === 'skills') {
+            rollTypes.sort((a, b) => a.name.localeCompare(b.name));
+          }
+        }
+      }
+    }
+    
     return {
       ...context,
       actors: currentActors,
@@ -104,7 +193,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       skipDialogs,
       selectAllOn,
       hasSelectedActors: this.selectedActors.size > 0,
-      rollOptions: MODULE.ROLL_REQUEST_OPTIONS,
+      requestTypes,
+      rollTypes,
       showNames: true // You can make this configurable later
     };
   }
@@ -189,12 +279,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     });
     
     // Request type selection
-    html.querySelectorAll('.request-type-item').forEach(item => {
+    html.querySelectorAll('.request-types li').forEach(item => {
       item.addEventListener('click', this._onRequestTypeClick.bind(this));
     });
     
     // Roll type selection
-    html.querySelectorAll('.roll-type-item').forEach(item => {
+    html.querySelectorAll('.roll-types li').forEach(item => {
       item.addEventListener('click', this._onRollTypeClick.bind(this));
     });
   }
@@ -331,14 +421,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Update request types visibility based on actor selection
    */
   _updateRequestTypesVisibility() {
-    const requestTypes = this.element.querySelector('.request-types');
-    if (this.selectedActors.size > 0) {
-      requestTypes.classList.remove('hidden');
-    } else {
-      requestTypes.classList.add('hidden');
-      // Also hide roll types if no actors selected
-      this.element.querySelector('.roll-types').classList.add('hidden');
-    }
+    // Since we're now controlling visibility through template data,
+    // we need to re-render when actor selection changes
+    this.render();
   }
 
   /**
@@ -359,7 +444,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   async _onRequestTypeClick(event) {
     const requestItem = event.currentTarget;
-    const requestType = requestItem.dataset.requestType;
+    const requestType = requestItem.dataset.id;
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     
     if (!rollOption) {
@@ -369,10 +454,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     this.selectedRequestType = requestType;
     
-    // If this type has a sublist, show roll types
+    // If this type has a sublist, re-render to show roll types
     if (rollOption.subList) {
-      await this._populateRollTypes(rollOption);
-      this.element.querySelector('.roll-types').classList.remove('hidden');
+      await this.render();
     } else {
       // Direct roll without sublist
       this._triggerRoll(requestType, null);
@@ -381,43 +465,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     LogUtil.log('Request type selected:', requestType);
   }
 
-  /**
-   * Populate roll types based on selected request type
-   */
-  async _populateRollTypes(rollOption) {
-    const rollTypesContainer = this.element.querySelector('.roll-types-list');
-    rollTypesContainer.innerHTML = '';
-    
-    // Get roll options from first selected actor as reference
-    const firstActorId = Array.from(this.selectedActors)[0];
-    const actor = game.actors.get(firstActorId);
-    
-    if (!actor) return;
-    
-    const rollData = foundry.utils.getProperty(actor, rollOption.actorPath) || {};
-    
-    for (const [key, data] of Object.entries(rollData)) {
-      const item = document.createElement('li');
-      item.className = 'roll-type-item';
-      item.dataset.rollKey = key;
-      
-      const label = data.label || game.i18n.localize(data.name || key);
-      item.innerHTML = `<span>${label}</span>`;
-      
-      rollTypesContainer.appendChild(item);
-    }
-    
-    // Re-attach listeners for new elements
-    rollTypesContainer.querySelectorAll('.roll-type-item').forEach(item => {
-      item.addEventListener('click', this._onRollTypeClick.bind(this));
-    });
-  }
+  // Note: _populateRollTypes method removed as we now handle this in _prepareContext
 
   /**
    * Handle roll type click
    */
   _onRollTypeClick(event) {
-    const rollKey = event.currentTarget.dataset.rollKey;
+    const rollKey = event.currentTarget.dataset.id;
     this._triggerRoll(this.selectedRequestType, rollKey);
     LogUtil.log('Roll type selected:', rollKey);
   }

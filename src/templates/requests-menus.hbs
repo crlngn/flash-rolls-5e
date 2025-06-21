@@ -67,13 +67,13 @@
   </ul>
 
   <!-- Request Types -->
-  <ul class="request-types">
+  <ul class="request-types{{#if requestTypes}} visible{{/if}}">
     {{#each requestTypes as |requestType|}}
       <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}">
-        {{#if requestType.rollable}}
-          <i class="icon fas fa-dice-d20"></i>
-        {{else}}
+        {{#if requestType.hasSubList}}
           <i class="icon fas fa-caret-left"></i>
+        {{else}}
+          <i class="icon fas fa-dice-d20"></i>
         {{/if}} 
         {{ requestType.name }}
       </li>
@@ -81,9 +81,9 @@
   </ul>
 
   <!-- Roll Types -->
-  <ul class="roll-types">
+  <ul class="roll-types{{#if rollTypes}} visible{{/if}}">
     {{#each rollTypes as |rollType|}}
-      <li class="rollable">
+      <li data-id="{{ rollType.id }}" class="rollable">
         <i class="icon fas fa-dice-d20"></i>
         {{ rollType.name }}
       </li>
