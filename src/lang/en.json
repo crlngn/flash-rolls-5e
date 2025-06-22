@@ -1,4 +1,12 @@
 {
+  "CRLNGN_ROLL_REQUESTS": {
+    "notifications": {
+      "playerOffline": "Player {player} is offline and cannot receive roll requests",
+      "rollRequestSent": "Roll request sent to {player} for {actor}",
+      "rollRequestReceived": "{gm} requests a {rollType} roll",
+      "rollError": "Error executing requested roll"
+    }
+  },
   "CRLNGN_ROLLS": {
     "settings": {
       "debugMode": {
@@ -16,6 +24,10 @@
       "skipDialogs": {
         "label": "Skip Roll Dialogs on Requests",
         "hint": "Enable this to skip the Roll Configuration windows when you request rolls from a player or when rolling for groups of multiple NPCs."
+      },
+      "rollInterceptionEnabled": {
+        "label": "Intercept GM Rolls for Players",
+        "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owning player"
       }
     },
     "ui": {

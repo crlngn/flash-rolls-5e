@@ -100,7 +100,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         requestTypes.push({
           id: key,
           name: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${option.name}`) || option.label,
-          rollable: true,
+          rollable: option.subList == null,
           hasSubList: !!option.subList
         });
       }
@@ -278,15 +278,28 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       selectBtn.addEventListener('click', this._onActorSelectClick.bind(this));
     });
     
-    // Request type selection
-    html.querySelectorAll('.request-types li').forEach(item => {
-      item.addEventListener('click', this._onRequestTypeClick.bind(this));
-    });
+    // Request type selection - use event delegation for dynamic content
+    const requestTypesContainer = html.querySelector('.request-types');
+    if (requestTypesContainer) {
+      requestTypesContainer.addEventListener('click', (event) => {
+        const listItem = event.target.closest('li');
+        if (listItem) {
+          this._onRequestTypeClick(event);
+        }
+      });
+    }
     
-    // Roll type selection
-    html.querySelectorAll('.roll-types li').forEach(item => {
-      item.addEventListener('click', this._onRollTypeClick.bind(this));
-    });
+    // Roll type selection - use event delegation for dynamic content
+    const rollTypesContainer = html.querySelector('.roll-types');
+    if (rollTypesContainer) {
+      rollTypesContainer.addEventListener('click', (event) => {
+        const listItem = event.target.closest('li');
+        if (listItem) {
+          event.currentTarget = listItem; // Set currentTarget for the handler
+          this._onRollTypeClick(event);
+        }
+      });
+    }
   }
 
   /**
@@ -471,9 +484,10 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle roll type click
    */
   _onRollTypeClick(event) {
+    LogUtil.log('Roll type clicked!', event.currentTarget);
     const rollKey = event.currentTarget.dataset.id;
-    this._triggerRoll(this.selectedRequestType, rollKey);
     LogUtil.log('Roll type selected:', rollKey);
+    this._triggerRoll(this.selectedRequestType, rollKey);
   }
 
   /**

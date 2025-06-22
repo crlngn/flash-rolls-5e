@@ -5,6 +5,7 @@ import { getSettings } from "../constants/Settings.mjs";
 import { MODULE_ID } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
+import { RollInterceptor } from "./RollInterceptor.mjs";
 
 /**
  * Main class handling core module initialization and setup
@@ -16,7 +17,8 @@ export class Main {
   static rollRequestsMenu = null;
   static SOCKET_CALLS = {
     receiveDiceConfig: "receiveDiceConfig",
-    getDiceConfig: "getDiceConfig"
+    getDiceConfig: "getDiceConfig",
+    handleRollRequest: "handleRollRequest"
   };
   /**
    * Initialize the module and set up core hooks
@@ -36,11 +38,14 @@ export class Main {
     });
 
     Hooks.once(HOOKS_CORE.READY, () => {
-      LogUtil.log("Core Ready", [ui?.sidebar, ui?.sidebar?._collapsed]);
+      LogUtil.log("Core Ready!!", [ui?.sidebar, ui?.sidebar?._collapsed], true);
       const SETTINGS = getSettings();
       
       var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
       if(isDebugOn){CONFIG.debug.hooks = true};
+      
+      // Initialize RollInterceptor for all users
+      RollInterceptor.initialize();
       
       if(game.user.isGM){
         Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
@@ -112,11 +117,116 @@ export class Main {
   }
 
   /**
+   * Handle roll request from GM on player side
+   * @param {Object} requestData - The roll request data
+   */
+  static async handleRollRequest(requestData) {
+    // Only handle on player side
+    if (game.user.isGM) return;
+    
+    LogUtil.log("handleRollRequest", ["Received roll request", requestData]);
+    
+    // Get the actor
+    const actor = game.actors.get(requestData.actorId);
+    if (!actor) {
+      LogUtil.log("handleRollRequest", ["Actor not found", requestData.actorId]);
+      return;
+    }
+    
+    // Check if the user owns this actor
+    if (!actor.isOwner) {
+      LogUtil.log("handleRollRequest", ["User does not own actor", requestData.actorId]);
+      return;
+    }
+    
+    // Apply GM targets if configured
+    if (requestData.preserveTargets && 
+        requestData.targetTokenIds?.length > 0 && 
+        game.user.targets.size === 0) {
+      // Set targets to match GM's
+      const tokens = requestData.targetTokenIds
+        .map(id => canvas.tokens.get(id))
+        .filter(t => t);
+      tokens.forEach(t => t.setTarget(true, {user: game.user}));
+    }
+    
+    // Show notification to player
+    ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestReceived', {
+      gm: requestData.config.requestedBy || 'GM',
+      rollType: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${requestData.rollType}`)
+    }));
+    
+    // Execute the requested roll
+    Main._executeRequestedRoll(actor, requestData);
+  }
+
+  /**
+   * Execute a roll based on the request data
+   * @param {Actor} actor 
+   * @param {Object} requestData 
+   */
+  static async _executeRequestedRoll(actor, requestData) {
+    try {
+      // Apply GM config as defaults
+      const config = {
+        ...requestData.config,
+        isRollRequest: true // Custom flag
+      };
+      
+      // Control dialog display based on skipDialog setting
+      // In D&D5e 4.x, dialog.configure controls whether to show the dialog
+      if (requestData.skipDialog) {
+        config.dialog = { configure: false };
+      }
+      
+      switch (requestData.rollType) {
+        case 'ability':
+          await actor.rollAbilityCheck(requestData.rollKey, config);
+          break;
+        case 'save':
+          await actor.rollSavingThrow(requestData.rollKey, config);
+          break;
+        case 'skill':
+          await actor.rollSkill(requestData.rollKey, config);
+          break;
+        case 'tool':
+          await actor.rollTool(requestData.rollKey, config);
+          break;
+        case 'attack':
+          if (requestData.rollKey) {
+            const item = actor.items.get(requestData.rollKey);
+            if (item) await item.rollAttack(config);
+          }
+          break;
+        case 'damage':
+          if (requestData.rollKey) {
+            const item = actor.items.get(requestData.rollKey);
+            if (item) await item.rollDamage(config);
+          }
+          break;
+        case 'initiative':
+          await actor.rollInitiative(config);
+          break;
+        case 'death':
+          await actor.rollDeathSave(config);
+          break;
+        case 'hitDie':
+          await actor.rollHitDie(requestData.rollKey, config);
+          break;
+      }
+    } catch (error) {
+      LogUtil.log("_executeRequestedRoll", ["Error executing roll", error]);
+      ui.notifications.error(game.i18n.localize('CRLNGN_ROLL_REQUESTS.notifications.rollError'));
+    }
+  }
+
+  /**
    * Register methods with socketlib for remote execution
    */
   static registerSocketCalls() {
     SocketUtil.registerCall(Main.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
     SocketUtil.registerCall(Main.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
+    SocketUtil.registerCall(Main.SOCKET_CALLS.handleRollRequest, Main.handleRollRequest);
   }
 
   /**

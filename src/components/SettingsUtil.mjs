@@ -36,7 +36,7 @@ export class SettingsUtil {
       await game.settings.register(MODULE_ID, setting.tag, settingObj);
 
       /* if the setting has never been defined, set as default value */
-      if(SettingsUtil.get(setting.tag)===undefined){
+      if(SettingsUtil.get(setting.tag)===undefined || SettingsUtil.get(setting.tag)===null){
         SettingsUtil.set(setting.tag, setting.default);
       }
       LogUtil.log("registerSettings",[setting.tag, SettingsUtil.get(setting.tag)]);
