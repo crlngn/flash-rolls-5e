@@ -1,6 +1,6 @@
 {
   "name": "crlngn-roll-requests",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A FoundryVTT module for handling roll requests between users",
   "license": "MIT",
   "private": true,

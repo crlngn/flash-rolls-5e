@@ -69,7 +69,7 @@
   <!-- Request Types -->
   <ul class="request-types{{#if requestTypes}} visible{{/if}}">
     {{#each requestTypes as |requestType|}}
-      <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}">
+      <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}{{#if requestType.selected}} selected{{/if}}">
         {{#if requestType.hasSubList}}
           <i class="icon fas fa-caret-left"></i>
         {{else}}

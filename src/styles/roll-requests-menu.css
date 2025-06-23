@@ -48,6 +48,7 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  margin-right: 0.5rem;
 
   > * {
     min-height: 1.8em;
@@ -300,7 +301,7 @@
   overflow-y: auto;
 }
 
-#crlngn-requests-menu > div > ul.request-types.visible {
+#crlngn-requests-menu:hover > div > ul.request-types.visible {
   display: block;
 }
 
@@ -320,6 +321,11 @@
   }
 }
 
+#crlngn-requests-menu > div > ul.roll-types.visible,
+#crlngn-requests-menu > div > ul.request-types.visible {
+  display: none;
+}
+
 #crlngn-requests-menu > div > ul.request-types > li.selected {
   background-color: var(--color-warm-2);
   color: white;
@@ -337,7 +343,7 @@
   overflow-y: auto;
 }
 
-#crlngn-requests-menu > div > ul.roll-types.visible {
+#crlngn-requests-menu:hover > div > ul.roll-types.visible {
   display: block;
 }
 

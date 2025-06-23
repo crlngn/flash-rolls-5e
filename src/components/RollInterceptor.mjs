@@ -39,7 +39,7 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._handlePreRoll.bind(this, 'attack'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._handlePreRoll.bind(this, 'damage'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRoll.bind(this, 'initiative'));
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, this._handlePreRoll.bind(this, 'death'));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, this._handlePreRoll.bind(this, 'deathsave'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._handlePreRoll.bind(this, 'hitDie'));
     
     LogUtil.log('RollInterceptor.registerHooks', ['Registered roll interception hooks']);
@@ -69,7 +69,7 @@ export class RollInterceptor {
   /**
    * Handle pre-roll hooks to intercept rolls
    * @param {string} rollType - Type of roll being intercepted
-   * @param {Object} config - Roll configuration object
+   * @param {Object} config - Roll configuration object (or Actor for initiative)
    * @param {Object} dialog - Dialog options
    * @param {Object} message - Message options
    * @returns {boolean|void} - Return false to prevent the roll
@@ -78,16 +78,30 @@ export class RollInterceptor {
     // Only intercept on GM side
     if (!game.user.isGM) return;
     
+    // Special handling for initiative - first parameter is the actor
+    let actor;
+    if (rollType === 'initiative' && config instanceof Actor) {
+      actor = config;
+      // For initiative, check if second parameter (options) has isRollRequest flag
+      if (dialog?.isRollRequest) return;
+      // Also check third parameter for rollInitiative calls
+      if (message?.isRollRequest) return;
+    } else {
+      // Don't intercept if this is already a roll request (to avoid loops)
+      if (config.isRollRequest) return;
+      
+      // Extract actor from the config
+      // For D&D5e v2 hooks: config.subject can be an Activity (which has .actor) or the Actor itself
+      actor = config.subject?.actor || config.subject || config.actor;
+    }
+    
     // Check if roll interception is enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     if (!rollInterceptionEnabled) return;
     
-    // Extract actor from the config
-    // For D&D5e v2 hooks: config.subject can be an Activity (which has .actor) or the Actor itself
-    const actor = config.subject?.actor || config.subject || config.actor;
-    if (!actor || actor.constructor.name !== 'Actor5e') {
-      LogUtil.log('RollInterceptor._handlePreRoll', ['No valid Actor5e found in roll config', config]);
+    if (!actor || !(actor instanceof Actor)) {
+      LogUtil.log('RollInterceptor._handlePreRoll', ['No valid Actor found in roll config', config, rollType]);
       return;
     }
     
@@ -95,13 +109,24 @@ export class RollInterceptor {
     const owner = this._getActorOwner(actor);
     if (!owner || owner.id === game.user.id) {
       // Actor is owned by GM or has no owner, allow normal roll
+      LogUtil.log('RollInterceptor._handlePreRoll', ['Actor is GM-owned or has no owner, allowing roll', {
+        rollType,
+        actorName: actor.name,
+        actorType: actor.type,
+        hasOwner: !!owner
+      }]);
       return;
     }
     
     // Check if the owner is online
     if (!owner.active) {
-      ui.notifications.warn(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.playerOffline', { player: owner.name }));
-      return false; // Prevent the roll
+      // Player is offline - allow GM to roll normally
+      LogUtil.log('RollInterceptor._handlePreRoll', ['Player is offline, allowing GM roll', {
+        rollType,
+        actorName: actor.name,
+        ownerName: owner.name
+      }]);
+      return; // Don't intercept, let the roll proceed
     }
     
     LogUtil.log('RollInterceptor._handlePreRoll', ['Intercepting GM roll for player character', { 
@@ -117,6 +142,7 @@ export class RollInterceptor {
     this._sendRollRequest(actor, owner, rollType, config);
     
     // Prevent the normal roll
+    LogUtil.log('RollInterceptor._handlePreRoll', ['PREVENTING ROLL - returning false']);
     return false;
   }
   

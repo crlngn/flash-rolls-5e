@@ -190,7 +190,11 @@ export class Main {
           await actor.rollSkill(requestData.rollKey, config);
           break;
         case 'tool':
-          await actor.rollTool(requestData.rollKey, config);
+          // Tools need the tool key in the config object
+          await actor.rollToolCheck({ ...config, tool: requestData.rollKey });
+          break;
+        case 'concentration':
+          await actor.rollConcentration(config);
           break;
         case 'attack':
           if (requestData.rollKey) {
@@ -205,19 +209,79 @@ export class Main {
           }
           break;
         case 'initiative':
-          await actor.rollInitiative(config);
+          // Initiative rolls require an active combat
+          if (!game.combat) {
+            ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
+            break;
+          }
+          await actor.rollInitiativeDialog(config);
           break;
-        case 'death':
+        case 'deathsave':
           await actor.rollDeathSave(config);
           break;
         case 'hitDie':
           await actor.rollHitDie(requestData.rollKey, config);
+          break;
+        case 'custom':
+          // For custom rolls, show dialog with readonly formula
+          await Main._handleCustomRoll(actor, requestData);
           break;
       }
     } catch (error) {
       LogUtil.log("_executeRequestedRoll", ["Error executing roll", error]);
       ui.notifications.error(game.i18n.localize('CRLNGN_ROLL_REQUESTS.notifications.rollError'));
     }
+  }
+
+  /**
+   * Handle custom roll request
+   * @param {Actor} actor 
+   * @param {Object} requestData 
+   */
+  static async _handleCustomRoll(actor, requestData) {
+    const formula = requestData.rollKey; // Formula is stored in rollKey
+    
+    // Render the template with readonly formula
+    const content = await renderTemplate(`modules/${MODULE_ID}/templates/custom-roll-dialog.hbs`, {
+      formula: formula,
+      readonly: true
+    });
+    
+    const dialog = new Dialog({
+      title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.customRollTitle"),
+      content,
+      buttons: {
+        roll: {
+          icon: '<i class="fas fa-dice-d20"></i>',
+          label: game.i18n.localize("Roll"),
+          callback: async () => {
+            try {
+              // Create and evaluate the roll
+              const roll = new Roll(formula, actor.getRollData());
+              await roll.evaluate({async: true});
+              
+              // Post to chat
+              await roll.toMessage({
+                speaker: ChatMessage.getSpeaker({actor}),
+                flavor: game.i18n.localize("CRLNGN_ROLLS.rollTypes.custom")
+              });
+            } catch (error) {
+              ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula}));
+              LogUtil.log("_handleCustomRoll", ["Invalid formula", formula, error]);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: game.i18n.localize("Cancel")
+        }
+      },
+      default: "roll"
+    }, {
+      classes: ["crlngn-rolls-dialog", "crlngn-custom-roll-dialog"]
+    });
+    
+    dialog.render(true);
   }
 
   /**
@@ -248,7 +312,7 @@ export class Main {
     const chatControls = htmlElement.querySelector("#chat-controls");
     
     if (!chatControls) {
-      LogUtil.log("Could not find #chat-controls");
+      LogUtil.log("Could not find #chat-controls", []);
       return;
     }
     
@@ -283,7 +347,7 @@ export class Main {
     // Add click listener
     rollRequestIcon.addEventListener("click", Main.toggleRollRequestsMenu);
     
-    LogUtil.log("Added roll requests icon to chat controls");
+    LogUtil.log("Added roll requests icon to chat controls", []);
   }
 
   /**
@@ -297,10 +361,12 @@ export class Main {
       // Toggle visibility of existing menu
       if (Main.rollRequestsMenu.rendered) {
         Main.rollRequestsMenu.close();
-        LogUtil.log("Closed roll requests menu");
+        LogUtil.log("Closed roll requests menu", []);
       } else {
+        // Reinitialize from selected tokens before rendering
+        Main.rollRequestsMenu._initializeFromSelectedTokens();
         Main.rollRequestsMenu.render(true);
-        LogUtil.log("Opened roll requests menu");
+        LogUtil.log("Opened roll requests menu", []);
       }
     }
   }

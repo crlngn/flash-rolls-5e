@@ -17,7 +17,7 @@ export class SocketUtil {
    */
   static initialize = (callbackFunc) => {
     Hooks.once(HOOKS_SOCKET.READY, () => { 
-      LogUtil.log(`Attempting to register module...`);
+      LogUtil.log('Attempting to register module...', []);
 
       // Check if socketlib is available before registering the module
       if (typeof socketlib === "undefined") {
@@ -79,7 +79,7 @@ export class SocketUtil {
    */
   static execForGMs = async (handler, ...parameters) => {
     if (!SocketUtil.socket) {
-      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as GM.");
+      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as GM.", []);
       return;
     }
     return await SocketUtil.socket.executeForAllGMs(handler, ...parameters);
@@ -94,7 +94,7 @@ export class SocketUtil {
    */
   static execForAll = async (handler, ...parameters) => {
     if (!SocketUtil.socket) {
-      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute for all clients.");
+      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute for all clients.", []);
       return;
     }
     return await SocketUtil.socket.executeForEveryone(handler, ...parameters);
@@ -110,7 +110,7 @@ export class SocketUtil {
    */
   static execForUser = async (handler, userId, ...parameters) => {
     if (!SocketUtil.socket) {
-        LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as user.");
+        LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as user.", []);
         return;
     }
 

@@ -1,0 +1,15 @@
+<div class="crlngn-custom-roll-dialog">
+  <div class="dice-buttons">
+    <button type="button" class="dice-button" data-die="d4" title="d4"><i class="fas fa-dice-d4"></i></button>
+    <button type="button" class="dice-button" data-die="d6" title="d6"><i class="fas fa-dice-d6"></i></button>
+    <button type="button" class="dice-button" data-die="d8" title="d8"><i class="fas fa-dice-d8"></i></button>
+    <button type="button" class="dice-button" data-die="d10" title="d10"><i class="fas fa-dice-d10"></i></button>
+    <button type="button" class="dice-button" data-die="d12" title="d12"><i class="fas fa-dice-d12"></i></button>
+    <button type="button" class="dice-button" data-die="d20" title="d20"><i class="fas fa-dice-d20"></i></button>
+    <button type="button" class="dice-button" data-die="d100" title="d100"><i class="fas fa-dice-d10"></i><i class="fas fa-dice-d10"></i></button>
+  </div>
+  <div class="formula-input">
+    <label for="custom-roll-formula">{{localize "CRLNGN_ROLLS.ui.dialogs.rollFormula"}}</label>
+    <input type="text" id="custom-roll-formula" name="formula" value="{{formula}}" placeholder="1d20" {{#if readonly}}readonly{{/if}} />
+  </div>
+</div>

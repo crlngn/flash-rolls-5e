@@ -3,8 +3,11 @@
     "notifications": {
       "playerOffline": "Player {player} is offline and cannot receive roll requests",
       "rollRequestSent": "Roll request sent to {player} for {actor}",
-      "rollRequestReceived": "{gm} requests a {rollType} roll",
-      "rollError": "Error executing requested roll"
+      "rollRequestReceived": "{gm} request: {rollType}",
+      "rollError": "Error executing roll for {actor}",
+      "combatCreated": "Combat encounter created",
+      "allActorsHaveInitiative": "All selected actors already have initiative",
+      "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}"
     }
   },
   "CRLNGN_ROLLS": {
@@ -47,13 +50,19 @@
       },
       "notifications": {
         "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib.",
-        "rollRequestSent": "Roll Request sent to "
+        "rollRequestSent": "Roll Request sent to ",
+        "invalidFormula": "Invalid roll formula: {formula}"
       },
       "cards": {
         "rollRequestFlavor": "Roll request"
       },
       "dialogs": {
-        "multipleActors": "Multiple Actors"
+        "multipleActors": "Multiple Actors",
+        "noCombatActive": "There is no active combat encounter. Would you like to create one before rolling initiative?",
+        "rerollInitiativeTitle": "Re-roll Initiative?",
+        "rerollInitiative": "The following actors already have initiative: {actors}. Do you want to re-roll their initiative?",
+        "customRollTitle": "Custom Roll",
+        "rollFormula": "Roll Formula"
       },
       "menus": {
         "rollRequestsTitle": "Roll Requests"
@@ -67,7 +76,14 @@
       "concentration": "Concentration Check",
       "initiativeDialog": "Initiative Roll",
       "deathSave": "Death Save",
-      "custom": "Custom Roll"
+      "custom": "Custom Roll",
+      "ability": "Ability Check",
+      "save": "Saving Throw",
+      "initiative": "Initiative Roll",
+      "deathsave": "Death Save",
+      "attack": "Attack Roll",
+      "damage": "Damage Roll",
+      "hitDie": "Hit Die"
     }
   }
 }

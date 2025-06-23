@@ -11,7 +11,7 @@ export const MODULE_ID = "crlngn-roll-requests";
  * @type {Array}
  */
 export const DEBUG_TAG = [
-  `%cRoll That For Me`,
+  `%cFlash Rolls 5e`,
   `color:rgb(47, 151, 161); font-weight: bold;`,
   `|`,
 ];

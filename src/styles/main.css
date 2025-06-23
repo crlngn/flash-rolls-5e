@@ -74,3 +74,64 @@ body{
   padding: 6px;
   max-width: 80px;
 }
+
+.crlngn-rolls-dialog {
+  min-height: 200px;
+
+  .window-content{
+    background: var(--left-control-main-bg);
+    color: var(--color-light-1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 0.5em;
+    padding: 2em;
+  }
+
+  .dialog-buttons {
+    flex: 0 0 auto;
+    gap: 0.5em;
+    margin: 1em 0 0 0;
+    padding: 0;
+    height: auto;
+    display: flex;
+  }
+
+  .dice-buttons {
+    display: flex;
+    gap: 0.25em;
+    margin: 1em 0;
+    padding: 0;
+    height: auto;
+  }
+  .dice-buttons button, 
+  .dialog-buttons button {
+    background: #252830;
+    border: 1px solid rgba(0, 0, 0, .35);
+    color: var(--color-light-1);
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover{
+      background: var(--color-warm-2);
+    }
+  }
+
+  .formula-input label {
+    margin: 1em 0 0.5em 0;
+  }
+  .formula-input input[type="text"] {
+    color: var(--color-light-1);
+    padding: 0.35em;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    height: 2rem;
+
+    &::selection {
+      background-color: var(--color-warm-2); /* Example: different color for input selection */
+      color: var(--color-light-1); /* Example: different text color for input selection */
+    }
+  }
+}
