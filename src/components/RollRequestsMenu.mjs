@@ -680,6 +680,18 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const selectedActorIds = Array.from(this.selectedActors);
     const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
     
+    // Safety check: Filter selected actors to only include those from current tab
+    const validActorIds = selectedActorIds.filter(actorId => {
+      const actor = game.actors.get(actorId);
+      if (!actor) return false;
+      
+      const isPC = this._isPlayerOwned(actor);
+      const isNPC = !isPC && this._hasTokenInScene(actor);
+      
+      // Only include actors that match the current tab
+      return (this.currentTab === 'pc' && isPC) || (this.currentTab === 'npc' && isNPC);
+    });
+    
     // Get the roll option to get the actual method name
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = rollOption?.name || requestType;
@@ -718,9 +730,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     }
     
     // Filter actors for initiative rolls based on existing initiative
-    let actorIdsToRoll = selectedActorIds;
+    let actorIdsToRoll = validActorIds;
     if (rollMethodName === 'initiativeDialog' && game.combat) {
-      const actors = selectedActorIds
+      const actors = validActorIds
         .map(id => game.actors.get(id))
         .filter(actor => actor);
       
@@ -752,7 +764,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         
         if (!reroll) {
           // User chose not to re-roll, filter out actors with initiative
-          actorIdsToRoll = selectedActorIds.filter(id => !actorIdsWithInitiative.has(id));
+          actorIdsToRoll = validActorIds.filter(id => !actorIdsWithInitiative.has(id));
           
           // If no actors left to roll, abort
           if (actorIdsToRoll.length === 0) {
@@ -825,6 +837,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     }
     
     // Handle PC actors - send roll requests
+    const successfulRequests = []; // Track successful requests for consolidated notification
+    
     for (const { actor, owner } of pcActors) {
       if (!owner.active) {
         if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
@@ -838,10 +852,16 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         continue;
       }
       
-      this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, skipDialogs);
+      this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, skipDialogs, true); // true = suppress individual notification
+      successfulRequests.push({ actor, owner });
       
       // Add a small delay between roll requests to ensure they process correctly
       await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // Send consolidated notification for all successful requests
+    if (successfulRequests.length > 0) {
+      this._sendConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
     }
     
     // Handle NPC actors - roll locally
@@ -881,8 +901,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {string} requestType 
    * @param {string} rollKey 
    * @param {boolean} skipDialogs 
+   * @param {boolean} suppressNotification - If true, don't show individual notification
    */
-  _sendRollRequestToPlayer(actor, owner, requestType, rollKey, skipDialogs) {
+  _sendRollRequestToPlayer(actor, owner, requestType, rollKey, skipDialogs, suppressNotification = false) {
     const SETTINGS = getSettings();
     
     // Map request type to roll type for compatibility with RollInterceptor format
@@ -923,11 +944,91 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Send request to player via socket
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
-    // Show notification to GM
-    ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
-      player: owner.name,
-      actor: actor.name 
-    }));
+    // Show notification to GM (unless suppressed for batch operations)
+    if (!suppressNotification) {
+      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
+        player: owner.name,
+        actor: actor.name 
+      }));
+    }
+  }
+  
+  /**
+   * Send a consolidated notification for multiple roll requests
+   * @param {Array} successfulRequests - Array of {actor, owner} objects
+   * @param {string} rollMethodName - The type of roll being requested
+   * @param {string} rollKey - The specific roll key (if applicable)
+   */
+  _sendConsolidatedNotification(successfulRequests, rollMethodName, rollKey) {
+    // Group requests by player
+    const requestsByPlayer = {};
+    for (const { actor, owner } of successfulRequests) {
+      if (!requestsByPlayer[owner.id]) {
+        requestsByPlayer[owner.id] = {
+          player: owner,
+          actors: []
+        };
+      }
+      requestsByPlayer[owner.id].actors.push(actor);
+    }
+    
+    // Get roll type name for display
+    // Find the option key that matches this rollMethodName
+    let rollOptionKey = null;
+    for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
+      if (option.name === rollMethodName) {
+        rollOptionKey = key;
+        break;
+      }
+    }
+    
+    const rollTypeKey = rollMethodName;
+    let rollTypeName = game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${rollTypeKey}`) || rollTypeKey;
+    
+    // Add specific roll details if applicable
+    if (rollKey) {
+      if (rollTypeKey === 'skill') {
+        rollTypeName = `${rollTypeName} (${CONFIG.DND5E.skills[rollKey]?.label || rollKey})`;
+      } else if (rollTypeKey === 'savingThrow') {
+        rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
+      } else if (rollTypeKey === 'abilityCheck') {
+        rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
+      } else if (rollTypeKey === 'tool') {
+        // Try to get tool name from enrichmentLookup
+        const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
+        if (toolData?.id) {
+          const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+          rollTypeName = `${rollTypeName} (${toolItem?.name || rollKey})`;
+        } else {
+          rollTypeName = `${rollTypeName} (${rollKey})`;
+        }
+      } else if (rollTypeKey === 'custom') {
+        rollTypeName = `${rollTypeName}: ${rollKey}`;
+      }
+    }
+    
+    // Create notification message
+    if (Object.keys(requestsByPlayer).length === 1) {
+      // Single player, multiple actors
+      const playerData = Object.values(requestsByPlayer)[0];
+      const actorNames = playerData.actors.map(a => a.name).join(", ");
+      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentSingle", { 
+        rollType: rollTypeName,
+        actors: actorNames,
+        player: playerData.player.name
+      }));
+    } else {
+      // Multiple players
+      const playerSummaries = Object.values(requestsByPlayer).map(data => {
+        const actorNames = data.actors.map(a => a.name).join(", ");
+        return `${data.player.name} (${actorNames})`;
+      });
+      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentMultiple", { 
+        rollType: rollTypeName,
+        count: successfulRequests.length,
+        players: playerSummaries.join("; ")
+      }));
+    }
   }
   
   /**

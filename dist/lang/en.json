@@ -4,10 +4,13 @@
       "playerOffline": "{player} is offline. Rolling locally",
       "rollRequestSent": "Roll request for {actor} sent to {player}",
       "rollRequestReceived": "{gm} request: {rollType}",
+      "rollRequestsReceivedMultiple": "{gm} requests: {requests}",
       "rollError": "Error executing roll for {actor}",
       "combatCreated": "Combat encounter created",
       "allActorsHaveInitiative": "All selected actors already have initiative",
-      "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}"
+      "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
+      "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
+      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}"
     }
   },
   "CRLNGN_ROLLS": {

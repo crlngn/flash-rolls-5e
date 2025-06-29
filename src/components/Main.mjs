@@ -21,6 +21,11 @@ export class Main {
     getDiceConfig: "getDiceConfig",
     handleRollRequest: "handleRollRequest"
   };
+  
+  // Batch notification system for player-side
+  static pendingNotifications = [];
+  static notificationTimer = null;
+  static NOTIFICATION_BATCH_DELAY = 500; // ms to wait for additional notifications
   /**
    * Initialize the module and set up core hooks
    * @static
@@ -152,17 +157,115 @@ export class Main {
       tokens.forEach(t => t.setTarget(true, {user: game.user}));
     }
     
-    // Show notification to player
-    ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestReceived', {
-      gm: requestData.config.requestedBy || 'GM',
-      rollType: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${requestData.rollType}`)
-    }));
+    // Add to pending notifications for batching
+    Main.pendingNotifications.push({
+      actor: actor.name,
+      rollType: requestData.rollType,
+      rollKey: requestData.rollKey,
+      gm: requestData.config.requestedBy || 'GM'
+    });
+    
+    // Clear existing timer and set new one
+    if (Main.notificationTimer) {
+      clearTimeout(Main.notificationTimer);
+    }
+    
+    Main.notificationTimer = setTimeout(() => {
+      Main._showBatchedNotifications();
+    }, Main.NOTIFICATION_BATCH_DELAY);
     
     LogUtil.log("handleRequestedRoll", ["sending roll request"]);
     // Execute the requested roll
     Main._executeRequestedRoll(actor, requestData);
   }
 
+  /**
+   * Show batched notifications to player
+   */
+  static _showBatchedNotifications() {
+    if (Main.pendingNotifications.length === 0) return;
+    
+    // Group by roll type
+    const notificationsByType = {};
+    for (const notif of Main.pendingNotifications) {
+      const key = `${notif.rollType}_${notif.rollKey || ''}`;
+      if (!notificationsByType[key]) {
+        notificationsByType[key] = {
+          rollType: notif.rollType,
+          rollKey: notif.rollKey,
+          actors: [],
+          gm: notif.gm
+        };
+      }
+      notificationsByType[key].actors.push(notif.actor);
+    }
+    
+    // Create notification messages
+    const entries = Object.values(notificationsByType);
+    
+    if (entries.length === 1 && entries[0].actors.length === 1) {
+      // Single roll request - use original format
+      const entry = entries[0];
+      ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestReceived', {
+        gm: entry.gm,
+        rollType: Main._getRollTypeDisplay(entry.rollType, entry.rollKey)
+      }));
+    } else {
+      // Multiple requests - create consolidated message
+      const messages = [];
+      for (const entry of entries) {
+        const rollTypeDisplay = Main._getRollTypeDisplay(entry.rollType, entry.rollKey);
+        const actorNames = entry.actors.join(", ");
+        messages.push(`${rollTypeDisplay} (${actorNames})`);
+      }
+      
+      ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestsReceivedMultiple', {
+        gm: entries[0].gm,
+        requests: messages.join("; ")
+      }));
+    }
+    
+    // Clear pending notifications
+    Main.pendingNotifications = [];
+    Main.notificationTimer = null;
+  }
+  
+  /**
+   * Get display name for roll type with optional details
+   */
+  static _getRollTypeDisplay(rollType, rollKey) {
+    let display = game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${rollType}`) || rollType;
+    
+    if (rollKey) {
+      switch (rollType) {
+        case 'skill':
+          display += ` (${CONFIG.DND5E.skills[rollKey]?.label || rollKey})`;
+          break;
+        case 'save':
+          display += ` (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
+          break;
+        case 'ability':
+          display += ` (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
+          break;
+        case 'tool':
+          // Try to get tool name
+          const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
+          if (toolData?.id) {
+            const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+            display += ` (${toolItem?.name || rollKey})`;
+          } else {
+            display += ` (${rollKey})`;
+          }
+          break;
+        case 'custom':
+          display = `${display}: ${rollKey}`;
+          break;
+      }
+    }
+    
+    return display;
+  }
+  
   /**
    * Execute a roll based on the request data
    * @param {Actor} actor 
