@@ -4,6 +4,7 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
 import { Main } from './Main.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
+import { ActivityUtil } from './ActivityUtil.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -518,6 +519,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     LogUtil.log('Tab clicked:', [tab, this.currentTab]);
     if (tab === this.currentTab) return;
     
+    // Clear selected actors when switching tabs
+    this.selectedActors.clear();
+    
+    // Also clear any canvas token selections
+    canvas.tokens?.releaseAll();
+    
+    // Reset selected request type since it may not apply to new tab
+    this.selectedRequestType = null;
+    
     this.currentTab = tab;
     await this.render();
     LogUtil.log('Switched to tab:', [tab]);
@@ -817,9 +827,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Handle PC actors - send roll requests
     for (const { actor, owner } of pcActors) {
       if (!owner.active) {
-        ui.notifications.warn(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
-          player: owner.name 
-        }));
+        if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
+          ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
+            player: owner.name 
+          }));
+        }
+
         // Add to NPC list to roll locally
         npcActors.push(actor);
         continue;
@@ -881,7 +894,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       'concentration': 'concentration',
       'initiativeDialog': 'initiative',
       'deathSave': 'deathsave',
-      'custom': 'custom'
+      'custom': 'custom',
     };
     
     const rollType = rollTypeMap[requestType] || requestType;
@@ -893,6 +906,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       actorId: actor.id,
       rollType,
       rollKey,
+      activityId: null,  // Menu-initiated rolls don't use activities
       config: {
         rollMode: game.settings.get("core", "rollMode"),
         advantage: false,

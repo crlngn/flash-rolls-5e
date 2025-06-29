@@ -37,10 +37,10 @@ export const HOOKS_DND5E = {
   POST_USE_ACTIVITY: "dnd5e.postUseActivity",
   
   // Ability Checks & Saving Throws
-  PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheck",
-  PRE_ROLL_SAVING_THROW: "dnd5e.preRollSavingThrow",
-  ROLL_ABILITY_CHECK: "dnd5e.rollAbilityCheck",
-  ROLL_SAVING_THROW: "dnd5e.rollSavingThrow",
+  PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheckV2",
+  PRE_ROLL_SAVING_THROW: "dnd5e.preRollSavingThrowV2",
+  ROLL_ABILITY_CHECK: "dnd5e.rollAbilityCheckV2",
+  ROLL_SAVING_THROW: "dnd5e.rollSavingThrowV2",
   
   // Concentration
   PRE_BEGIN_CONCENTRATING: "dnd5e.preBeginConcentrating",

@@ -327,7 +327,7 @@
 }
 
 #crlngn-requests-menu > div > ul.request-types > li.selected {
-  background-color: var(--color-warm-2);
+  background-color: var(--color-warm-3);
   color: white;
 }
 
@@ -414,6 +414,6 @@
   }
 
   .switch input:checked ~ .track {
-    background-color: var(--color-warm-2);
+    background-color: var(--color-warm-3);
   }
 }

@@ -6,6 +6,7 @@ import { MODULE_ID } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
 import { RollInterceptor } from "./RollInterceptor.mjs";
+import { ActivityUtil } from "./ActivityUtil.mjs";
 
 /**
  * Main class handling core module initialization and setup
@@ -31,6 +32,7 @@ export class Main {
       const SETTINGS = getSettings();
       LogUtil.log("Initiating module...", [], true);
       SettingsUtil.registerSettings();
+      document.body.classList.add("crlngn-rolls");
       Main.setDiceConfig();
       
       // Register sidebar tab hook to add chat control
@@ -156,6 +158,7 @@ export class Main {
       rollType: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${requestData.rollType}`)
     }));
     
+    LogUtil.log("handleRequestedRoll", ["sending roll request"]);
     // Execute the requested roll
     Main._executeRequestedRoll(actor, requestData);
   }
@@ -178,6 +181,8 @@ export class Main {
       if (requestData.skipDialog) {
         config.dialog = { configure: false };
       }
+
+      LogUtil.log("_executeRequestedRoll", [actor, requestData, config]);
       
       switch (requestData.rollType) {
         case 'ability':
@@ -198,14 +203,17 @@ export class Main {
           break;
         case 'attack':
           if (requestData.rollKey) {
-            const item = actor.items.get(requestData.rollKey);
-            if (item) await item.rollAttack(config);
+            await ActivityUtil.executeActivityRoll(actor, 'attack', requestData.rollKey, requestData.activityId, config);
           }
           break;
         case 'damage':
           if (requestData.rollKey) {
-            const item = actor.items.get(requestData.rollKey);
-            if (item) await item.rollDamage(config);
+            await ActivityUtil.executeActivityRoll(actor, 'damage', requestData.rollKey, requestData.activityId, config);
+          }
+          break;
+        case 'itemSave':
+          if (requestData.rollKey) {
+            await ActivityUtil.executeActivityRoll(actor, 'itemSave', requestData.rollKey, requestData.activityId, config);
           }
           break;
         case 'initiative':

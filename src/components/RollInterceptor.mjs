@@ -4,6 +4,7 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { MODULE_ID } from '../constants/General.mjs';
+import { ActivityUtil } from './ActivityUtil.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -32,6 +33,10 @@ export class RollInterceptor {
    */
   static registerHooks() {
     // Always register hooks so they can be toggled via settings without reload
+    
+    // Add a general preRoll hook to debug what's happening
+    // this._registerHook(HOOKS_DND5E.PRE_ROLL_V2, this._handleGenericPreRoll.bind(this));
+    
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, this._handlePreRoll.bind(this, 'ability'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, this._handlePreRoll.bind(this, 'save'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SKILL_V2, this._handlePreRoll.bind(this, 'skill'));
@@ -67,6 +72,91 @@ export class RollInterceptor {
   }
   
   /**
+   * Handle generic pre-roll v2 hook to intercept all rolls
+   * @param {Object} config - Roll configuration (first parameter)
+   * @param {Object} options - Additional options (second parameter)
+   * @returns {boolean|void} - Return false to prevent the roll
+   */
+  static _handleGenericPreRoll(config, options) {
+    // Only intercept on GM side
+    if (!game.user.isGM) return;
+    
+    LogUtil.log('RollInterceptor._handleGenericPreRoll', ['Generic preRollV2 triggered', {
+      configType: config?.constructor?.name,
+      hasSubject: !!config?.subject,
+      subjectName: config?.subject?.name,
+      hasIsRollRequest: config?.isRollRequest,
+      optionsType: options?.constructor?.name
+    }]);
+    
+    // Don't intercept if this is already a roll request (to avoid loops)
+    if (config?.isRollRequest) return;
+    
+    // Extract actor from the config - in D&D5e v4, the actor is in config.subject
+    const actor = config?.subject;
+    
+    // Check if roll interception is enabled
+    const SETTINGS = getSettings();
+    const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+    if (!rollInterceptionEnabled) return;
+
+    LogUtil.log('RollInterceptor._handleGenericPreRoll', [actor, actor?.documentName]);
+    
+    if (!actor || actor.documentName !== 'Actor') {
+      LogUtil.log('RollInterceptor._handleGenericPreRoll', ['No valid Actor found in roll', config]);
+      return;
+    }
+    
+    // Check if the actor is owned by a player (not the GM)
+    const owner = this._getActorOwner(actor);
+    if (!owner || owner.id === game.user.id) {
+      return;
+    }
+    
+    // Check if the owner is online
+    if (!owner.active) {
+      return;
+    }
+    
+    // Determine roll type from the config
+    let rollType = 'unknown';
+    let rollKey = null;
+    
+    // Check config for more specific information
+    if (config?.ability) {
+      rollType = config.save ? 'save' : 'ability';
+      rollKey = config.ability;
+    } else if (config?.skill) {
+      rollType = 'skill';
+      rollKey = config.skill;
+    } else if (config?.tool) {
+      rollType = 'tool';
+      rollKey = config.tool;
+    }
+    
+    LogUtil.log('RollInterceptor._handleGenericPreRoll', ['Determined roll type', {
+      rollType,
+      rollKey,
+      configKeys: Object.keys(config || {})
+    }]);
+    
+    LogUtil.log('RollInterceptor._handleGenericPreRoll', ['Intercepting generic roll', {
+      rollType,
+      actorName: actor.name,
+      ownerName: owner.name
+    }]);
+    
+    // Pass the roll key along with the config if we found it
+    if (rollKey && config) {
+      config = { ...config, ability: rollKey };
+    }
+    this._sendRollRequest(actor, owner, rollType, config);
+    
+    // Prevent the normal roll
+    return false;
+  }
+
+  /**
    * Handle pre-roll hooks to intercept rolls
    * @param {string} rollType - Type of roll being intercepted
    * @param {Object} config - Roll configuration object (or Actor for initiative)
@@ -77,6 +167,14 @@ export class RollInterceptor {
   static _handlePreRoll(rollType, config, dialog, message) {
     // Only intercept on GM side
     if (!game.user.isGM) return;
+    
+    LogUtil.log('RollInterceptor._handlePreRoll', ['Hook triggered', {
+      rollType,
+      configType: config?.constructor?.name,
+      hasIsRollRequest: config?.isRollRequest,
+      dialogIsRollRequest: dialog?.isRollRequest,
+      messageIsRollRequest: message?.isRollRequest
+    }]);
     
     // Special handling for initiative - first parameter is the actor
     let actor;
@@ -98,9 +196,10 @@ export class RollInterceptor {
     // Check if roll interception is enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+    LogUtil.log('RollInterceptor._handlePreRoll', ['Roll interception enabled:', rollInterceptionEnabled]);
     if (!rollInterceptionEnabled) return;
     
-    if (!actor || !(actor instanceof Actor)) {
+    if (!actor || actor.documentName !== 'Actor') {
       LogUtil.log('RollInterceptor._handlePreRoll', ['No valid Actor found in roll config', config, rollType]);
       return;
     }
@@ -223,6 +322,7 @@ export class RollInterceptor {
     
     // Extract the roll key based on roll type
     let rollKey = null;
+    let activityId = null;
     switch (rollType) {
       case 'ability':
       case 'save':
@@ -238,6 +338,11 @@ export class RollInterceptor {
       case 'damage':
         if (config.subject?.item) {
           rollKey = config.subject.item.id;
+          // Find the appropriate activity
+          const activity = ActivityUtil.findActivityForRoll(config.subject.item, rollType);
+          if (activity) {
+            activityId = activity.id;
+          }
         }
         break;
       case 'hitDie':
@@ -282,6 +387,7 @@ export class RollInterceptor {
       actorId: actor.id,
       rollType,
       rollKey,
+      activityId,
       config: cleanConfig,
       skipDialog: skipDialogs,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),

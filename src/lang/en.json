@@ -1,8 +1,8 @@
 {
   "CRLNGN_ROLL_REQUESTS": {
     "notifications": {
-      "playerOffline": "Player {player} is offline and cannot receive roll requests",
-      "rollRequestSent": "Roll request sent to {player} for {actor}",
+      "playerOffline": "{player} is offline. Rolling locally",
+      "rollRequestSent": "Roll request for {actor} sent to {player}",
       "rollRequestReceived": "{gm} request: {rollType}",
       "rollError": "Error executing roll for {actor}",
       "combatCreated": "Combat encounter created",
@@ -31,6 +31,10 @@
       "rollInterceptionEnabled": {
         "label": "Intercept GM Rolls for Players",
         "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owning player"
+      },
+      "showOfflineNotifications": {
+        "label": "Show Offline Notifications",
+        "hint": "Enable to notify the GM before rolling when a player is offline"
       }
     },
     "ui": {
@@ -60,7 +64,7 @@
         "multipleActors": "Multiple Actors",
         "noCombatActive": "There is no active combat encounter. Would you like to create one before rolling initiative?",
         "rerollInitiativeTitle": "Re-roll Initiative?",
-        "rerollInitiative": "The following actors already have initiative: {actors}. Do you want to re-roll their initiative?",
+        "rerollInitiative": "These actors already have initiative: <b>{actors}</b>. Do you want to re-roll?",
         "customRollTitle": "Custom Roll",
         "rollFormula": "Roll Formula"
       },
@@ -83,6 +87,7 @@
       "deathsave": "Death Save",
       "attack": "Attack Roll",
       "damage": "Damage Roll",
+      "itemSave": "Save (Item)",
       "hitDie": "Hit Die"
     }
   }
