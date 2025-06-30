@@ -1,0 +1,16 @@
+{{#if showDC}}
+<div class="form-group">
+  <label>{{localize "DND5E.AbbreviationDC"}} <span class="optional">({{localize "CRLNGN_ROLLS.ui.dialogs.optional"}})</span></label>
+  <input type="number" name="dc" placeholder="{{localize 'CRLNGN_ROLLS.ui.dialogs.dcPlaceholder'}}" value="{{dcValue}}" />
+</div>
+{{/if}}
+
+{{#if showSendRequest}}
+<div class="form-group">
+  <label data-tooltip="{{localize 'CRLNGN_ROLLS.ui.dialogs.sendRequestTooltip'}}">{{localize "CRLNGN_ROLLS.ui.dialogs.sendRequest"}}</label>
+  <select name="sendRequest">
+    <option value="true" {{#if sendRequest}}selected{{/if}}>{{localize "CRLNGN_ROLLS.ui.dialogs.sendToPlayers"}}</option>
+    <option value="false" {{#unless sendRequest}}selected{{/unless}}>{{localize "CRLNGN_ROLLS.ui.dialogs.rollLocally"}}</option>
+  </select>
+</div>
+{{/if}}

@@ -54,6 +54,32 @@ export class Main {
       // Initialize RollInterceptor for all users
       RollInterceptor.initialize();
       
+      // Add debug hooks for roll configuration
+      Hooks.on("dnd5e.buildRollConfig", (app, config, formData, index) => {
+        LogUtil.log("Hook: dnd5e.buildRollConfig", ["BuildRollConfig hook fired", {
+          app: app?.constructor?.name,
+          config,
+          formData,
+          index,
+          rollType: config?.rollType,
+          rollTypeConstructor: config?.rollType?.constructor?.name,
+          rolls: config?.rolls
+        }]);
+      });
+      
+      Hooks.on("dnd5e.postBuildRollConfig", (processConfig, rollConfig, index, options) => {
+        LogUtil.log("Hook: dnd5e.postBuildRollConfig", ["PostBuildRollConfig hook fired", {
+          processConfig,
+          rollConfig,
+          index,
+          app: options?.app?.constructor?.name,
+          formData: options?.formData,
+          rollType: processConfig?.rollType,
+          rollTypeConstructor: processConfig?.rollType?.constructor?.name,
+          rolls: processConfig?.rolls
+        }]);
+      });
+      
       if(game.user.isGM){
         Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
         // Only run this on the GM client
@@ -132,6 +158,14 @@ export class Main {
     if (game.user.isGM) return;
     
     LogUtil.log("handleRollRequest", ["Received roll request", requestData]);
+    LogUtil.log("handleRollRequest", ["Config details", {
+      advantage: requestData.config?.advantage,
+      disadvantage: requestData.config?.disadvantage,
+      ability: requestData.config?.ability,
+      target: requestData.config?.target,
+      rollMode: requestData.config?.rollMode,
+      situational: requestData.config?.situational
+    }]);
     
     // Get the actor
     const actor = game.actors.get(requestData.actorId);
@@ -273,50 +307,100 @@ export class Main {
    */
   static async _executeRequestedRoll(actor, requestData) {
     try {
-      // Apply GM config as defaults
-      const config = {
-        ...requestData.config,
-        isRollRequest: true // Custom flag
+      // Build configuration matching D&D5e's expected structure
+      // The roll methods expect certain data in specific parameters
+      
+      // Base configuration object (first parameter for most roll methods)
+      const rollConfig = {
+        advantage: requestData.config.advantage || false,
+        disadvantage: requestData.config.disadvantage || false,
+        isRollRequest: true, // Custom flag to prevent re-interception
+        target: requestData.config.target, // DC value
+        event: { _fromGM: true } // Custom flag to identify GM requests
       };
       
-      // Control dialog display based on skipDialog setting
-      // In D&D5e 4.x, dialog.configure controls whether to show the dialog
-      if (requestData.skipDialog) {
-        config.dialog = { configure: false };
+      // Add situational bonus if provided
+      if (requestData.config.situational) {
+        rollConfig.bonus = requestData.config.situational;
       }
+      
+      // Dialog configuration (second parameter)
+      const dialogConfig = {
+        configure: !requestData.skipDialog,
+        options: {
+          defaultButton: requestData.config.advantage ? 'advantage' : 
+                         requestData.config.disadvantage ? 'disadvantage' : 'normal'
+        }
+      };
+      
+      // Message configuration (third parameter)
+      const messageConfig = {
+        rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
+        create: requestData.config.chatMessage !== false
+      };
 
-      LogUtil.log("_executeRequestedRoll", [actor, requestData, config]);
+      LogUtil.log("_executeRequestedRoll", [actor, requestData, rollConfig, dialogConfig, messageConfig]);
       
       switch (requestData.rollType) {
         case 'ability':
-          await actor.rollAbilityCheck(requestData.rollKey, config);
+          // For ability checks, pass the ability key directly as first parameter
+          await actor.rollAbilityCheck(requestData.rollKey, {
+            ...rollConfig,
+            event: { _fromGM: true } // Custom flag
+          }, dialogConfig, messageConfig);
           break;
         case 'save':
-          await actor.rollSavingThrow(requestData.rollKey, config);
+          // For saving throws, pass the ability key directly as first parameter
+          await actor.rollSavingThrow(requestData.rollKey, {
+            ...rollConfig,
+            event: { _fromGM: true }
+          }, dialogConfig, messageConfig);
           break;
         case 'skill':
-          await actor.rollSkill(requestData.rollKey, config);
+          // For skills, pass the skill configuration with ability override
+          await actor.rollSkill({
+            skill: requestData.rollKey,
+            ability: requestData.config.ability, // GM's ability choice
+            ...rollConfig
+          }, dialogConfig, messageConfig);
           break;
         case 'tool':
-          // Tools need the tool key in the config object
-          await actor.rollToolCheck({ ...config, tool: requestData.rollKey });
+          // For tools, pass the tool configuration
+          await actor.rollToolCheck({
+            tool: requestData.rollKey,
+            ability: requestData.config.ability, // GM's ability choice
+            ...rollConfig
+          }, dialogConfig, messageConfig);
           break;
         case 'concentration':
-          await actor.rollConcentration(config);
+          await actor.rollConcentration(rollConfig, dialogConfig, messageConfig);
           break;
         case 'attack':
           if (requestData.rollKey) {
-            await ActivityUtil.executeActivityRoll(actor, 'attack', requestData.rollKey, requestData.activityId, config);
+            // Activities might need different handling
+            await ActivityUtil.executeActivityRoll(actor, 'attack', requestData.rollKey, requestData.activityId, {
+              ...rollConfig,
+              dialog: dialogConfig,
+              message: messageConfig
+            });
           }
           break;
         case 'damage':
           if (requestData.rollKey) {
-            await ActivityUtil.executeActivityRoll(actor, 'damage', requestData.rollKey, requestData.activityId, config);
+            await ActivityUtil.executeActivityRoll(actor, 'damage', requestData.rollKey, requestData.activityId, {
+              ...rollConfig,
+              dialog: dialogConfig,
+              message: messageConfig
+            });
           }
           break;
         case 'itemSave':
           if (requestData.rollKey) {
-            await ActivityUtil.executeActivityRoll(actor, 'itemSave', requestData.rollKey, requestData.activityId, config);
+            await ActivityUtil.executeActivityRoll(actor, 'itemSave', requestData.rollKey, requestData.activityId, {
+              ...rollConfig,
+              dialog: dialogConfig,
+              message: messageConfig
+            });
           }
           break;
         case 'initiative':
@@ -325,13 +409,14 @@ export class Main {
             ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
             break;
           }
-          await actor.rollInitiativeDialog(config);
+          await actor.rollInitiativeDialog(rollConfig, dialogConfig, messageConfig);
           break;
         case 'deathsave':
-          await actor.rollDeathSave(config);
+          await actor.rollDeathSave(rollConfig, dialogConfig, messageConfig);
           break;
         case 'hitDie':
-          await actor.rollHitDie(requestData.rollKey, config);
+          rollConfig.denomination = requestData.rollKey;
+          await actor.rollHitDie(rollConfig, dialogConfig, messageConfig);
           break;
         case 'custom':
           // For custom rolls, show dialog with readonly formula

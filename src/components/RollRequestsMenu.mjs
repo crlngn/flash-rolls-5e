@@ -5,6 +5,7 @@ import { getSettings } from '../constants/Settings.mjs';
 import { Main } from './Main.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -836,37 +837,73 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
     }
     
-    // Handle PC actors - send roll requests
-    const successfulRequests = []; // Track successful requests for consolidated notification
-    
-    for (const { actor, owner } of pcActors) {
-      if (!owner.active) {
-        if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
-          ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
-            player: owner.name 
-          }));
-        }
-
-        // Add to NPC list to roll locally
-        npcActors.push(actor);
-        continue;
+    // Show GM configuration dialog (unless skip dialogs is enabled)
+    let config = null;
+    if (!skipDialogs || pcActors.length > 0) {
+      // Use appropriate dialog based on roll type
+      const DialogClass = ['skill', 'tool'].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
+      config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { skipDialogs });
+      
+      // User cancelled the dialog
+      if (!config) {
+        return;
       }
+    } else {
+      // Use default configuration
+      config = {
+        advantage: false,
+        disadvantage: false,
+        situational: "",
+        parts: [],
+        rollMode: game.settings.get("core", "rollMode"),
+        chatMessage: true,
+        isRollRequest: true,
+        skipDialog: skipDialogs,
+        sendRequest: true
+      };
       
-      this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, skipDialogs, true); // true = suppress individual notification
-      successfulRequests.push({ actor, owner });
-      
-      // Add a small delay between roll requests to ensure they process correctly
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Death saves always have DC 10
+      if (rollMethodName === 'deathSave') {
+        config.target = 10;
+      }
     }
     
-    // Send consolidated notification for all successful requests
-    if (successfulRequests.length > 0) {
-      this._sendConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
+    // Handle PC actors - send roll requests (if sendRequest is true)
+    const successfulRequests = []; // Track successful requests for consolidated notification
+    
+    if (config.sendRequest) {
+      for (const { actor, owner } of pcActors) {
+        if (!owner.active) {
+          if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
+            ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
+              player: owner.name 
+            }));
+          }
+
+          // Add to NPC list to roll locally
+          npcActors.push(actor);
+          continue;
+        }
+        
+        this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true); // true = suppress individual notification
+        successfulRequests.push({ actor, owner });
+        
+        // Add a small delay between roll requests to ensure they process correctly
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Send consolidated notification for all successful requests
+      if (successfulRequests.length > 0) {
+        this._sendConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
+      }
+    } else {
+      // If not sending requests, add PC actors to NPC list to roll locally
+      npcActors.push(...pcActors.map(({ actor }) => actor));
     }
     
     // Handle NPC actors - roll locally
     if (npcActors.length > 0) {
-      await this._handleNPCRolls(npcActors, rollMethodName, rollKey, skipDialogs);
+      await this._handleNPCRolls(npcActors, rollMethodName, rollKey, config);
     }
     
     // Close the menu after all rolls are complete
@@ -900,10 +937,10 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {User} owner 
    * @param {string} requestType 
    * @param {string} rollKey 
-   * @param {boolean} skipDialogs 
+   * @param {Object} config - Roll configuration from dialog
    * @param {boolean} suppressNotification - If true, don't show individual notification
    */
-  _sendRollRequestToPlayer(actor, owner, requestType, rollKey, skipDialogs, suppressNotification = false) {
+  _sendRollRequestToPlayer(actor, owner, requestType, rollKey, config, suppressNotification = false) {
     const SETTINGS = getSettings();
     
     // Map request type to roll type for compatibility with RollInterceptor format
@@ -929,14 +966,17 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       rollKey,
       activityId: null,  // Menu-initiated rolls don't use activities
       config: {
-        rollMode: game.settings.get("core", "rollMode"),
-        advantage: false,
-        disadvantage: false,
-        situational: 0,
-        parts: [],
-        chatMessage: true
+        rollMode: config.rollMode || game.settings.get("core", "rollMode"),
+        advantage: config.advantage || false,
+        disadvantage: config.disadvantage || false,
+        situational: config.situational || "",
+        parts: config.parts || [],
+        chatMessage: config.chatMessage !== false,
+        target: config.target,  // DC value if provided
+        ability: config.ability,  // Ability override for skills/tools
+        attackMode: config.attackMode  // Attack mode for attack rolls
       },
-      skipDialog: skipDialogs,
+      skipDialog: config.skipDialog || false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
@@ -1036,21 +1076,22 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {Actor[]} actors 
    * @param {string} requestType 
    * @param {string} rollKey 
-   * @param {boolean} skipDialogs 
+   * @param {Object} dialogConfig - Configuration from GM dialog
    */
-  async _handleNPCRolls(actors, requestType, rollKey, skipDialogs) {
-    // TODO: Show configuration dialog for batch NPC rolling
-    // For now, use default configuration
+  async _handleNPCRolls(actors, requestType, rollKey, dialogConfig) {
+    // Build config for local rolls
     const config = {
-      advantage: false,
-      disadvantage: false,
-      situational: 0,
-      parts: [],
-      rollMode: game.settings.get("core", "rollMode"),
-      fastForward: skipDialogs,
-      chatMessage: true,
+      advantage: dialogConfig.advantage || false,
+      disadvantage: dialogConfig.disadvantage || false,
+      situational: dialogConfig.situational || "",
+      parts: dialogConfig.parts || [],
+      rollMode: dialogConfig.rollMode || game.settings.get("core", "rollMode"),
+      fastForward: dialogConfig.skipDialog || false,
+      chatMessage: dialogConfig.chatMessage !== false,
       isRollRequest: true,  // Flag to prevent RollInterceptor from re-intercepting
-      targetValue: 10  // Death saves have a DC of 10
+      target: dialogConfig.target,  // DC value if provided
+      ability: dialogConfig.ability,  // Ability override for skills/tools
+      attackMode: dialogConfig.attackMode  // Attack mode for attack rolls
     };
     
     // Roll for each NPC with a small delay between rolls

@@ -32,11 +32,6 @@ export class RollInterceptor {
    * Register all necessary hooks for roll interception
    */
   static registerHooks() {
-    // Always register hooks so they can be toggled via settings without reload
-    
-    // Add a general preRoll hook to debug what's happening
-    // this._registerHook(HOOKS_DND5E.PRE_ROLL_V2, this._handleGenericPreRoll.bind(this));
-    
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, this._handlePreRoll.bind(this, 'ability'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, this._handlePreRoll.bind(this, 'save'));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SKILL_V2, this._handlePreRoll.bind(this, 'skill'));
@@ -89,10 +84,10 @@ export class RollInterceptor {
       optionsType: options?.constructor?.name
     }]);
     
-    // Don't intercept if this is already a roll request (to avoid loops)
+    // Check to avoid loops
     if (config?.isRollRequest) return;
     
-    // Extract actor from the config - in D&D5e v4, the actor is in config.subject
+    // or non activity rolls, config.subject is the actor
     const actor = config?.subject;
     
     // Check if roll interception is enabled
@@ -189,7 +184,6 @@ export class RollInterceptor {
       if (config.isRollRequest) return;
       
       // Extract actor from the config
-      // For D&D5e v2 hooks: config.subject can be an Activity (which has .actor) or the Actor itself
       actor = config.subject?.actor || config.subject || config.actor;
     }
     

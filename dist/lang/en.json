@@ -69,7 +69,16 @@
         "rerollInitiativeTitle": "Re-roll Initiative?",
         "rerollInitiative": "These actors already have initiative: <b>{actors}</b>. Do you want to re-roll?",
         "customRollTitle": "Custom Roll",
-        "rollFormula": "Roll Formula"
+        "rollFormula": "Roll Formula",
+        "gmRollConfigTitle": "GM Roll Configuration",
+        "gmRollConfigActors": "Rolling for {{count}} actors",
+        "optional": "optional",
+        "dcPlaceholder": "Leave blank for default",
+        "situationalNote": "e.g., +2, 1d4, or +1d4+2",
+        "sendRequest": "Send as Request",
+        "sendRequestNote": "Choose whether to send rolls to players or execute locally",
+        "sendToPlayers": "Send to Players",
+        "rollLocally": "Roll Locally"
       },
       "menus": {
         "rollRequestsTitle": "Roll Requests"
