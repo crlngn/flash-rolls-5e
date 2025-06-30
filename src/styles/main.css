@@ -9,6 +9,65 @@ body{
   }
 }
 
+/* SWITCH */
+.crlngn-rolls {
+  .crlngn-switch {
+    display: flex;
+    position: relative;
+    > .track{
+      display: inline-block;
+      font-size: var(--font-size-12);
+      height: 1.5em;
+      width: 2.5em;
+      background: var(--color-secondary-bright, #5f5f5f);
+      border-radius: 1.5em;
+      border: 1px solid var(--color-border-dark);
+      z-index: 0;
+    }
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 3px;
+  }
+  .crlngn-switch > input[type="checkbox"] {
+    left: 0;
+    opacity: 0;
+    z-index: 2;
+    width: 2rem;
+    margin: 0;
+    cursor: pointer;
+    position: absolute;
+
+    &:checked{
+      position: absolute;
+    }
+  }
+  .crlngn-switch > .handle {
+    height: 0.8em;
+    width: 0.8em;
+    margin: 0.35em;
+    position: absolute;
+    left: 0;
+    border-radius: 0.8em;
+    background: #fff;
+    box-shadow: 0 0.1em 0.3em rgba(0,0,0,0.3);
+    z-index: 1;
+    transition: margin-left 0.2s ease-in-out;
+  }
+  
+  .crlngn-switch input:checked ~ .handle {
+    margin-left: 1rem;
+    position: absolute;
+  }
+  
+  .crlngn-switch input:checked ~ .track {
+    background-color: var(--color-warm-3);
+    justify-self: flex-start;
+  }
+}
+
+
 /* Base Styles */
 .application.roll-resolver section[data-application-part] {
   display: flex;
@@ -67,12 +126,6 @@ body{
       opacity: 1;
     }
   }
-}
-
-/* DC field on roll config dialog */
-.dnd5e2.application.roll-configuration .rolls .dc {
-  padding: 6px;
-  max-width: 80px;
 }
 
 .crlngn-rolls-dialog {
@@ -143,119 +196,45 @@ body{
 }
 
 /* GM Roll Configuration Dialog */
-.gm-roll-config {
-  .optional {
-    font-weight: normal;
-    font-size: 0.85em;
-    color: var(--color-text-dark-5);
-  }
-  
-  .notes {
-    margin: 0.25rem 0 0 0;
-    font-size: 0.85em;
-    color: var(--color-text-dark-5);
-    font-style: italic;
-  }
-  .form-header {
-    text-align: center;
-    margin-bottom: 1rem;
-    
-    h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1.2rem;
-    }
-    
-    .actor-count {
-      margin: 0;
-      font-size: 0.9rem;
-      color: var(--color-text-dark-secondary);
-    }
-  }
-  
-  .roll-mode-buttons {
+.crlngn-rolls .gm-roll-config-fields {
+  display: flex;
+  gap: 0.5em;
+  flex-direction: row;
+  padding: 0 6px 6px 6px;
+
+  .form-group.dc {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    
-    .roll-mode-toggle {
-      flex: 1;
-      padding: 0.5rem;
-      border: 1px solid var(--color-border-light);
-      background: var(--color-control-bg);
-      cursor: pointer;
-      transition: all 0.2s;
-      
-      &:hover {
-        background: var(--color-hover-bg);
-      }
-      
-      &.active {
-        background: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary-dark);
-      }
-      
-      i {
-        font-size: 1rem;
-      }
-    }
-  }
-  
-  .form-group {
-    margin-bottom: 1rem;
-    
-    label {
-      display: block;
-      margin-bottom: 0.25rem;
-      font-weight: bold;
-      
-      .optional {
-        font-weight: normal;
-        font-size: 0.85rem;
-        color: var(--color-text-dark-secondary);
-      }
-    }
-    
-    input[type="number"],
-    input[type="text"],
-    select {
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 0 0 60px;
+    width: 60px;
+    height: auto;
+    padding: 0;
+
+    label, input{
+      text-align: left;
+      justify-self: flex-start;
+      flex: 0 0 auto;
       width: 100%;
-      padding: 0.25rem 0.5rem;
-    }
-    
-    input[type="checkbox"] {
-      margin-right: 0.5rem;
-    }
-    
-    .notes {
-      margin: 0.25rem 0 0 0;
-      font-size: 0.85rem;
-      color: var(--color-text-dark-secondary);
-      font-style: italic;
     }
   }
-  
-  .send-request-toggle {
-    background: var(--color-control-bg);
-    padding: 0.5rem;
-    border: 1px solid var(--color-border-light);
-    border-radius: 3px;
-  }
-  
-  .sheet-footer {
+  .form-group.send-request {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--color-border-light);
-    
-    button {
-      flex: 1;
-      padding: 0.5rem;
-      
-      i {
-        margin-right: 0.25rem;
-      }
+    flex-direction: row;
+    flex: 1 1 100%;
+    width: 100%;
+    height: auto;
+    justify-content: flex-end;
+    align-items: flex-end;
+    text-align: right;
+
+    label {
+      display: flex;
+      width: auto;
+      flex: 0 0 auto;
+      gap: 0.5rem;
+      font-family: var(--crlngn-font-family);
+      font-weight: 500;
     }
   }
 }

@@ -11,6 +11,9 @@
       "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
       "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}"
+    },
+    "chat": {
+      "requestedBy": "[Requested by {gm}]"
     }
   },
   "CRLNGN_ROLLS": {
@@ -71,7 +74,7 @@
         "customRollTitle": "Custom Roll",
         "rollFormula": "Roll Formula",
         "gmRollConfigTitle": "GM Roll Configuration",
-        "gmRollConfigActors": "Rolling for {{count}} actors",
+        "gmRollConfigActors": "Rolling for {count} actors",
         "optional": "optional",
         "dcPlaceholder": "Leave blank for default",
         "situationalNote": "e.g., +2, 1d4, or +1d4+2",

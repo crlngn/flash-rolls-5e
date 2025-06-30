@@ -844,6 +844,14 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       const DialogClass = ['skill', 'tool'].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
       config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { skipDialogs });
       
+      LogUtil.log('_triggerRoll', ['GM dialog returned config', {
+        config,
+        rollMethodName,
+        rollKey,
+        hasAbility: !!config?.ability,
+        ability: config?.ability
+      }]);
+      
       // User cancelled the dialog
       if (!config) {
         return;
@@ -870,6 +878,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Handle PC actors - send roll requests (if sendRequest is true)
     const successfulRequests = []; // Track successful requests for consolidated notification
+    const offlinePlayerActors = []; // Track offline player actors separately
     
     if (config.sendRequest) {
       for (const { actor, owner } of pcActors) {
@@ -880,8 +889,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             }));
           }
 
-          // Add to NPC list to roll locally
-          npcActors.push(actor);
+          // Track offline player actors separately to ensure dialog is skipped
+          offlinePlayerActors.push(actor);
           continue;
         }
         
@@ -899,6 +908,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     } else {
       // If not sending requests, add PC actors to NPC list to roll locally
       npcActors.push(...pcActors.map(({ actor }) => actor));
+    }
+    
+    // Handle offline player actors - roll locally without dialog
+    if (offlinePlayerActors.length > 0) {
+      // Force skip dialog for offline players
+      const offlineConfig = { ...config, skipDialog: true };
+      await this._handleNPCRolls(offlinePlayerActors, rollMethodName, rollKey, offlineConfig);
     }
     
     // Handle NPC actors - roll locally
@@ -974,17 +990,24 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         chatMessage: config.chatMessage !== false,
         target: config.target,  // DC value if provided
         ability: config.ability,  // Ability override for skills/tools
-        attackMode: config.attackMode  // Attack mode for attack rolls
+        attackMode: config.attackMode,  // Attack mode for attack rolls
+        rollTitle: config.rollTitle  // Title from the dialog window
       },
       skipDialog: config.skipDialog || false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
     
-    // Send request to player via socket
+    LogUtil.log('_sendRollRequestToPlayer', ['Sending request with data', {
+      requestData,
+      hasAbility: !!requestData.config.ability,
+      ability: requestData.config.ability,
+      rollType,
+      rollKey
+    }]);
+    
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
-    // Show notification to GM (unless suppressed for batch operations)
     if (!suppressNotification) {
       ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
         player: owner.name,
@@ -1047,9 +1070,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
     }
     
-    // Create notification message
     if (Object.keys(requestsByPlayer).length === 1) {
-      // Single player, multiple actors
       const playerData = Object.values(requestsByPlayer)[0];
       const actorNames = playerData.actors.map(a => a.name).join(", ");
       ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentSingle", { 
@@ -1058,7 +1079,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         player: playerData.player.name
       }));
     } else {
-      // Multiple players
       const playerSummaries = Object.values(requestsByPlayer).map(data => {
         const actorNames = data.actors.map(a => a.name).join(", ");
         return `${data.player.name} (${actorNames})`;
@@ -1125,18 +1145,120 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       switch (normalizedType) {
         case 'abilitycheck':
-          await actor.rollAbilityCheck(rollKey, config);
+          // Pass all configuration in the first parameter, matching player side
+          const abilityRollConfig = {
+            ability: rollKey,
+            advantage: config.advantage,
+            disadvantage: config.disadvantage,
+            target: config.target,  // Include target for DC
+            isRollRequest: config.isRollRequest  // Prevent re-interception
+          };
+          const abilityDialogConfig = {
+            configure: !config.fastForward
+          };
+          const abilityMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false
+          };
+          // Add situational bonus if present
+          if (config.situational) abilityRollConfig.bonus = config.situational;
+          
+          await actor.rollAbilityCheck(abilityRollConfig, abilityDialogConfig, abilityMessageConfig);
           break;
         case 'savingthrow':
-          await actor.rollSavingThrow(rollKey, config);
+          // Pass all configuration in the first parameter, matching player side
+          const saveRollConfig = {
+            ability: rollKey,
+            advantage: config.advantage,
+            disadvantage: config.disadvantage,
+            target: config.target,  // Include target for DC
+            isRollRequest: config.isRollRequest  // Prevent re-interception
+          };
+          const saveDialogConfig = {
+            configure: !config.fastForward
+          };
+          const saveMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false
+          };
+          // Add situational bonus if present
+          if (config.situational) saveRollConfig.bonus = config.situational;
+          
+          await actor.rollSavingThrow(saveRollConfig, saveDialogConfig, saveMessageConfig);
           break;
         case 'skill':
-          // Skills need the skill key in the config object
-          await actor.rollSkill({ ...config, skill: rollKey });
+          // Skills use a different signature: rollSkill(config, dialogConfig, messageConfig)
+          const skillRollConfig = {
+            skill: rollKey,
+            advantage: config.advantage,
+            disadvantage: config.disadvantage,
+            ability: config.ability,
+            chooseAbility: !config.ability // Don't allow choice if ability is pre-selected
+          };
+          const skillDialogConfig = {
+            configure: !config.fastForward // Show dialog unless fast forward is true
+          };
+          const skillMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false,
+            data: {}
+          };
+          
+          // Use the roll title if provided, otherwise build custom flavor if ability was overridden
+          if (config.rollTitle) {
+            skillMessageConfig.data.flavor = config.rollTitle;
+          } else if (config.ability) {
+            const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
+            const abilityLabel = CONFIG.DND5E.abilities[config.ability]?.label || config.ability;
+            skillMessageConfig.data.flavor = game.i18n.format("DND5E.SkillPromptTitle", {
+              skill: skillLabel,
+              ability: abilityLabel
+            });
+          }
+          // Add situational bonus and target if present
+          if (config.situational) skillRollConfig.bonus = config.situational;
+          if (config.target) skillRollConfig.target = config.target;
+          
+          await actor.rollSkill(skillRollConfig, skillDialogConfig, skillMessageConfig);
           break;
         case 'tool':
-          // Tools need the tool key in the config object
-          await actor.rollToolCheck({ ...config, tool: rollKey });
+          // Tools use a different signature: rollToolCheck(config, dialogConfig, messageConfig)
+          const toolRollConfig = {
+            tool: rollKey,
+            advantage: config.advantage,
+            disadvantage: config.disadvantage,
+            ability: config.ability,
+            chooseAbility: !config.ability // Don't allow choice if ability is pre-selected
+          };
+          const toolDialogConfig = {
+            configure: !config.fastForward // Show dialog unless fast forward is true
+          };
+          const toolMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false,
+            data: {}
+          };
+          
+          // Use the roll title if provided, otherwise build custom flavor if ability was overridden
+          if (config.rollTitle) {
+            toolMessageConfig.data.flavor = config.rollTitle;
+          } else if (config.ability) {
+            // Get tool label
+            let toolLabel = rollKey;
+            const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
+            if (toolData?.id) {
+              const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+              toolLabel = toolItem?.name || rollKey;
+            }
+            const abilityLabel = CONFIG.DND5E.abilities[config.ability]?.label || config.ability;
+            // D&D5e doesn't have a tool format with ability, so create custom flavor
+            toolMessageConfig.data.flavor = `${abilityLabel} (${toolLabel}) ${game.i18n.localize("DND5E.Check")}`;
+          }
+          // Add situational bonus and target if present
+          if (config.situational) toolRollConfig.bonus = config.situational;
+          if (config.target) toolRollConfig.target = config.target;
+          
+          await actor.rollToolCheck(toolRollConfig, toolDialogConfig, toolMessageConfig);
           break;
         case 'concentration':
           await actor.rollConcentration(config);

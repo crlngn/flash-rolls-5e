@@ -1,4 +1,4 @@
-import { HOOKS_CORE } from "../constants/Hooks.mjs"; 
+import { HOOKS_CORE, HOOKS_DND5E } from "../constants/Hooks.mjs"; 
 import { LogUtil } from "./LogUtil.mjs"; 
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { getSettings } from "../constants/Settings.mjs";
@@ -49,13 +49,40 @@ export class Main {
       const SETTINGS = getSettings();
       
       var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
-      if(isDebugOn){CONFIG.debug.hooks = true};
+      // if(isDebugOn){CONFIG.debug.hooks = true};
       
       // Initialize RollInterceptor for all users
       RollInterceptor.initialize();
       
+      // Hook to modify chat messages for requested rolls
+      Hooks.on("dnd5e.postRollConfiguration", (rolls, config, dialog, message) => {
+        // Check if this is a requested roll
+        if (config._isRequestedRoll && rolls.length > 0) {
+          LogUtil.log("postRollConfiguration for requested roll", ["Adding custom flavor", config._requestedBy]);
+          // Store the requested by information in the message data
+          message.data = message.data || {};
+          message.data._isRequestedRoll = true;
+          message.data._requestedBy = config._requestedBy;
+        }
+      });
+      
+      // Hook to modify the chat message before it's created
+      Hooks.on(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, (chatMessage, data, options, userId) => {
+        // Check if this message is from a requested roll
+        if (data._isRequestedRoll && data.rolls?.length > 0) {
+          const requestedBy = data._requestedBy || 'GM';
+          const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
+          
+          // Append our custom text to the existing flavor
+          const currentFlavor = data.flavor || '';
+          data.flavor = currentFlavor ? `${currentFlavor} ${requestedText}` : requestedText;
+          
+          LogUtil.log("preCreateChatMessage", ["Modified flavor for requested roll", data.flavor]);
+        }
+      });
+      
       // Add debug hooks for roll configuration
-      Hooks.on("dnd5e.buildRollConfig", (app, config, formData, index) => {
+      Hooks.on(HOOKS_CORE.BUILD_ROLL_CONFIG, (app, config, formData, index) => {
         LogUtil.log("Hook: dnd5e.buildRollConfig", ["BuildRollConfig hook fired", {
           app: app?.constructor?.name,
           config,
@@ -67,7 +94,7 @@ export class Main {
         }]);
       });
       
-      Hooks.on("dnd5e.postBuildRollConfig", (processConfig, rollConfig, index, options) => {
+      Hooks.on(HOOKS_CORE.POST_BUILD_ROLL_CONFIG, (processConfig, rollConfig, index, options) => {
         LogUtil.log("Hook: dnd5e.postBuildRollConfig", ["PostBuildRollConfig hook fired", {
           processConfig,
           rollConfig,
@@ -78,6 +105,23 @@ export class Main {
           rollTypeConstructor: processConfig?.rollType?.constructor?.name,
           rolls: processConfig?.rolls
         }]);
+      });
+      
+      // Hook to preserve custom flavor for skill/tool rolls
+      Hooks.on(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, (message, data, options, userId) => {
+        // Check if this is a roll message with our custom flavor
+        if (data.rolls?.length > 0 && data.rolls[0]) {
+          try {
+            // The roll data includes the options directly
+            const rollData = data.rolls[0];
+            if (rollData.options?._customFlavor) {
+              data.flavor = rollData.options._customFlavor;
+              LogUtil.log("Applying custom flavor to chat message", [rollData.options._customFlavor]);
+            }
+          } catch (error) {
+            LogUtil.log("Error processing custom flavor", [error]);
+          }
+        }
       });
       
       if(game.user.isGM){
@@ -316,12 +360,20 @@ export class Main {
         disadvantage: requestData.config.disadvantage || false,
         isRollRequest: true, // Custom flag to prevent re-interception
         target: requestData.config.target, // DC value
-        event: { _fromGM: true } // Custom flag to identify GM requests
+        // Don't pass a fake event object - it causes issues with D&D5e's event handling
+        _isRequestedRoll: true, // Internal flag to identify requested rolls
+        _requestedBy: requestData.config.requestedBy || 'GM' // Who requested the roll
       };
+      
       
       // Add situational bonus if provided
       if (requestData.config.situational) {
         rollConfig.bonus = requestData.config.situational;
+      }
+      
+      // Add ability for skills/tools if provided
+      if (requestData.config.ability && ['skill', 'tool'].includes(requestData.rollType)) {
+        rollConfig.ability = requestData.config.ability;
       }
       
       // Dialog configuration (second parameter)
@@ -329,7 +381,12 @@ export class Main {
         configure: !requestData.skipDialog,
         options: {
           defaultButton: requestData.config.advantage ? 'advantage' : 
-                         requestData.config.disadvantage ? 'disadvantage' : 'normal'
+                         requestData.config.disadvantage ? 'disadvantage' : 'normal',
+          // Add dialog window configuration
+          window: {
+            title: requestData.config.rollTitle || this._getRollTypeDisplay(requestData.rollType, requestData.rollKey),
+            subtitle: actor.name
+          }
         }
       };
       
@@ -343,34 +400,50 @@ export class Main {
       
       switch (requestData.rollType) {
         case 'ability':
-          // For ability checks, pass the ability key directly as first parameter
-          await actor.rollAbilityCheck(requestData.rollKey, {
+          // For ability checks, pass configuration object with ability property
+          await actor.rollAbilityCheck({
             ...rollConfig,
-            event: { _fromGM: true } // Custom flag
+            ability: requestData.rollKey // Add the ability key to the config
           }, dialogConfig, messageConfig);
           break;
         case 'save':
-          // For saving throws, pass the ability key directly as first parameter
-          await actor.rollSavingThrow(requestData.rollKey, {
+          // For saving throws, pass configuration object with ability property
+          await actor.rollSavingThrow({
             ...rollConfig,
-            event: { _fromGM: true }
+            ability: requestData.rollKey // Add the ability key to the config
           }, dialogConfig, messageConfig);
           break;
         case 'skill':
-          // For skills, pass the skill configuration with ability override
-          await actor.rollSkill({
-            skill: requestData.rollKey,
-            ability: requestData.config.ability, // GM's ability choice
-            ...rollConfig
-          }, dialogConfig, messageConfig);
+          // For skills, pass configuration object with skill property
+          const skillConfig = { 
+            ...rollConfig,
+            skill: requestData.rollKey, // Add the skill key to the config
+            chooseAbility: true // Allow ability selection in dialog
+          };
+          if (requestData.config.ability) {
+            skillConfig.ability = requestData.config.ability;
+          }
+          
+          LogUtil.log("_executeRequestedRoll skill", ["Skill config before roll", {
+            skillConfig,
+            requestedAbility: requestData.config.ability,
+            rollKey: requestData.rollKey,
+            actor: actor.name
+          }]);
+          
+          await actor.rollSkill(skillConfig, dialogConfig, messageConfig);
           break;
         case 'tool':
-          // For tools, pass the tool configuration
-          await actor.rollToolCheck({
-            tool: requestData.rollKey,
-            ability: requestData.config.ability, // GM's ability choice
-            ...rollConfig
-          }, dialogConfig, messageConfig);
+          // For tools, pass configuration object with tool property
+          const toolConfig = { 
+            ...rollConfig,
+            tool: requestData.rollKey, // Add the tool key to the config
+            chooseAbility: true // Allow ability selection in dialog
+          };
+          if (requestData.config.ability) {
+            toolConfig.ability = requestData.config.ability;
+          }
+          await actor.rollToolCheck(toolConfig, dialogConfig, messageConfig);
           break;
         case 'concentration':
           await actor.rollConcentration(rollConfig, dialogConfig, messageConfig);
@@ -496,17 +569,13 @@ export class Main {
    * @param {Object} options - Render options
    */
   static addChatControl(app, html, options) {
-    // Only add to chat tab for GM users
     if (!game.user.isGM || app.id !== "chat") return;
     
     LogUtil.log("Adding chat control for chat tab");
-    
-    // Get the HTML element from jQuery object
     const htmlElement = html[0] || html;
     
     // Find the chat controls container
     const chatControls = htmlElement.querySelector("#chat-controls");
-    
     if (!chatControls) {
       LogUtil.log("Could not find #chat-controls", []);
       return;

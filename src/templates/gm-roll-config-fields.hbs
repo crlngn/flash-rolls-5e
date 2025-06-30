@@ -1,16 +1,17 @@
 {{#if showDC}}
-<div class="form-group">
-  <label>{{localize "DND5E.AbbreviationDC"}} <span class="optional">({{localize "CRLNGN_ROLLS.ui.dialogs.optional"}})</span></label>
-  <input type="number" name="dc" placeholder="{{localize 'CRLNGN_ROLLS.ui.dialogs.dcPlaceholder'}}" value="{{dcValue}}" />
+<div class="form-group dc">
+  <label>{{localize "DND5E.AbbreviationDC"}}</label>
+  <input type="number" name="dc" value="{{dcValue}}" />
 </div>
 {{/if}}
 
 {{#if showSendRequest}}
-<div class="form-group">
-  <label data-tooltip="{{localize 'CRLNGN_ROLLS.ui.dialogs.sendRequestTooltip'}}">{{localize "CRLNGN_ROLLS.ui.dialogs.sendRequest"}}</label>
-  <select name="sendRequest">
-    <option value="true" {{#if sendRequest}}selected{{/if}}>{{localize "CRLNGN_ROLLS.ui.dialogs.sendToPlayers"}}</option>
-    <option value="false" {{#unless sendRequest}}selected{{/unless}}>{{localize "CRLNGN_ROLLS.ui.dialogs.rollLocally"}}</option>
-  </select>
+<div class="form-group send-request">
+  <label for="crlngn-send-request" class="crlngn-switch">
+    <input type="checkbox" name="crlngn-send-request" id="crlngn-send-request" {{#if sendRequest}}checked{{/if}} />
+    <div class="track"></div>
+    <div class="handle"></div>
+    {{localize "CRLNGN_ROLLS.ui.dialogs.sendRequest"}}
+  </label>
 </div>
 {{/if}}
