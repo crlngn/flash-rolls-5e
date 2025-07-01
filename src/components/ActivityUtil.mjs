@@ -1,4 +1,5 @@
 import { LogUtil } from './LogUtil.mjs';
+import { ROLL_TYPES } from '../constants/General.mjs';
 
 /**
  * Utility class for handling D&D5e 4.x activities
@@ -17,12 +18,11 @@ export class ActivityUtil {
     const activities = item.system.activities;
     
     switch (rollType) {
-      case 'attack':
-        // For attack rolls, find attack activities
+      case ROLL_TYPES.ATTACK:
         const attackActivities = activities.getByType("attack");
         return attackActivities?.[0] || null;
         
-      case 'damage':
+      case ROLL_TYPES.DAMAGE:
         // For damage rolls, check attack activities first, then damage, then save
         const damageAttackActivities = activities.getByType("attack");
         if (damageAttackActivities?.length > 0) return damageAttackActivities[0];
@@ -35,8 +35,7 @@ export class ActivityUtil {
         
         return null;
         
-      case 'itemSave':
-        // For save activities
+      case ROLL_TYPES.ITEM_SAVE:
         const itemSaveActivities = activities.getByType("save");
         return itemSaveActivities?.[0] || null;
         
@@ -97,11 +96,7 @@ export class ActivityUtil {
     // Execute the roll based on type
     if (activity) {
       switch (rollType) {
-        case 'attack':
-          // For attack activities, use the activity's use() method which handles the full flow
-          // The activity will automatically use game.user.targets for targeting
-          
-          // IMPORTANT: For players receiving roll requests, ALWAYS show the dialog
+        case ROLL_TYPES.ATTACK:
           const dialogConfig = {
             configure: true  // Always true for players receiving roll requests
           };
@@ -109,25 +104,18 @@ export class ActivityUtil {
           if(MidiQOL) {
             const workflow = await ActivityUtil.syntheticItemRoll(item, {
               ...config
-              // checkGMstatus: false
             });
             return;
           }else{
             return await activity.use(usageConfig, dialogConfig);
           }
-          // 
-        case 'damage':
+        case ROLL_TYPES.DAMAGE:
           if(MidiQOL) {
             const workflow = MidiQOL?.Workflow?.getWorkflow(activity.uuid);
             const damageRoll = await workflow.activity.rollDamage({
               ...config,
               workflow: workflow
             });
-            // await workflow.setDamageRolls([damageRoll]);
-            // workflow.displayDamageRolls();
-            
-            // const damageRoll = await ActivityUtil.replaceDamage(workflow, ActivityUtil.getDamageFormula(activity));
-            
             return;
           }else{
             return await activity.rollDamage(config);
@@ -135,7 +123,7 @@ export class ActivityUtil {
           }
           
           
-        case 'itemSave':
+        case ROLL_TYPES.ITEM_SAVE:
           // For save activities, use the item's use() method to show the save card
           return await item.use({ activity: activity.id }, { skipDialog: config.fastForward });
           
@@ -146,19 +134,19 @@ export class ActivityUtil {
       // Fallback to legacy methods if no activity found
       
       switch (rollType) {
-        case 'attack':
+        case ROLL_TYPES.ATTACK:
           if (item.rollAttack) {
             return await item.rollAttack(config);
           }
           break;
           
-        case 'damage':
+        case ROLL_TYPES.DAMAGE:
           if (item.rollDamage) {
             return await item.rollDamage(config);
           }
           break;
           
-        case 'itemSave':
+        case ROLL_TYPES.ITEM_SAVE:
           // Try to use the item directly
           return await item.use({}, { skipDialog: config.fastForward });
       }
@@ -203,8 +191,6 @@ export class ActivityUtil {
         consumeUsage: false,
         consumeSpellSlot: false
     };
-    // let autoRollDamage = MidiQOL.configSettings().autoRollDamage;
-    // if (!['always', 'onHit'].includes(autoRollDamage)) autoRollDamage = 'none';
     let defaultOptions = {
       // targetUuids: targets.map(i => i.document.uuid),
       configureDialog: true,

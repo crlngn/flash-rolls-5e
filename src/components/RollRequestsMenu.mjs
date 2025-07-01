@@ -6,6 +6,8 @@ import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
+import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager } from './helpers/Helpers.mjs';
+import { LOCAL_ROLL_HANDLERS } from './helpers/LocalRollHandlers.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -123,80 +125,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     }
     
     // Build roll types array based on selected request type
-    const rollTypes = [];
-    if (this.selectedRequestType && this.selectedActors.size > 0) {
-      const selectedOption = MODULE.ROLL_REQUEST_OPTIONS[this.selectedRequestType];
-      if (selectedOption && selectedOption.subList) {
-        // Get first selected actor as reference for available options
-        const firstActorId = Array.from(this.selectedActors)[0];
-        const actor = game.actors.get(firstActorId);
-        
-        // Special handling for tools - show all available tools
-        if (selectedOption.subList === 'tools') {
-          // Get all tools from CONFIG.DND5E.tools or enrichmentLookup
-          const allTools = CONFIG.DND5E.enrichmentLookup?.tools || CONFIG.DND5E.tools || {};
-          
-          for (const [key, toolData] of Object.entries(allTools)) {
-            let label = key;
-            
-            // Use enrichmentLookup to get tool UUID and then fetch the name
-            if (toolData?.id) {
-              // Get the tool name using Trait.getBaseItem
-              const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
-              label = toolItem?.name || key;
-            }
-            // Fallback - format the key
-            else {
-              label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
-            }
-            
-            rollTypes.push({
-              id: key,
-              name: label,
-              rollable: true
-            });
-          }
-          
-          // Sort tools alphabetically by name
-          rollTypes.sort((a, b) => a.name.localeCompare(b.name));
-        }
-        // For other types, use actor data
-        else if (actor && selectedOption.actorPath) {
-          const rollData = foundry.utils.getProperty(actor, selectedOption.actorPath) || {};
-          
-          // Check if we should use CONFIG.DND5E for enrichment
-          const configData = CONFIG.DND5E[selectedOption.subList];
-          
-          for (const [key, data] of Object.entries(rollData)) {
-            let label = '';
-            
-            // For skills, use CONFIG.DND5E.skills for full names
-            if (selectedOption.subList === 'skills' && configData?.[key]) {
-              label = configData[key].label;
-            }
-            // For abilities (saving throws), use the label from data
-            else if (selectedOption.subList === 'abilities' && configData?.[key]) {
-              label = configData[key].label;
-            }
-            // Default fallback
-            else {
-              label = data.label || game.i18n.localize(data.name || key) || key;
-            }
-            
-            rollTypes.push({
-              id: key,
-              name: label,
-              rollable: true
-            });
-          }
-          
-          // Sort skills alphabetically by name
-          if (selectedOption.subList === 'skills') {
-            rollTypes.sort((a, b) => a.name.localeCompare(b.name));
-          }
-        }
-      }
-    }
+    const rollTypes = buildRollTypes(this.selectedRequestType, this.selectedActors);
     
     return {
       ...context,
@@ -439,17 +368,17 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Get the current actors based on the active tab
     const actors = this.currentTab === 'pc' ? 
-      game.actors.contents.filter(a => this._isPlayerOwned(a)) :
-      game.actors.contents.filter(a => !this._isPlayerOwned(a) && this._hasTokenInScene(a));
+      game.actors.contents.filter(a => isPlayerOwned(a)) :
+      game.actors.contents.filter(a => !isPlayerOwned(a) && hasTokenInScene(a));
     
     // Update selection for all visible actors
     actors.forEach(actor => {
       if (selectAll) {
         this.selectedActors.add(actor.id);
-        this._updateCanvasTokenSelection(actor.id, true);
+        updateCanvasTokenSelection(actor.id, true);
       } else {
         this.selectedActors.delete(actor.id);
-        this._updateCanvasTokenSelection(actor.id, false);
+        updateCanvasTokenSelection(actor.id, false);
       }
     });
     
@@ -522,7 +451,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         // Set the current tab based on first selected token's actor type
         if (this.selectedActors.size === 1) {
           // Check if this is a PC or NPC
-          const isPC = this._isPlayerOwned(token.actor);
+          const isPC = isPlayerOwned(token.actor);
           this.currentTab = isPC ? 'pc' : 'npc';
         }
       }
@@ -530,30 +459,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
   }
   
-  /**
-   * Check if actor is player owned
-   */
-  _isPlayerOwned(actor) {
-    // Skip non-character actors
-    if (actor.type !== 'character' && actor.type !== 'npc') return false;
-    
-    return Object.entries(actor.ownership)
-      .some(([userId, level]) => {
-        const user = game.users.get(userId);
-        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-      });
-  }
-  
-  /**
-   * Check if actor has token in current scene
-   */
-  _hasTokenInScene(actor) {
-    // Skip non-character actors
-    if (actor.type !== 'character' && actor.type !== 'npc') return false;
-    
-    const currentScene = game.scenes.active;
-    return currentScene && currentScene.tokens.some(token => token.actorId === actor.id);
-  }
 
   /**
    * Handle tab click
@@ -606,11 +511,11 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     if (this.selectedActors.has(actorId)) {
       this.selectedActors.delete(actorId);
       // Deselect token on canvas
-      this._updateCanvasTokenSelection(actorId, false);
+      updateCanvasTokenSelection(actorId, false);
     } else {
       this.selectedActors.add(actorId);
       // Select token on canvas
-      this._updateCanvasTokenSelection(actorId, true);
+      updateCanvasTokenSelection(actorId, true);
     }
     
     // Re-enable token control hook after a short delay
@@ -625,26 +530,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     this._updateSelectAllState();
   }
   
-  /**
-   * Update token selection on canvas based on actor selection
-   */
-  _updateCanvasTokenSelection(actorId, selected) {
-    const scene = game.scenes.active;
-    if (!scene) return;
-    
-    // Find all tokens for this actor in the current scene
-    const tokens = canvas.tokens.placeables.filter(t => t.actor?.id === actorId);
-    
-    for (const token of tokens) {
-      if (selected) {
-        // Add to selection without clearing others
-        token.control({ releaseOthers: false });
-      } else {
-        // Release this token
-        token.release();
-      }
-    }
-  }
 
   /**
    * Update request types visibility based on actor selection
@@ -722,8 +607,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       const actor = game.actors.get(actorId);
       if (!actor) return false;
       
-      const isPC = this._isPlayerOwned(actor);
-      const isNPC = !isPC && this._hasTokenInScene(actor);
+      const isPC = isPlayerOwned(actor);
+      const isNPC = !isPC && hasTokenInScene(actor);
       
       // Only include actors that match the current tab
       return (this.currentTab === 'pc' && isPC) || (this.currentTab === 'npc' && isNPC);
@@ -759,7 +644,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         // Create a new combat encounter
         const combat = await game.combats.documentClass.create({scene: game.scenes.active.id});
         await combat.activate();
-        ui.notifications.info(game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.combatCreated"));
+        NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.combatCreated"));
       } else {
         // User chose not to create combat, abort the roll
         return;
@@ -805,7 +690,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
           
           // If no actors left to roll, abort
           if (actorIdsToRoll.length === 0) {
-            ui.notifications.info(game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.allActorsHaveInitiative"));
+            NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.allActorsHaveInitiative"));
             return;
           }
         } else {
@@ -846,7 +731,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       // Notify about actors that don't need death saves
       if (actorsSkippingDeathSaves.length > 0) {
-        ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorsSkippingDeathSave", {
+        NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorsSkippingDeathSave", {
           actors: actorsSkippingDeathSaves.join(", ")
         }));
       }
@@ -856,7 +741,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     }
     
     if (!actors.length) {
-      ui.notifications.warn("No valid actors selected");
+      NotificationManager.notify('warn', "No valid actors selected");
       return;
     }
     
@@ -865,7 +750,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const npcActors = [];
     
     for (const actor of actors) {
-      const owner = this._getActorOwner(actor);
+      const owner = getPlayerOwner(actor);
       if (owner) {
         pcActors.push({ actor, owner });
       } else {
@@ -919,7 +804,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       for (const { actor, owner } of pcActors) {
         if (!owner.active) {
           if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
-            ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
+            NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
               player: owner.name 
             }));
           }
@@ -933,7 +818,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         successfulRequests.push({ actor, owner });
         
         // Add a delay between roll requests to prevent lag
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await delay(100);
       }
       
       // Send consolidated notification for all successful requests
@@ -968,25 +853,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     setTimeout(() => this.close(), 500);
   }
   
-  /**
-   * Get the player owner of an actor
-   * @param {Actor} actor 
-   * @returns {User|null}
-   */
-  _getActorOwner(actor) {
-    const ownership = actor.ownership || {};
-    
-    for (const [userId, level] of Object.entries(ownership)) {
-      if (level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
-        const user = game.users.get(userId);
-        if (user && !user.isGM) {
-          return user;
-        }
-      }
-    }
-    
-    return null;
-  }
   
   /**
    * Send a roll request to a player
@@ -1043,7 +909,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
     if (!suppressNotification) {
-      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
+      NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
         player: owner.name,
         actor: actor.name 
       }));
@@ -1104,25 +970,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
     }
     
-    if (Object.keys(requestsByPlayer).length === 1) {
-      const playerData = Object.values(requestsByPlayer)[0];
-      const actorNames = playerData.actors.map(a => a.name).join(", ");
-      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentSingle", { 
-        rollType: rollTypeName,
-        actors: actorNames,
-        player: playerData.player.name
-      }));
-    } else {
-      const playerSummaries = Object.values(requestsByPlayer).map(data => {
-        const actorNames = data.actors.map(a => a.name).join(", ");
-        return `${data.player.name} (${actorNames})`;
-      });
-      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentMultiple", { 
-        rollType: rollTypeName,
-        count: successfulRequests.length,
-        players: playerSummaries.join("; ")
-      }));
-    }
+    // Use NotificationManager for consolidated roll request notifications
+    NotificationManager.notifyRollRequestsSent(requestsByPlayer, rollTypeName);
   }
   
   /**
@@ -1152,7 +1001,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     for (const actor of actors) {
       await this._executeActorRoll(actor, requestType, rollKey, config);
       // Delay between rolls to prevent lag and improve chat readability
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await delay(100);
     }
   }
   
@@ -1165,223 +1014,18 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   async _executeActorRoll(actor, requestType, rollKey, config) {
     try {
-      
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
       
-      switch (normalizedType) {
-        case 'abilitycheck':
-          // Pass all configuration in the first parameter, matching player side
-          const abilityRollConfig = {
-            ability: rollKey,
-            advantage: config.advantage,
-            disadvantage: config.disadvantage,
-            target: config.target,  // Include target for DC
-            isRollRequest: config.isRollRequest  // Prevent re-interception
-          };
-          const abilityDialogConfig = {
-            configure: !config.fastForward
-          };
-          const abilityMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false
-          };
-          // Add situational bonus if present
-          // For ability checks, D&D5e expects rolls configuration
-          if (config.situational) {
-            abilityRollConfig.rolls = [{
-              parts: [],  // Don't add @situational to parts - let the dialog handle it
-              data: { situational: config.situational },
-              options: {},
-              situational: config.situational // Pre-populate the field
-            }];
-          }
-          
-          await actor.rollAbilityCheck(abilityRollConfig, abilityDialogConfig, abilityMessageConfig);
-          break;
-        case 'savingthrow':
-          // Pass all configuration in the first parameter, matching player side
-          const saveRollConfig = {
-            ability: rollKey,
-            advantage: config.advantage,
-            disadvantage: config.disadvantage,
-            target: config.target,  // Include target for DC
-            isRollRequest: config.isRollRequest  // Prevent re-interception
-          };
-          const saveDialogConfig = {
-            configure: !config.fastForward
-          };
-          const saveMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false
-          };
-          // Add situational bonus if present
-          // For saving throws, D&D5e expects rolls configuration
-          if (config.situational) {
-            saveRollConfig.rolls = [{
-              parts: [],  // Don't add @situational to parts - let the dialog handle it
-              data: { situational: config.situational },
-              options: {},
-              situational: config.situational // Pre-populate the field
-            }];
-          }
-          
-          await actor.rollSavingThrow(saveRollConfig, saveDialogConfig, saveMessageConfig);
-          break;
-        case 'skill':
-          // Skills use a different signature: rollSkill(config, dialogConfig, messageConfig)
-          const skillRollConfig = {
-            skill: rollKey,
-            advantage: config.advantage,
-            disadvantage: config.disadvantage,
-            ability: config.ability,
-            chooseAbility: !config.ability // Don't allow choice if ability is pre-selected
-          };
-          const skillDialogConfig = {
-            configure: !config.fastForward // Show dialog unless fast forward is true
-          };
-          const skillMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false,
-            data: {}
-          };
-          
-          // Use the roll title if provided, otherwise build custom flavor if ability was overridden
-          if (config.rollTitle) {
-            skillMessageConfig.data.flavor = config.rollTitle;
-          } else if (config.ability) {
-            const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
-            const abilityLabel = CONFIG.DND5E.abilities[config.ability]?.label || config.ability;
-            skillMessageConfig.data.flavor = game.i18n.format("DND5E.SkillPromptTitle", {
-              skill: skillLabel,
-              ability: abilityLabel
-            });
-          }
-          // Add situational bonus and target if present
-          if (config.situational) skillRollConfig.bonus = config.situational;
-          if (config.target) skillRollConfig.target = config.target;
-          
-          await actor.rollSkill(skillRollConfig, skillDialogConfig, skillMessageConfig);
-          break;
-        case 'tool':
-          // Tools use a different signature: rollToolCheck(config, dialogConfig, messageConfig)
-          const toolRollConfig = {
-            tool: rollKey,
-            advantage: config.advantage,
-            disadvantage: config.disadvantage,
-            ability: config.ability,
-            chooseAbility: !config.ability // Don't allow choice if ability is pre-selected
-          };
-          const toolDialogConfig = {
-            configure: !config.fastForward // Show dialog unless fast forward is true
-          };
-          const toolMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false,
-            data: {}
-          };
-          
-          // Use the roll title if provided, otherwise build custom flavor if ability was overridden
-          if (config.rollTitle) {
-            toolMessageConfig.data.flavor = config.rollTitle;
-          } else if (config.ability) {
-            // Get tool label
-            let toolLabel = rollKey;
-            const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
-            if (toolData?.id) {
-              const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
-              toolLabel = toolItem?.name || rollKey;
-            }
-            const abilityLabel = CONFIG.DND5E.abilities[config.ability]?.label || config.ability;
-            // D&D5e doesn't have a tool format with ability, so create custom flavor
-            toolMessageConfig.data.flavor = `${abilityLabel} (${toolLabel}) ${game.i18n.localize("DND5E.Check")}`;
-          }
-          // Add situational bonus and target if present
-          if (config.situational) toolRollConfig.bonus = config.situational;
-          if (config.target) toolRollConfig.target = config.target;
-          
-          await actor.rollToolCheck(toolRollConfig, toolDialogConfig, toolMessageConfig);
-          break;
-        case 'concentration':
-          const concentrationDialogConfig = { configure: !config.fastForward && !config.skipDialog };
-          const concentrationMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false
-          };
-          await actor.rollConcentration(config, concentrationDialogConfig, concentrationMessageConfig);
-          break;
-        case 'initiativedialog':
-          // Initiative rolls require an active combat
-          if (!game.combat) {
-            ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
-            break;
-          }
-          // Use the same approach as player-side - pass three parameters
-          const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
-          const messageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false
-          };
-          const result = await actor.rollInitiativeDialog(config, dialogConfig, messageConfig);
-          
-          // If no result, try a different approach
-          if (!result) {
-            
-            // Get or create combatant
-            let combatant = game.combat.getCombatantByActor(actor.id);
-            if (!combatant) {
-              const tokens = actor.getActiveTokens();
-              if (tokens.length) {
-                await game.combat.createEmbeddedDocuments("Combatant", [{
-                  tokenId: tokens[0].id,
-                  actorId: actor.id
-                }]);
-                combatant = game.combat.getCombatantByActor(actor.id);
-              }
-            }
-            
-            // Roll initiative directly
-            if (combatant) {
-              const roll = combatant.getInitiativeRoll();
-              await roll.evaluate({async: true});
-              await combatant.update({initiative: roll.total});
-              await roll.toMessage({
-                speaker: ChatMessage.getSpeaker({actor}),
-                flavor: game.i18n.localize("DND5E.Initiative")
-              });
-            }
-          }
-          break;
-        case 'deathsave':
-          // Death saves don't need a key, just the config
-          // Death saves return null if unnecessary (HP > 0 or already 3 successes/failures)
-          // Death saves might need special handling
-          const deathDialogConfig = { configure: !config.fastForward && !config.skipDialog };
-          const deathMessageConfig = {
-            rollMode: config.rollMode,
-            create: config.chatMessage !== false
-          };
-          const deathResult = await actor.rollDeathSave(config, deathDialogConfig, deathMessageConfig);
-          break;
-        case 'custom':
-          // Custom rolls use the formula in rollKey
-          try {
-            const roll = new Roll(rollKey, actor.getRollData());
-            await roll.evaluate({async: true});
-            await roll.toMessage({
-              speaker: ChatMessage.getSpeaker({actor}),
-              flavor: game.i18n.localize("CRLNGN_ROLLS.rollTypes.custom")
-            });
-          } catch (error) {
-            ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: rollKey}));
-          }
-          break;
-        default:
-          ui.notifications.warn(`Unknown roll type: ${requestType}`);
-          break;
+      // Use the local roll handler for the requested roll type
+      const handler = LOCAL_ROLL_HANDLERS[normalizedType];
+      if (handler) {
+        await handler(actor, rollKey, config);
+      } else {
+        NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);
       }
     } catch (error) {
-      ui.notifications.error(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
+      NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
         actor: actor.name 
       }));
     }

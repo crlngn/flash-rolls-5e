@@ -5,28 +5,34 @@ Flash Rolls 5e (crlngn-roll-requests) is a FoundryVTT module that enables GMs to
 
 ## Module Structure Overview
 The module follows a modular architecture with clear separation of concerns:
-- **Main.mjs**: Core initialization and roll request handling
+
+### Core Components
+- **Main.mjs**: Core initialization and module coordination
+- **RollRequestUtil.mjs**: Handles incoming roll requests from GM to players
+- **RollInterceptor.mjs**: Intercepts rolls from character sheets
 - **HooksUtil.mjs**: Centralized hook management
-- **Helpers.mjs**: Reusable utility functions
+
+### Helper Components
+- **helpers/Helpers.mjs**: General utility functions, presentation utilities
+- **helpers/RollHandlers.mjs**: Roll type handlers and configuration helpers
+- **helpers/LocalRollHandlers.mjs**: Local NPC roll handlers
+
+### Utility Components
 - **DiceConfigUtil.mjs**: Dice configuration management
 - **SocketUtil.mjs**: Socket communication wrapper
 - **SettingsUtil.mjs**: Module settings management
-- **RollRequestsMenu.mjs**: GM interface for roll requests
-- **RollInterceptor.mjs**: Intercepts rolls from character sheets
-- **GMRollConfigDialog.mjs**: Extended roll configuration dialogs
 - **ActivityUtil.mjs**: D&D5e activity-based rolls
 - **SidebarUtil.mjs**: Sidebar controls management
 - **LogUtil.mjs**: Debug logging utility
 
+### UI Components
+- **RollRequestsMenu.mjs**: GM interface for roll requests
+- **GMRollConfigDialog.mjs**: Extended roll configuration dialogs
+
 ## Core Components
 
 ### 1. Main.mjs
-**Purpose**: Core module initialization and player-side roll request handling.
-
-#### Static Properties
-- `pendingNotifications`: Batch system for player notifications
-- `notificationTimer`: Timer for batching notifications
-- `NOTIFICATION_BATCH_DELAY`: Delay in ms for batching (500ms)
+**Purpose**: Core module initialization and coordination
 
 #### Methods
 - **`init()`**: Module initialization
@@ -37,21 +43,7 @@ The module follows a modular architecture with clear separation of concerns:
 
 - **`receiveDiceConfig(userId, diceConfig)`**: Wrapper method that delegates to DiceConfigUtil
 
-- **`handleRollRequest(requestData)`**: Main handler for incoming roll requests (player side)
-  - Data examined: actorId, rollType, rollKey, config (advantage, disadvantage, situational, etc.)
-  - Validates actor ownership
-  - Applies GM targets if configured
-  - Batches notifications
-  - Executes requested roll
-
-- **`_executeRequestedRoll(actor, requestData)`**: Executes the actual roll on player side
-  - Builds proper configuration for each roll type
-  - Handles different roll types: ability, save, skill, tool, concentration, attack, damage, initiative, deathsave, hitDie, custom
-  - Adds situational bonuses and other modifiers
-
-- **`_handleCustomRoll(actor, requestData)`**: Handles custom formula rolls
-  - Shows dialog with readonly formula
-  - Executes roll when confirmed
+- **`handleRollRequest(requestData)`**: Delegates to RollRequestUtil.handleRequest()
 
 - **`registerSocketCalls()`**: Registers socket methods with SocketUtil
 
@@ -88,7 +80,9 @@ The module follows a modular architecture with clear separation of concerns:
   - Initial dice config requests
 
 - **`_onPostRollConfig()`**: Handles post roll configuration
+  - Checks for _showRequestedBy flag to add requester info to chat message
 - **`_onPreCreateChatMessage()`**: Handles pre-create chat message for requested rolls
+  - Adds "[Requested by GM]" flavor text when _showRequestedBy flag is present
 - **`_onPreCreateChatMessageFlavor()`**: Handles custom flavor preservation
 - **`_onRenderRollConfigDialog()`**: Handles situational bonus in roll dialogs
 - **`_onUserConnected()`**: Handles user connection events
@@ -100,7 +94,27 @@ The module follows a modular architecture with clear separation of concerns:
 
 - **`isRegistered(hookName)`**: Checks if a hook is registered
 
-### 3. Helpers.mjs
+### 3. RollRequestUtil.mjs
+**Purpose**: Handles incoming roll requests from GM to players
+
+#### Methods
+- **`handleRequest(requestData)`**: Main handler for incoming roll requests (player side)
+  - Only processes on player side (returns early if GM)
+  - Validates actor ownership
+  - Applies GM targets if configured
+  - Uses NotificationManager for batched notifications
+  - Calls executeRequest()
+
+- **`executeRequest(actor, requestData)`**: Executes the actual roll
+  - Builds rollConfig with flags:
+    - `isRollRequest`: Prevents re-interception
+    - `_showRequestedBy`: Shows requester in chat
+    - `_requestedBy`: Requester name
+  - Sets up dialogConfig and messageConfig
+  - Uses ROLL_HANDLERS to execute the appropriate roll type
+  - Uses NotificationManager for error notifications
+
+### 4. helpers/Helpers.mjs
 **Purpose**: Reusable utility functions used across the module
 
 #### Methods
@@ -123,6 +137,13 @@ The module follows a modular architecture with clear separation of concerns:
 - **`clearTargetTokens(user)`**: Clears all target tokens for user
 
 - **`formatMultiActorNotification(actorNames, action)`**: Formats notifications for multiple actors
+  - Uses localized "and" string
+
+- **`isPlayerOwned(actor)`**: Checks if actor is owned by a player (not GM)
+
+- **`hasTokenInScene(actor)`**: Checks if actor has token in current scene
+
+- **`updateCanvasTokenSelection(actorId, selected)`**: Updates token selection on canvas
 
 - **`delay(ms)`**: Promise-based delay utility
 
@@ -130,7 +151,25 @@ The module follows a modular architecture with clear separation of concerns:
 
 - **`updateSidebarClass(isExpanded)`**: Updates body class for sidebar state
 
-### 4. DiceConfigUtil.mjs
+- **`buildRollTypes(selectedRequestType, selectedActors)`**: Builds roll types array for menu
+  - Handles tools, skills, abilities based on request type
+  - Returns array of objects with id, name, rollable properties
+
+#### NotificationManager Class
+Centralized notification system with batching support:
+
+- **`notify(type, message, options)`**: Shows notification with optional batching
+  - type: 'info', 'warn', or 'error'
+  - options.batch: Enable batching
+  - options.batchData: Data for batched notifications
+
+- **`notifyRollRequestsSent(requestsByPlayer, rollTypeName)`**: Shows GM-side notifications
+  - Handles single/multiple player formatting
+  - Consolidates multiple actor requests
+
+- **`clearPending()`**: Clears any pending batched notifications
+
+### 5. DiceConfigUtil.mjs
 **Purpose**: Centralized management of dice configurations for all users
 
 #### Static Properties
@@ -156,7 +195,7 @@ The module follows a modular architecture with clear separation of concerns:
 
 - **`hasUserConfig(userId)`**: Checks if user has stored configuration
 
-### 5. RollRequestsMenu.mjs
+### 6. RollRequestsMenu.mjs
 **Purpose**: GM interface for selecting actors and initiating roll requests
 
 #### Static Properties
@@ -175,9 +214,10 @@ The module follows a modular architecture with clear separation of concerns:
   - Initializes from selected tokens
 
 - **`_prepareContext(options)`**: Prepares template data
-  - Separates actors by PC/NPC
-  - Filters NPCs to current scene
+  - Separates actors by PC/NPC using isPlayerOwned helper
+  - Filters NPCs to current scene using hasTokenInScene helper
   - Prepares actor data with stats
+  - Uses buildRollTypes helper for roll type list
   - Checks settings states
 
 - **`_getActorStats(actor)`**: Extracts ability scores and modifiers
@@ -189,27 +229,30 @@ The module follows a modular architecture with clear separation of concerns:
   - Handles lock button state
 
 - **`_toggleActorSelection(actorId)`**: Toggles actor selection state
-  - Updates canvas token selection
+  - Uses updateCanvasTokenSelection helper
 
 - **`_updateAllActorsCheckbox()`**: Updates "select all" checkbox state
 
 - **`_handleNPCRolls(actors, rollType, rollKey)`**: Processes NPC rolls
   - Shows GM configuration dialog
-  - Handles bulk rolls with delays
+  - Handles bulk rolls with delays using delay helper
+  - Uses NotificationManager for all notifications
 
 - **`_handlePCRolls(actors, rollType, rollKey)`**: Processes PC rolls
   - Shows GM configuration dialog
   - Sends requests to players
+  - Uses NotificationManager for consolidated notifications
 
-- **`_rollForNPC(actor, rollType, rollKey, rollConfig)`**: Executes single NPC roll
-  - Applies configuration from GM dialog
-  - Uses proper D&D5e roll method signatures
+- **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single NPC roll
+  - Uses LOCAL_ROLL_HANDLERS for all roll types
+  - Delegates to appropriate handler based on requestType
+  - Uses NotificationManager for error handling
 
 - **`toggle()`**: Static method to toggle the menu open/closed
   - Creates singleton instance if needed
   - Manages menu visibility state
 
-### 6. RollInterceptor.mjs
+### 7. RollInterceptor.mjs
 **Purpose**: Intercepts rolls initiated from character sheets and redirects to players
 
 #### Properties
@@ -224,7 +267,7 @@ The module follows a modular architecture with clear separation of concerns:
 
 - **`_handlePreRoll(rollType, config, dialog, message)`**: Main interception handler
   - Data examined: config.isRollRequest, dialog.isRollRequest, message.isRollRequest
-  - Checks if roll should be intercepted
+  - Checks if roll should be intercepted (returns early if isRollRequest flag present)
   - Extracts actor from config
   - Validates actor ownership and player status
   - Shows GM configuration dialog
@@ -240,6 +283,35 @@ The module follows a modular architecture with clear separation of concerns:
   - Sets isRollRequest flags to prevent re-interception
   - Calls appropriate actor roll method
 
+### 15. helpers/LocalRollHandlers.mjs
+**Purpose**: Handles local NPC rolls executed by the GM
+
+#### LocalRollHelpers Object
+Static helper functions for local roll configuration:
+
+- **`buildAbilityCheckConfig(rollKey, config)`**: Builds ability check configuration
+  - Used by ability checks and saving throws
+  - Returns array: [rollConfig, dialogConfig, messageConfig]
+
+- **`buildSkillCheckConfig(rollKey, config)`**: Builds skill check configuration
+  - Handles ability selection and choice
+  - Adds custom flavor text
+
+- **`buildToolCheckConfig(rollKey, config)`**: Builds tool check configuration
+  - Similar to skill checks with tool-specific handling
+  - Uses enrichmentLookup for tool names
+
+#### LOCAL_ROLL_HANDLERS Object
+Map of local roll type handlers:
+- `abilitycheck`: Ability check handler
+- `savingthrow`: Saving throw handler
+- `skill`: Skill check handler
+- `tool`: Tool check handler
+- `concentration`: Concentration handler
+- `initiativedialog`: Initiative handler with combat check
+- `deathsave`: Death save handler
+- `custom`: Custom formula handler
+
 - **`_getActorOwner(actor)`**: Finds the player owner of an actor
   - Returns first non-GM user with OWNER permission
 
@@ -249,7 +321,7 @@ The module follows a modular architecture with clear separation of concerns:
   - Sends via SocketUtil
   - Shows GM notification
 
-### 7. GMRollConfigDialog.mjs
+### 8. GMRollConfigDialog.mjs
 **Purpose**: Extended D&D5e roll configuration dialogs for GM use
 
 #### GMRollConfigDialog Class
@@ -281,7 +353,7 @@ Extends D&D5e's D20RollConfigurationDialog
 #### GMSkillToolConfigDialog Class
 Extends GMRollConfigDialog for skill/tool specific handling
 
-### 8. SocketUtil.mjs
+### 9. SocketUtil.mjs
 **Purpose**: Wrapper around socketlib for socket communication
 
 #### Properties
@@ -301,7 +373,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`execForEveryone(callName, ...args)`**: Executes method on all clients
 
-### 9. SettingsUtil.mjs
+### 10. SettingsUtil.mjs
 **Purpose**: Module settings management
 
 #### Methods
@@ -318,7 +390,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`toggle(key)`**: Toggles a boolean setting
 
-### 10. LogUtil.mjs
+### 11. LogUtil.mjs
 **Purpose**: Debug logging utility
 
 #### Methods
@@ -326,15 +398,53 @@ Extends GMRollConfigDialog for skill/tool specific handling
   - Only logs if debugMode is enabled or force=true
   - Formats output with timestamp and module prefix
 
-### 11. ActivityUtil.mjs
+### 12. ActivityUtil.mjs
 **Purpose**: Handles D&D5e activity-based rolls (attacks, damage, etc.)
 
 #### Methods
 - **`findActivityForRoll(item, rollType)`**: Finds appropriate activity on an item
+  - Uses ROLL_TYPES constants
 
 - **`executeActivityRoll(actor, rollType, itemId, activityId, config)`**: Executes activity-based roll
 
-### 12. SidebarUtil.mjs
+### 13. helpers/RollHandlers.mjs
+**Purpose**: Centralized roll handling logic with reusable helpers
+
+#### RollHelpers Object
+Static helper functions for roll handling:
+
+- **`addSituationalBonus(config, situational)`**: Adds situational bonus to roll config
+  - Creates rolls array with situational data
+  - Used by ability checks, saves, concentration, and initiative
+
+- **`buildAbilityConfig(requestData, rollConfig)`**: Builds config for ability-based rolls
+  - Used by ability checks and saving throws
+  - Sets up advantage, disadvantage, target, and request flags
+
+- **`executeActivityRoll(actor, rollType, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles activity-based rolls
+  - Used by attack, damage, and item save rolls
+  - Delegates to ActivityUtil.executeActivityRoll
+
+- **`handleCustomRoll(actor, requestData)`**: Handles custom formula rolls
+  - Shows dialog with readonly formula
+  - Executes roll when confirmed
+
+#### ROLL_HANDLERS Object
+Map of roll type handlers, each as an async function:
+- `[ROLL_TYPES.ABILITY]`: Ability check handler
+- `[ROLL_TYPES.SAVE]`: Saving throw handler
+- `[ROLL_TYPES.SKILL]`: Skill check handler
+- `[ROLL_TYPES.TOOL]`: Tool check handler
+- `[ROLL_TYPES.CONCENTRATION]`: Concentration handler
+- `[ROLL_TYPES.ATTACK]`: Attack roll handler
+- `[ROLL_TYPES.DAMAGE]`: Damage roll handler
+- `[ROLL_TYPES.ITEM_SAVE]`: Item save handler
+- `[ROLL_TYPES.INITIATIVE]`: Initiative handler
+- `[ROLL_TYPES.DEATH_SAVE]`: Death save handler
+- `[ROLL_TYPES.HIT_DIE]`: Hit die handler
+- `[ROLL_TYPES.CUSTOM]`: Custom roll handler
+
+### 14. SidebarUtil.mjs
 **Purpose**: Manages sidebar controls to avoid circular dependencies
 
 #### Methods
@@ -363,10 +473,12 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 ### Player Receives Request
 1. Main.handleRollRequest receives socket message
-2. Validates actor ownership
-3. Applies GM configuration
-4. Shows roll dialog (unless skipDialog=true)
-5. Executes roll and posts to chat
+2. Delegates to RollRequestUtil.handleRequest
+3. Validates actor ownership
+4. Applies GM configuration
+5. Shows roll dialog (unless skipDialog=true)
+6. Executes roll using ROLL_HANDLERS
+7. Posts to chat with requester info
 
 ## Key Data Structures
 

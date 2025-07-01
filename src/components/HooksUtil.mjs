@@ -3,7 +3,7 @@ import { getSettings } from "../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { DiceConfigUtil } from "./DiceConfigUtil.mjs";
 import { RollInterceptor } from "./RollInterceptor.mjs";
-import { updateSidebarClass, isSidebarExpanded } from "./Helpers.mjs";
+import { updateSidebarClass, isSidebarExpanded } from "./helpers/Helpers.mjs";
 import { SidebarUtil } from "./SidebarUtil.mjs";
 
 /**
@@ -83,9 +83,9 @@ export class HooksUtil {
    * Handle data after roll configuration
    */
   static _onPostRollConfig(rolls, config, dialog, message) {
-    if (config._isRequestedRoll && rolls.length > 0) {
+    if (config._showRequestedBy && rolls.length > 0) {
       message.data = message.data || {};
-      message.data._isRequestedRoll = true;
+      message.data._showRequestedBy = true;
       message.data._requestedBy = config._requestedBy;
     }
   }
@@ -94,7 +94,7 @@ export class HooksUtil {
    * Handle data before creating chat message for requested rolls
    */
   static _onPreCreateChatMessage(chatMessage, data, options, userId) {
-    if (data._isRequestedRoll && data.rolls?.length > 0) {
+    if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
       const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
       

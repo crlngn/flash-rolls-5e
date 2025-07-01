@@ -87,6 +87,9 @@
         "rollRequestsTitle": "Roll Requests"
       }
     },
+    "common": {
+      "and": "e"
+    },
     "rollTypes": {
       "abilityCheck": "Ability Check",
       "savingThrow": "Saving Throw",

@@ -89,15 +89,31 @@ export const ROLL_TYPES = {
   CUSTOM: "custom"
 }
 
+/**
+ * Local roll handler types (used by RollRequestsMenu for NPC rolls)
+ * @constant
+ * @type {Object}
+ */
+export const LOCAL_ROLL_TYPES = {
+  ABILITY_CHECK: "abilitycheck",
+  SAVING_THROW: "savingthrow",
+  SKILL: "skill",
+  TOOL: "tool",
+  CONCENTRATION: "concentration",
+  INITIATIVE_DIALOG: "initiativedialog",
+  DEATH_SAVE: "deathsave",
+  CUSTOM: "custom"
+}
+
 export const ROLL_REQUEST_OPTIONS = {
-  ABILITY_CHECK: { name: "abilityCheck", label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
-  SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.abilities' },
-  SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
-  TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
-  CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },
-  INITIATIVE: { name: "initiativeDialog", label: "Initiative Roll", subList: null, actorPath: '' },
-  DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
-  CUSTOM: { name: "custom", label: "Custom Roll", subList: null, actorPath: '' },
+  ABILITY_CHECK: { name: LOCAL_ROLL_TYPES.ABILITY_CHECK, label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
+  SAVING_THROW: { name: LOCAL_ROLL_TYPES.SAVING_THROW, label: "Saving Throw", subList: "abilities", actorPath: 'system.abilities' },
+  SKILL: { name: LOCAL_ROLL_TYPES.SKILL, label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
+  TOOL: { name: LOCAL_ROLL_TYPES.TOOL, label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
+  CONCENTRATION: { name: LOCAL_ROLL_TYPES.CONCENTRATION, label: "Concentration Check", subList: null, actorPath: '' },
+  INITIATIVE: { name: LOCAL_ROLL_TYPES.INITIATIVE_DIALOG, label: "Initiative Roll", subList: null, actorPath: '' },
+  DEATH_SAVE: { name: LOCAL_ROLL_TYPES.DEATH_SAVE, label: "Death Save", subList: null, actorPath: '' },
+  CUSTOM: { name: LOCAL_ROLL_TYPES.CUSTOM, label: "Custom Roll", subList: null, actorPath: '' },
   // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }
 
