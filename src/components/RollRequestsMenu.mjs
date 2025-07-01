@@ -2,16 +2,22 @@ import { MODULE } from '../constants/General.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
-import { Main } from './Main.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
+import { SidebarUtil } from './SidebarUtil.mjs';
 
 /**
  * Roll Requests Menu Application
  * Extends Foundry's ApplicationV2 with Handlebars support to provide a menu interface for GMs to request rolls from players
  */
 export default class RollRequestsMenu extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
+  /**
+   * Singleton instance of the menu
+   * @type {RollRequestsMenu|null}
+   */
+  static #instance = null;
+
   constructor(options = {}) {
     super(options);
     
@@ -20,6 +26,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     this.currentTab = 'pc'; // 'pc' or 'npc'
     this.selectedRequestType = null;
     this.isLocked = false; // Track lock state
+    // Get options expanded state from user flag
+    this.optionsExpanded = game.user.getFlag(MODULE.ID, 'menuOptionsExpanded') ?? false;
     
     // Initialize with actors from selected tokens
     this._initializeFromSelectedTokens();
@@ -204,7 +212,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       requestTypes,
       rollTypes,
       showNames: true, // You can make this configurable later
-      actorsLocked: this.isLocked
+      actorsLocked: this.isLocked,
+      optionsExpanded: this.optionsExpanded
     };
   }
 
@@ -256,6 +265,18 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   _onRender(context, options) {
     super._onRender(context, options);
     this._attachListeners();
+    
+    // Apply expanded state if saved
+    if (this.optionsExpanded) {
+      const optionsToggle = this.element.querySelector('.options-toggle');
+      const optionsElement = this.element.querySelector('li.options');
+      if (optionsToggle) {
+        optionsToggle.classList.add('expanded');
+      }
+      if (optionsElement) {
+        optionsElement.classList.add('expanded');
+      }
+    }
     
     // Add click outside listener with capture to catch events early
     setTimeout(() => {
@@ -323,7 +344,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Attach event listeners
    */
   _attachListeners() {
-    LogUtil.log('Attaching listeners', []);
     
     const html = this.element;
     
@@ -335,9 +355,11 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Lock toggle
     html.querySelector('#crlngn-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
     
+    // Options toggle
+    html.querySelector('.options-toggle')?.addEventListener('click', this._onToggleOptions.bind(this));
+    
     // Tab switching
     const tabs = html.querySelectorAll('.actor-tab');
-    LogUtil.log('Found tabs:', [tabs.length]);
     tabs.forEach(tab => {
       tab.addEventListener('click', this._onTabClick.bind(this));
     });
@@ -393,9 +415,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     await SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, enabled);
     
     // Update the icon in the chat controls
-    Main.updateRollRequestsIcon(enabled);
+    SidebarUtil.updateRollRequestsIcon(enabled);
     
-    LogUtil.log('Roll requests enabled:', [enabled]);
   }
 
   /**
@@ -405,7 +426,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const SETTINGS = getSettings();
     const skip = event.target.checked;
     await SettingsUtil.set(SETTINGS.skipDialogs.tag, skip);
-    LogUtil.log('Skip dialogs:', [skip]);
   }
 
   /**
@@ -442,7 +462,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     this.render();
     
     this._updateRequestTypesVisibility();
-    LogUtil.log('Select all:', [selectAll, 'for', this.currentTab]);
   }
   
   /**
@@ -457,7 +476,32 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     lockIcon.classList.remove('fa-lock-keyhole', 'fa-lock-keyhole-open');
     lockIcon.classList.add(this.isLocked ? 'fa-lock-keyhole' : 'fa-lock-keyhole-open');
     
-    LogUtil.log('Lock toggled:', [this.isLocked]);
+  }
+  
+  /**
+   * Handle options toggle
+   */
+  async _onToggleOptions(event) {
+    event.preventDefault();
+    
+    // Toggle the state
+    this.optionsExpanded = !this.optionsExpanded;
+    
+    // Save state to user flag
+    await game.user.setFlag(MODULE.ID, 'menuOptionsExpanded', this.optionsExpanded);
+    
+    // Toggle expanded class on the clicked element
+    const optionsToggle = event.currentTarget || event.target.closest('.options-toggle');
+    if (optionsToggle) {
+      optionsToggle.classList.toggle('expanded', this.optionsExpanded);
+    }
+    
+    // Find the li.options sibling and toggle expanded class on it
+    const optionsElement = this.element.querySelector('li.options');
+    if (optionsElement) {
+      optionsElement.classList.toggle('expanded', this.optionsExpanded);
+    }
+    
   }
   
   /**
@@ -484,7 +528,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
     }
     
-    LogUtil.log('Initialized with selected tokens:', [Array.from(this.selectedActors)]);
   }
   
   /**
@@ -517,7 +560,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   async _onTabClick(event) {
     const tab = event.currentTarget.dataset.tab;
-    LogUtil.log('Tab clicked:', [tab, this.currentTab]);
     if (tab === this.currentTab) return;
     
     // Clear selected actors when switching tabs
@@ -531,7 +573,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     this.currentTab = tab;
     await this.render();
-    LogUtil.log('Switched to tab:', [tab]);
   }
 
   /**
@@ -582,7 +623,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     this._updateRequestTypesVisibility();
     this._updateSelectAllState();
-    LogUtil.log('Actor selected:', [actorId, this.selectedActors.has(actorId)]);
   }
   
   /**
@@ -644,10 +684,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Toggle selection - if clicking the same type, deselect it
     if (this.selectedRequestType === requestType) {
       this.selectedRequestType = null;
-      LogUtil.log('Request type deselected:', [requestType]);
     } else {
       this.selectedRequestType = requestType;
-      LogUtil.log('Request type selected:', [requestType]);
     }
     
     // If this type has a sublist, re-render to show/hide roll types
@@ -665,9 +703,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle roll type click
    */
   _onRollTypeClick(event) {
-    LogUtil.log('Roll type clicked!', [event.currentTarget]);
     const rollKey = event.currentTarget.dataset.id;
-    LogUtil.log('Roll type selected:', [rollKey]);
     this._triggerRoll(this.selectedRequestType, rollKey);
   }
 
@@ -837,27 +873,26 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
     }
     
+    // Get rollRequestsEnabled setting to determine default sendRequest value
+    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    
     // Show GM configuration dialog (unless skip dialogs is enabled)
     let config = null;
-    if (!skipDialogs || pcActors.length > 0) {
+    if (!skipDialogs) {
       // Use appropriate dialog based on roll type
       const DialogClass = ['skill', 'tool'].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
-      config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { skipDialogs });
+      config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
+        skipDialogs,
+        defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
+      });
       
-      LogUtil.log('_triggerRoll', ['GM dialog returned config', {
-        config,
-        rollMethodName,
-        rollKey,
-        hasAbility: !!config?.ability,
-        ability: config?.ability
-      }]);
       
       // User cancelled the dialog
       if (!config) {
         return;
       }
     } else {
-      // Use default configuration
+      // Use default configuration when skipping dialogs
       config = {
         advantage: false,
         disadvantage: false,
@@ -865,9 +900,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         parts: [],
         rollMode: game.settings.get("core", "rollMode"),
         chatMessage: true,
-        isRollRequest: true,
-        skipDialog: skipDialogs,
-        sendRequest: true
+        isRollRequest: false,  // Don't intercept when rolling locally
+        skipDialog: true,  // Pass skipDialog as true when skipping
+        sendRequest: rollRequestsEnabled && pcActors.length > 0  // Only send if enabled AND there are PC actors
       };
       
       // Death saves always have DC 10
@@ -897,7 +932,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true); // true = suppress individual notification
         successfulRequests.push({ actor, owner });
         
-        // Add a small delay between roll requests to ensure they process correctly
+        // Add a delay between roll requests to prevent lag
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
@@ -919,7 +954,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Handle NPC actors - roll locally
     if (npcActors.length > 0) {
-      await this._handleNPCRolls(npcActors, rollMethodName, rollKey, config);
+      // Ensure skipDialog is passed correctly for local NPC rolls
+      const npcConfig = { ...config };
+      // Always skip individual dialogs for local rolls when we've already configured them
+      // Either through the GM dialog (!skipDialogs) or when skipDialogs is true
+      npcConfig.fastForward = true;  // Use fastForward for NPC rolls
+      npcConfig.skipDialog = true;
+      await this._handleNPCRolls(npcActors, rollMethodName, rollKey, npcConfig);
     }
     
     // Close the menu after all rolls are complete
@@ -998,13 +1039,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
     
-    LogUtil.log('_sendRollRequestToPlayer', ['Sending request with data', {
-      requestData,
-      hasAbility: !!requestData.config.ability,
-      ability: requestData.config.ability,
-      rollType,
-      rollKey
-    }]);
     
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
@@ -1108,7 +1142,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       rollMode: dialogConfig.rollMode || game.settings.get("core", "rollMode"),
       fastForward: dialogConfig.skipDialog || false,
       chatMessage: dialogConfig.chatMessage !== false,
-      isRollRequest: true,  // Flag to prevent RollInterceptor from re-intercepting
+      isRollRequest: dialogConfig.isRollRequest || false,  // Use the value from dialog config
       target: dialogConfig.target,  // DC value if provided
       ability: dialogConfig.ability,  // Ability override for skills/tools
       attackMode: dialogConfig.attackMode  // Attack mode for attack rolls
@@ -1117,8 +1151,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Roll for each NPC with a small delay between rolls
     for (const actor of actors) {
       await this._executeActorRoll(actor, requestType, rollKey, config);
-      // Small delay between rolls for better chat readability
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Delay between rolls to prevent lag and improve chat readability
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
   
@@ -1131,14 +1165,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   async _executeActorRoll(actor, requestType, rollKey, config) {
     try {
-      LogUtil.log('RollRequestsMenu._executeActorRoll', ['Starting roll for actor', {
-        actorName: actor.name,
-        actorType: actor.type,
-        actorId: actor.id,
-        requestType,
-        normalizedType: requestType.toLowerCase(),
-        config
-      }]);
       
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
@@ -1161,7 +1187,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             create: config.chatMessage !== false
           };
           // Add situational bonus if present
-          if (config.situational) abilityRollConfig.bonus = config.situational;
+          // For ability checks, D&D5e expects rolls configuration
+          if (config.situational) {
+            abilityRollConfig.rolls = [{
+              parts: [],  // Don't add @situational to parts - let the dialog handle it
+              data: { situational: config.situational },
+              options: {},
+              situational: config.situational // Pre-populate the field
+            }];
+          }
           
           await actor.rollAbilityCheck(abilityRollConfig, abilityDialogConfig, abilityMessageConfig);
           break;
@@ -1182,7 +1216,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             create: config.chatMessage !== false
           };
           // Add situational bonus if present
-          if (config.situational) saveRollConfig.bonus = config.situational;
+          // For saving throws, D&D5e expects rolls configuration
+          if (config.situational) {
+            saveRollConfig.rolls = [{
+              parts: [],  // Don't add @situational to parts - let the dialog handle it
+              data: { situational: config.situational },
+              options: {},
+              situational: config.situational // Pre-populate the field
+            }];
+          }
           
           await actor.rollSavingThrow(saveRollConfig, saveDialogConfig, saveMessageConfig);
           break;
@@ -1261,7 +1303,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
           await actor.rollToolCheck(toolRollConfig, toolDialogConfig, toolMessageConfig);
           break;
         case 'concentration':
-          await actor.rollConcentration(config);
+          const concentrationDialogConfig = { configure: !config.fastForward && !config.skipDialog };
+          const concentrationMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false
+          };
+          await actor.rollConcentration(config, concentrationDialogConfig, concentrationMessageConfig);
           break;
         case 'initiativedialog':
           // Initiative rolls require an active combat
@@ -1269,14 +1316,16 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
             break;
           }
-          LogUtil.log('RollRequestsMenu._executeActorRoll', ['About to roll initiative for', actor.name, 'with config', config]);
-          // Use the same approach as player-side - pass config directly
-          const result = await actor.rollInitiativeDialog(config);
-          LogUtil.log('RollRequestsMenu._executeActorRoll', ['Initiative roll result:', result]);
+          // Use the same approach as player-side - pass three parameters
+          const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
+          const messageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false
+          };
+          const result = await actor.rollInitiativeDialog(config, dialogConfig, messageConfig);
           
           // If no result, try a different approach
           if (!result) {
-            LogUtil.log('RollRequestsMenu._executeActorRoll', ['No result from rollInitiativeDialog, trying direct combat update']);
             
             // Get or create combatant
             let combatant = game.combat.getCombatantByActor(actor.id);
@@ -1306,15 +1355,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         case 'deathsave':
           // Death saves don't need a key, just the config
           // Death saves return null if unnecessary (HP > 0 or already 3 successes/failures)
-          LogUtil.log('RollRequestsMenu._executeActorRoll', ['Actor death save state', {
-            name: actor.name,
-            hp: actor.system.attributes.hp?.value,
-            deathSaves: actor.system.attributes.death,
-            type: actor.type
-          }]);
           // Death saves might need special handling
-          const deathResult = await actor.rollDeathSave();
-          LogUtil.log('RollRequestsMenu._executeActorRoll', ['Death save completed', deathResult]);
+          const deathDialogConfig = { configure: !config.fastForward && !config.skipDialog };
+          const deathMessageConfig = {
+            rollMode: config.rollMode,
+            create: config.chatMessage !== false
+          };
+          const deathResult = await actor.rollDeathSave(config, deathDialogConfig, deathMessageConfig);
           break;
         case 'custom':
           // Custom rolls use the formula in rollKey
@@ -1327,7 +1374,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             });
           } catch (error) {
             ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: rollKey}));
-            LogUtil.log('RollRequestsMenu._executeActorRoll', ['Invalid custom formula', rollKey, error]);
           }
           break;
         default:
@@ -1335,7 +1381,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
           break;
       }
     } catch (error) {
-      LogUtil.log('RollRequestsMenu._executeActorRoll', ['Error executing roll', error]);
       ui.notifications.error(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
         actor: actor.name 
       }));
@@ -1436,5 +1481,23 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       dialog.render(true);
     });
+  }
+
+  /**
+   * Toggle the roll requests menu open/closed
+   * @static
+   */
+  static toggle() {
+    if (!this.#instance) {
+      this.#instance = new RollRequestsMenu();
+      this.#instance.render(true);
+    } else {
+      if (this.#instance.rendered) {
+        this.#instance.close();
+      } else {
+        this.#instance._initializeFromSelectedTokens();
+        this.#instance.render(true);
+      }
+    }
   }
 }

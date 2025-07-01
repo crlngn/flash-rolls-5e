@@ -42,6 +42,40 @@
   justify-content: flex-start;
 }
 
+#crlngn-requests-menu > div > ul.actors > li.options-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5em 1em;
+  cursor: pointer;
+  margin: 0.5em 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+  &:before{
+    content: "settings";
+    font-weight: 500;
+    display: inline-block;
+    margin-left: auto;
+  }
+  &:after{
+    content: "\f0d8";
+    font-family: var(--font-awesome);
+    font-weight: bold;
+    display: inline-block;
+    width: 1.5em;
+    text-align: right;
+  }
+
+  &.expanded:after{
+    content: "\f0d7";
+  }
+
+  &:hover, &:focus{
+    background: rgba(255, 255, 255, 0.06);
+    outline: 0;
+  }
+}
+
 #crlngn-requests-menu > div > ul.actors > li.options {
   display: flex;
   flex-direction: column;
@@ -49,6 +83,13 @@
   justify-content: space-between;
   flex-shrink: 0;
   margin-right: 0.5rem;
+  max-height: 1.5em;
+  overflow: hidden;
+  transition: max-height 0.2s ease-in-out;
+
+  &.expanded{
+    max-height: 10em;
+  }
 
   > * {
     min-height: 1.8em;
@@ -285,7 +326,7 @@
 
 #crlngn-requests-menu > div > ul.actors > li:first-child {
   font-weight: bold;
-  margin-bottom: 2em;
+  margin-bottom: 0.5em;
   padding-bottom: 4px;
 }
 

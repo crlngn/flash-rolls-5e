@@ -86,11 +86,6 @@ export class ActivityUtil {
     if (activityId) {
       activity = item.system.activities?.get(activityId);
       if (!activity) {
-        LogUtil.log('ActivityUtil.executeActivityRoll', ['Activity not found by ID, falling back to search', {
-          activityId,
-          itemName: item.name,
-          availableActivities: item.system.activities?.map(a => ({ id: a.id, type: a.type }))
-        }]);
       }
     }
     
@@ -101,21 +96,8 @@ export class ActivityUtil {
     
     // Execute the roll based on type
     if (activity) {
-      LogUtil.log('ActivityUtil.executeActivityRoll', ['Executing activity roll', {
-        rollType,
-        activityId,
-        itemName: item.name,
-        activityType: activity.type
-      }]);
       switch (rollType) {
         case 'attack':
-          LogUtil.log('ActivityUtil.executeActivityRoll', ['Executing attack roll', {
-            hasTargets: game.user.targets.size > 0,
-            targetCount: game.user.targets.size,
-            skipDialog: config.fastForward,
-            isRollRequest: config.isRollRequest,
-            isGM: game.user.isGM
-          }]);
           // For attack activities, use the activity's use() method which handles the full flow
           // The activity will automatically use game.user.targets for targeting
           
@@ -129,7 +111,6 @@ export class ActivityUtil {
               ...config
               // checkGMstatus: false
             });
-            LogUtil.log('ActivityUtil.executeActivityRoll', ['MidiQOL', MidiQOL, activityId, MidiQOL?.Workflow?.getWorkflow(activity.uuid)]);
             return;
           }else{
             return await activity.use(usageConfig, dialogConfig);
@@ -146,7 +127,6 @@ export class ActivityUtil {
             // workflow.displayDamageRolls();
             
             // const damageRoll = await ActivityUtil.replaceDamage(workflow, ActivityUtil.getDamageFormula(activity));
-            LogUtil.log('ActivityUtil.executeActivityRoll', ['MidiQOL / Damage', damageRoll]);
             
             return;
           }else{
@@ -164,11 +144,6 @@ export class ActivityUtil {
       }
     } else {
       // Fallback to legacy methods if no activity found
-      LogUtil.log('ActivityUtil.executeActivityRoll', ['No activity found, using legacy methods', {
-        rollType,
-        itemName: item.name,
-        hasLegacyMethod: !!(item.rollAttack || item.rollDamage)
-      }]);
       
       switch (rollType) {
         case 'attack':
@@ -244,24 +219,15 @@ export class ActivityUtil {
 
     // options = genericUtils.mergeObject(defaultOptions, options);
     config = {...defaultConfig, ...config};
-    LogUtil.log('ActivityUtil.syntheticItemRoll', ['Executing synthetic item roll', item, config]);
     return await MidiQOL.completeItemUse(item, config, defaultOptions);
   }
 
   static async replaceDamage(workflow, formula, {ignoreCrit = false, damageType} = {}) {
     formula = String(formula);
     if (workflow.isCritical && !ignoreCrit) formula = await rollUtils.getCriticalFormula(formula, workflow.item.getRollData());
-    // let roll = await workflow.activity.rollDamage();
     let roll = await new CONFIG.Dice.DamageRoll(formula).evaluate();
-    // let damageType = workflow.activity.damage.parts[0].types.first();
-    // // let roll = await new Roll(formula).roll({async: true});
-    // if (damageType) {
-    //   foundry.utils.setProperty(roll, 'options.type', damageType);
-    // } else {
-    //   foundry.utils.setProperty(roll, 'options.type', roll.terms[0].flavor);
-    // }
+
     await workflow.setDamageRolls([roll]);
-    LogUtil.log('ActivityUtil.replaceDamage', ['Replaced damage', formula, roll, workflow.activity]);
     
     return roll;
   }

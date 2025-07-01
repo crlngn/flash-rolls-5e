@@ -7,11 +7,6 @@ import { MODULE_ID } from "../constants/General.mjs";
  */
 export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigurationDialog {
   constructor(config = {}, message = {}, options = {}) {
-    LogUtil.log('GMRollConfigDialog.constructor', ['Creating dialog', {
-      config,
-      message,
-      options
-    }]);
     
     // Ensure rollType is set in options
     options.rollType = options.rollType || CONFIG.Dice.D20Roll;
@@ -21,7 +16,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Store GM-specific options
     this.actors = options.actors || [];
-    this.sendRequest = options.sendRequest !== false;
+    // Use defaultSendRequest if provided, otherwise use sendRequest, otherwise default to true
+    this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
     this.showDC = options.showDC || false;
     this.dcValue = options.dcValue || null;
   }
@@ -86,17 +82,9 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   async _onRender(context, options) {
     super._onRender(context, options);
     
-    LogUtil.log('GMRollConfigDialog._onRender', ['Dialog rendered', {
-      config: this.config,
-      actors: this.actors,
-      showDC: this.showDC,
-      sendRequest: this.sendRequest,
-      element: this.element
-    }]);
     
     // Check if we've already injected our fields
     if (this.element.querySelector('.gm-roll-config-fields')) {
-      LogUtil.log('GMRollConfigDialog._onRender', ['Fields already injected, skipping']);
       return;
     }
     
@@ -128,6 +116,15 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Add event listeners for advantage/disadvantage buttons
     this._attachButtonListeners();
+    
+    // If we have initial situational bonus, trigger a rebuild to update the formula
+    if (this.config.rolls?.[0]?.data?.situational || this.config.situational) {
+      LogUtil.log('GMRollConfigDialog._onRender', ['Triggering rebuild for initial situational bonus']);
+      // Use a small delay to ensure the form is fully rendered
+      setTimeout(() => {
+        this.rebuild();
+      }, 100);
+    }
   }
   
   /**
@@ -139,11 +136,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     buttons.forEach(button => {
       button.addEventListener('click', (event) => {
         const action = event.currentTarget.dataset.action;
-        LogUtil.log('GMRollConfigDialog button clicked', [action, {
-          currentAdvantage: this.config.advantage,
-          currentDisadvantage: this.config.disadvantage,
-          config: this.config
-        }]);
       });
     });
   }
@@ -165,18 +157,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       this.dcValue = parseInt(dcInput.value) || null;
     }
     
-    LogUtil.log('GMRollConfigDialog._onChangeForm', ['Form changed', {
-      targetName: event.target?.name,
-      targetValue: event.target?.value,
-      sendRequest: this.sendRequest,
-      dcValue: this.dcValue,
-      config: this.config,
-      message: this.message,
-      rolls: this.rolls,
-      firstRoll: this.rolls?.[0],
-      firstRollData: this.rolls?.[0]?.data,
-      firstRollOptions: this.rolls?.[0]?.options
-    }]);
   }
   
   /**
@@ -188,13 +168,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     const abilityFromForm = formData?.get("ability");
     const dcFromForm = formData?.get("dc");
     
-    LogUtil.log('GMRollConfigDialog._buildConfig', ['Building config', {
-      configBefore: config,
-      formData: formData ? Object.fromEntries(formData) : null,
-      index,
-      situationalValue: formData?.get(`roll.${index}.situational`),
-      abilityFromForm
-    }]);
     
     // If ability is in form data, update the config
     if (abilityFromForm) {
@@ -217,13 +190,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       result.options.target = this.dcValue;
     }
     
-    LogUtil.log('GMRollConfigDialog._buildConfig', ['Config built', {
-      configAfter: result,
-      parts: result.parts,
-      data: result.data,
-      options: result.options,
-      finalAbility: config.ability
-    }]);
     
     return result;
   }
@@ -238,10 +204,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   async _processSubmitData(event, form, formData) {
-    LogUtil.log('GMRollConfigDialog._processSubmitData', ['Processing form data', {
-      formData: Object.fromEntries(formData),
-      configBefore: this.config
-    }]);
     
     await super._processSubmitData(event, form, formData);
     
@@ -273,11 +235,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   _finalizeRolls(action) {
-    LogUtil.log('GMRollConfigDialog._finalizeRolls', ['Finalizing rolls', {
-      action,
-      rolls: this.rolls,
-      config: this.config
-    }]);
     
     // Let parent handle advantage/disadvantage mode
     const finalizedRolls = super._finalizeRolls(action);
@@ -304,12 +261,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @returns {Promise<object|null>} The configured roll data or null if cancelled
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Starting configuration', {
-      actors: actors.map(a => a.name),
-      rollType,
-      rollKey,
-      options
-    }]);
     
     // Determine if we should show DC field
     const showDC = ['skill', 'save', 'savingThrow', 'ability', 'abilityCheck', 'concentration'].includes(rollType);
@@ -328,16 +279,9 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Fallback to D20Roll if class not found
     if (!rollClass) {
-      LogUtil.log('GMRollConfigDialog.getConfiguration', ['Roll class not found, using D20Roll', { rollType }]);
       rollClass = CONFIG.Dice.D20Roll;
     }
     
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Determined roll class', {
-      rollType,
-      rollClass,
-      rollClassName: rollClass?.name,
-      availableRollClasses: Object.keys(CONFIG.Dice)
-    }]);
     
     // Build roll configuration
     const rollConfig = {
@@ -390,14 +334,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     };
     
     // Create and render the dialog
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Creating dialog with config', {
-      rollConfig,
-      messageConfig,
-      dialogConfig,
-      rollType,
-      rollKey,
-      actors: actors.map(a => a.name)
-    }]);
     
     // Create the dialog instance to access its properties
     const app = new this(rollConfig, messageConfig, dialogConfig.options);
@@ -416,7 +352,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       app.render({ force: true });
     });
     
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Dialog result', result]);
     
     // If no rolls or user cancelled
     if (!result.rolls || result.rolls.length === 0) return null;
@@ -434,7 +369,7 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     // Build return configuration with only modified properties
     const finalConfig = {
       chatMessage: true,
-      isRollRequest: true,
+      isRollRequest: result.sendRequest,  // Only true when sending to players
       skipDialog: options.skipDialogs || false,
       sendRequest: result.sendRequest
     };
@@ -450,11 +385,25 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     }
     
     // Add situational bonus if provided
-    // Check both options.situational and data.situational
-    const situational = firstRoll?.options?.situational || firstRoll?.data?.situational || "";
+    // The situational bonus might be in different places depending on roll type
+    
+    // Check various possible locations for situational bonus
+    let situational = firstRoll?.options?.situational || 
+                      firstRoll?.data?.situational || 
+                      result.config?.data?.situational || "";
+    
+    // Also check if it's in the roll parts
+    if (!situational && firstRoll?.parts?.length > 0) {
+      // Look for parts that contain @situational
+      const situationalPart = firstRoll.parts.find(part => part.includes('@situational'));
+      if (situationalPart && firstRoll.data?.situational) {
+        situational = firstRoll.data.situational;
+      }
+    }
+    
     if (situational) {
       finalConfig.situational = situational;
-      finalConfig.parts = [situational];
+      finalConfig.parts = ["@situational"];  // Use @situational placeholder, not the actual value
     }
     
     // Add DC if provided
@@ -474,11 +423,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     // Add the roll title from the dialog window
     finalConfig.rollTitle = dialogConfig.options.window.title;
     
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Final configuration', {
-      rollType,
-      rollKey,
-      finalConfig
-    }]);
     
     return finalConfig;
   }
@@ -576,7 +520,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     
     // Store GM-specific options
     this.actors = options.actors || [];
-    this.sendRequest = options.sendRequest !== false;
+    // Use defaultSendRequest if provided, otherwise use sendRequest, otherwise default to true
+    this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
     this.showDC = options.showDC || false;
     this.dcValue = options.dcValue || null;
   }
@@ -628,17 +573,9 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   async _onRender(context, options) {
     super._onRender(context, options);
     
-    LogUtil.log('GMRollConfigDialog._onRender', ['Dialog rendered', {
-      config: this.config,
-      actors: this.actors,
-      showDC: this.showDC,
-      sendRequest: this.sendRequest,
-      element: this.element
-    }]);
     
     // Check if we've already injected our fields
     if (this.element.querySelector('.gm-roll-config-fields')) {
-      LogUtil.log('GMRollConfigDialog._onRender', ['Fields already injected, skipping']);
       return;
     }
     
@@ -652,12 +589,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     //   configSection = this.element.querySelector('fieldset').parentNode;
     // }
     
-    LogUtil.log('GMRollConfigDialog._onRender', ['Looking for config section', {
-      configSection: configSection,
-      showDC: this.showDC,
-      element: this.element,
-      allFieldsets: this.element.querySelectorAll('fieldset').length
-    }]);
     
     if (configSection && (this.showDC || this.actors.length > 0)) {
       // Render the template
@@ -681,6 +612,14 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     
     // Add event listeners for advantage/disadvantage buttons
     this._attachButtonListeners();
+    
+    // If we have initial situational bonus, trigger a rebuild to update the formula
+    if (this.config.rolls?.[0]?.data?.situational || this.config.situational) {
+      // Use a small delay to ensure the form is fully rendered
+      setTimeout(() => {
+        this.rebuild();
+      }, 100);
+    }
   }
   
   /**
@@ -692,11 +631,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     buttons.forEach(button => {
       button.addEventListener('click', (event) => {
         const action = event.currentTarget.dataset.action;
-        LogUtil.log('GMRollConfigDialog button clicked', [action, {
-          currentAdvantage: this.config.advantage,
-          currentDisadvantage: this.config.disadvantage,
-          config: this.config
-        }]);
       });
     });
   }
@@ -721,25 +655,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     // If ability selection changed, update the config
     if (event.target?.name === "ability" && event.target?.value) {
       this.config.ability = event.target.value;
-      LogUtil.log('GMSkillToolConfigDialog._onChangeForm', ['Ability selection changed', {
-        newAbility: event.target.value,
-        previousAbility: this.config.ability
-      }]);
     }
     
-    LogUtil.log('GMSkillToolConfigDialog._onChangeForm', ['Form changed', {
-      targetName: event.target?.name,
-      targetValue: event.target?.value,
-      sendRequest: this.sendRequest,
-      dcValue: this.dcValue,
-      config: this.config,
-      ability: this.config.ability,
-      message: this.message,
-      rolls: this.rolls,
-      firstRoll: this.rolls?.[0],
-      firstRollData: this.rolls?.[0]?.data,
-      firstRollOptions: this.rolls?.[0]?.options
-    }]);
   }
   
   /**
@@ -751,17 +668,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     const abilityFromForm = formData?.get("ability");
     const dcFromForm = formData?.get("dc");
     
-    LogUtil.log('GMSkillToolConfigDialog._buildConfig', ['Building config', {
-      configBefore: config,
-      formData: formData ? Object.fromEntries(formData) : null,
-      index,
-      situationalValue: formData?.get(`roll.${index}.situational`),
-      abilityFromForm,
-      dcFromForm,
-      configAbility: config.ability,
-      thisConfigAbility: this.config.ability,
-      thisDcValue: this.dcValue
-    }]);
     
     // If ability is in form data, update the config
     if (abilityFromForm) {
@@ -778,27 +684,12 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
       if (!isNaN(dcValue)) {
         result.options = result.options || {};
         result.options.target = dcValue;
-        LogUtil.log('GMSkillToolConfigDialog._buildConfig', ['Applied DC to config', {
-          dcValue,
-          resultOptions: result.options
-        }]);
       }
     } else if (this.dcValue !== undefined && this.dcValue !== null) {
       result.options = result.options || {};
       result.options.target = this.dcValue;
-      LogUtil.log('GMSkillToolConfigDialog._buildConfig', ['Applied stored DC to config', {
-        dcValue: this.dcValue,
-        resultOptions: result.options
-      }]);
     }
     
-    LogUtil.log('GMSkillToolConfigDialog._buildConfig', ['Config built', {
-      configAfter: result,
-      parts: result.parts,
-      data: result.data,
-      options: result.options,
-      finalAbility: config.ability
-    }]);
     
     return result;
   }
@@ -807,10 +698,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   async _processSubmitData(event, form, formData) {
-    LogUtil.log('GMRollConfigDialog._processSubmitData', ['Processing form data', {
-      formData: Object.fromEntries(formData),
-      configBefore: this.config
-    }]);
     
     await super._processSubmitData(event, form, formData);
     
@@ -838,11 +725,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   _finalizeRolls(action) {
-    LogUtil.log('GMSkillToolConfigDialog._finalizeRolls', ['Finalizing rolls', {
-      action,
-      rolls: this.rolls,
-      config: this.config
-    }]);
     
     // Let parent handle advantage/disadvantage mode
     const finalizedRolls = super._finalizeRolls(action);
@@ -951,7 +833,6 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
       app.render({ force: true });
     });
     
-    LogUtil.log('GMRollConfigDialog.getConfiguration', ['Dialog result', result]);
     
     // If no rolls or user cancelled
     if (!result.rolls || result.rolls.length === 0) return null;
@@ -969,7 +850,7 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     // Build return configuration with only modified properties
     const finalConfig = {
       chatMessage: true,
-      isRollRequest: true,
+      isRollRequest: result.sendRequest,  // Only true when sending to players
       skipDialog: options.skipDialogs || false,
       sendRequest: result.sendRequest
     };
@@ -1000,21 +881,11 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     // Add ability if it was selected (always include for skills/tools to ensure proper dialog display)
     if (result.config.ability && ['skill', 'tool'].includes(rollType)) {
       finalConfig.ability = result.config.ability;
-      LogUtil.log('GMSkillToolConfigDialog.getConfiguration', ['Including ability in config', {
-        ability: result.config.ability,
-        rollKey,
-        defaultAbility: actor.system.skills?.[rollKey]?.ability || CONFIG.DND5E.skills?.[rollKey]?.ability
-      }]);
     }
     
     // Add the roll title from the dialog window
     finalConfig.rollTitle = dialogConfig.options.window.title;
     
-    LogUtil.log('GMSkillToolConfigDialog.getConfiguration', ['Final configuration', {
-      rollType,
-      rollKey,
-      finalConfig
-    }]);
     
     return finalConfig;
   }

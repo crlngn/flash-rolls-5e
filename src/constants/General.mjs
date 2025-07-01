@@ -16,6 +16,12 @@ export const DEBUG_TAG = [
   `|`,
 ];
 
+export const SOCKET_CALLS = {
+  receiveDiceConfig: "receiveDiceConfig",
+  getDiceConfig: "getDiceConfig",
+  handleRollRequest: "handleRollRequest"
+};
+
 export const HOOK_NAMES = {
   // "" (empty string) - General roll
   ATTACK: { name: "attack", requestType: "attack" }, // Attack Activity
@@ -61,6 +67,26 @@ export const BUTTON_ACTION_TYPES = {
   ROLL_REQUEST: "rollRequest",
   ROLL_ATTACK: "rollAttack",
   ROLL_DAMAGE: "rollDamage"
+}
+
+/**
+ * Roll types used throughout the module
+ * @constant
+ * @type {Object}
+ */
+export const ROLL_TYPES = {
+  ABILITY: "ability",
+  SAVE: "save",
+  SKILL: "skill",
+  TOOL: "tool",
+  CONCENTRATION: "concentration",
+  ATTACK: "attack",
+  DAMAGE: "damage",
+  INITIATIVE: "initiative",
+  DEATH_SAVE: "deathsave",
+  HIT_DIE: "hitDie",
+  ITEM_SAVE: "itemSave",
+  CUSTOM: "custom"
 }
 
 export const ROLL_REQUEST_OPTIONS = {

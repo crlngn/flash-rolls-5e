@@ -17,7 +17,6 @@ export class SettingsUtil {
     const settingsList = Object.entries(SETTINGS);
     settingsList.forEach(async(entry) => {
       const setting = entry[1]; 
-      LogUtil.log("Registering... ",[entry]);
 
       const settingObj = { 
         name: setting.label,
@@ -39,7 +38,6 @@ export class SettingsUtil {
       if(SettingsUtil.get(setting.tag)===undefined || SettingsUtil.get(setting.tag)===null){
         SettingsUtil.set(setting.tag, setting.default);
       }
-      LogUtil.log("registerSettings",[setting.tag, SettingsUtil.get(setting.tag)]);
     });
   }
   
@@ -65,7 +63,6 @@ export class SettingsUtil {
         selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
         setting = selectedSetting?.value;
       }
-      LogUtil.log("GET Setting", [selectedSetting, setting]);
     }
 
     return setting;
@@ -87,12 +84,10 @@ export class SettingsUtil {
       const world = game.settings.storage.get("world");
       selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
     } 
-    LogUtil.log("Setting",[settingName, selectedSetting]);
 
     try{
       game.settings.set(moduleName, settingName, newValue);
     }catch(e){
-      LogUtil.log("Unable to change setting",[settingName, selectedSetting]);
     }
 
     return true;
