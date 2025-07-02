@@ -13,12 +13,20 @@ export const RollHelpers = {
    */
   addSituationalBonus(config, situational) {
     if (situational) {
-      config.rolls = [{
-        parts: [],
-        data: { situational },
-        options: {},
-        situational
-      }];
+      // Set bonus for direct roll execution
+      config.bonus = situational;
+      
+      // Also set it in the rolls array structure for the dialog to find
+      if (!config.rolls) {
+        config.rolls = [{
+          parts: [],
+          data: {},
+          options: {}
+        }];
+      }
+      
+      // Add the situational value where the dialog expects it
+      config.rolls[0].data.situational = situational;
     }
     return config;
   },

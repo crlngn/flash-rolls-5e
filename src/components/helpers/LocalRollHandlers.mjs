@@ -60,10 +60,10 @@ export const LocalRollHelpers = {
     // Add situational bonus if present
     if (config.situational) {
       rollConfig.rolls = [{
-        parts: [],
+        parts: ["@situational"],
         data: { situational: config.situational },
         options: {},
-        situational: config.situational
+        situational: true
       }];
     }
     
@@ -195,12 +195,23 @@ export const LOCAL_ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.CONCENTRATION]: async (actor, rollKey, config) => {
+    const rollConfig = {
+      advantage: config.advantage,
+      disadvantage: config.disadvantage,
+      target: config.target
+    };
+    
+    // Add situational bonus if present
+    if (config.situational) {
+      rollConfig.bonus = config.situational;
+    }
+    
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
       rollMode: config.rollMode,
       create: config.chatMessage !== false
     };
-    await actor.rollConcentration(config, dialogConfig, messageConfig);
+    await actor.rollConcentration(rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.INITIATIVE_DIALOG]: async (actor, rollKey, config) => {
@@ -219,6 +230,16 @@ export const LOCAL_ROLL_HANDLERS = {
       return;
     }
     
+    const rollConfig = {
+      advantage: config.advantage,
+      disadvantage: config.disadvantage
+    };
+    
+    // Add situational bonus if present
+    if (config.situational) {
+      rollConfig.bonus = config.situational;
+    }
+    
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
       rollMode: config.rollMode,
@@ -227,17 +248,28 @@ export const LOCAL_ROLL_HANDLERS = {
     
     // Use rollInitiative (without dialog) when skipDialog is true
     await (config.skipDialog || config.fastForward 
-      ? actor.rollInitiative(config, dialogConfig, messageConfig)
-      : actor.rollInitiativeDialog(config, dialogConfig, messageConfig));
+      ? actor.rollInitiative(rollConfig, dialogConfig, messageConfig)
+      : actor.rollInitiativeDialog(rollConfig, dialogConfig, messageConfig));
   },
 
   [ROLL_TYPES.DEATH_SAVE]: async (actor, rollKey, config) => {
+    const rollConfig = {
+      advantage: config.advantage,
+      disadvantage: config.disadvantage,
+      target: config.target
+    };
+    
+    // Add situational bonus if present
+    if (config.situational) {
+      rollConfig.bonus = config.situational;
+    }
+    
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
       rollMode: config.rollMode,
       create: config.chatMessage !== false
     };
-    await actor.rollDeathSave(config, dialogConfig, messageConfig);
+    await actor.rollDeathSave(rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.CUSTOM]: async (actor, rollKey, config) => {
