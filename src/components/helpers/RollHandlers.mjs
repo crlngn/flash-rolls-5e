@@ -126,11 +126,21 @@ export const ROLL_HANDLERS = {
     RollHelpers.addSituationalBonus(config, requestData.config.situational);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
+  
+  // Alias for ABILITY_CHECK
+  [ROLL_TYPES.ABILITY_CHECK]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return ROLL_HANDLERS[ROLL_TYPES.ABILITY](actor, requestData, rollConfig, dialogConfig, messageConfig);
+  },
 
   [ROLL_TYPES.SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildAbilityConfig(requestData, rollConfig);
     RollHelpers.addSituationalBonus(config, requestData.config.situational);
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
+  },
+  
+  // Alias for SAVING_THROW
+  [ROLL_TYPES.SAVING_THROW]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return ROLL_HANDLERS[ROLL_TYPES.SAVE](actor, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.SKILL]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
@@ -182,6 +192,11 @@ export const ROLL_HANDLERS = {
     }
     RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
     await actor.rollInitiativeDialog(rollConfig, dialogConfig, messageConfig);
+  },
+  
+  // Alias for INITIATIVE_DIALOG
+  [ROLL_TYPES.INITIATIVE_DIALOG]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return ROLL_HANDLERS[ROLL_TYPES.INITIATIVE](actor, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.DEATH_SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {

@@ -1,4 +1,4 @@
-import { MODULE } from '../constants/General.mjs';
+import { MODULE, ROLL_TYPES } from '../constants/General.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
@@ -21,6 +21,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   static #instance = null;
 
   constructor(options = {}) {
+    const log = LogUtil.method(RollRequestsMenu, 'constructor');
     super(options);
     
     // Track selected actors and current state
@@ -57,6 +58,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Prepare data for the template
    */
   async _prepareContext(options) {
+    const log = LogUtil.method(this, '_prepareContext');
     const context = await super._prepareContext(options);
     
     // Get all actors and separate by ownership
@@ -150,6 +152,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Get formatted stats for an actor
    */
   _getActorStats(actor) {
+    const log = LogUtil.method(this, '_getActorStats');
     const system = actor.system;
     const stats = [];
     
@@ -192,6 +195,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Called after the application is rendered
    */
   _onRender(context, options) {
+    const log = LogUtil.method(this, '_onRender');
     super._onRender(context, options);
     this._attachListeners();
     
@@ -220,6 +224,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle token control changes
    */
   _onTokenControlChange(token, controlled) {
+    const log = LogUtil.method(this, '_onTokenControlChange');
     // Only process if menu is rendered
     if (!this.rendered) return;
     
@@ -246,6 +251,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle clicks outside the menu
    */
   _onClickOutside = (event) => {
+    const log = LogUtil.method(this, '_onClickOutside');
     // Don't close if locked
     if (this.isLocked) return;
     
@@ -273,6 +279,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Attach event listeners
    */
   _attachListeners() {
+    const log = LogUtil.method(this, '_attachListeners');
     
     const html = this.element;
     
@@ -339,6 +346,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle roll requests toggle
    */
   async _onToggleRollRequests(event) {
+    const log = LogUtil.method(this, '_onToggleRollRequests');
     const SETTINGS = getSettings();
     const enabled = event.target.checked;
     await SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, enabled);
@@ -352,6 +360,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle skip dialogs toggle
    */
   async _onToggleSkipDialogs(event) {
+    const log = LogUtil.method(this, '_onToggleSkipDialogs');
     const SETTINGS = getSettings();
     const skip = event.target.checked;
     await SettingsUtil.set(SETTINGS.skipDialogs.tag, skip);
@@ -361,6 +370,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle select all toggle
    */
   _onToggleSelectAll(event) {
+    const log = LogUtil.method(this, '_onToggleSelectAll');
     const selectAll = event.target.checked;
     
     // Temporarily disable token control hook to avoid feedback loop
@@ -397,6 +407,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle lock toggle
    */
   _onToggleLock(event) {
+    const log = LogUtil.method(this, '_onToggleLock');
     event.preventDefault();
     this.isLocked = !this.isLocked;
     
@@ -411,6 +422,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle options toggle
    */
   async _onToggleOptions(event) {
+    const log = LogUtil.method(this, '_onToggleOptions');
     event.preventDefault();
     
     // Toggle the state
@@ -437,6 +449,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Initialize selected actors from currently selected tokens
    */
   _initializeFromSelectedTokens() {
+    const log = LogUtil.method(this, '_initializeFromSelectedTokens');
     // Get controlled tokens
     const controlledTokens = canvas.tokens?.controlled || [];
     
@@ -464,6 +477,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle tab click
    */
   async _onTabClick(event) {
+    const log = LogUtil.method(this, '_onTabClick');
     const tab = event.currentTarget.dataset.tab;
     if (tab === this.currentTab) return;
     
@@ -484,6 +498,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle click on actor row
    */
   _onActorClick(event) {
+    const log = LogUtil.method(this, '_onActorClick');
     // Ignore if clicking on the select button itself
     if (event.target.closest('.actor-select')) return;
     
@@ -496,6 +511,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle click on actor select button
    */
   _onActorSelectClick(event) {
+    const log = LogUtil.method(this, '_onActorSelectClick');
     event.stopPropagation(); // Prevent triggering the actor row click
     const actorId = event.currentTarget.dataset.id;
     this._toggleActorSelection(actorId);
@@ -505,6 +521,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Toggle actor selection state
    */
   _toggleActorSelection(actorId) {
+    const log = LogUtil.method(this, '_toggleActorSelection');
     // Temporarily disable token control hook to avoid feedback loop
     this._ignoreTokenControl = true;
     
@@ -535,6 +552,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Update request types visibility based on actor selection
    */
   _updateRequestTypesVisibility() {
+    const log = LogUtil.method(this, '_updateRequestTypesVisibility');
     // Since we're now controlling visibility through template data,
     // we need to re-render when actor selection changes
     this.render();
@@ -544,6 +562,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Update select all checkbox state
    */
   _updateSelectAllState() {
+    const log = LogUtil.method(this, '_updateSelectAllState');
     const selectAllCheckbox = this.element.querySelector('#crlngn-actors-all');
     const currentActors = this.currentTab === 'pc' ? 'pc' : 'npc';
     const checkboxes = this.element.querySelectorAll(`.${currentActors}-actors .actor-item input[type="checkbox"]`);
@@ -557,6 +576,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle request type click
    */
   async _onRequestTypeClick(event) {
+    const log = LogUtil.method(this, '_onRequestTypeClick');
     const requestItem = event.currentTarget;
     const requestType = requestItem.dataset.id;
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
@@ -588,6 +608,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Handle roll type click
    */
   _onRollTypeClick(event) {
+    const log = LogUtil.method(this, '_onRollTypeClick');
     const rollKey = event.currentTarget.dataset.id;
     this._triggerRoll(this.selectedRequestType, rollKey);
   }
@@ -598,6 +619,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {string} rollKey - The specific roll key (e.g., 'acr' for Acrobatics)
    */
   async _triggerRoll(requestType, rollKey) {
+    const log = LogUtil.method(this, '_triggerRoll');
     const SETTINGS = getSettings();
     const selectedActorIds = Array.from(this.selectedActors);
     const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
@@ -616,10 +638,10 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Get the roll option to get the actual method name
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
-    const rollMethodName = rollOption?.name || requestType;
+    const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
     
     // Handle custom rolls with a dialog
-    if (rollMethodName === 'custom') {
+    if (rollMethodName === ROLL_TYPES.CUSTOM) {
       const formula = await this._showCustomRollDialog();
       if (!formula) return; // User cancelled
       
@@ -628,7 +650,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     }
     
     // Check for initiative rolls without active combat
-    if (rollMethodName === 'initiativeDialog' && !game.combat) {
+    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG && !game.combat) {
       const createCombat = await Dialog.confirm({
         title: game.i18n.localize("COMBAT.Create"),
         content: "<p>" + game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.noCombatActive") + "</p>",
@@ -653,7 +675,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Filter actors for initiative rolls based on existing initiative
     let actorIdsToRoll = validActorIds;
-    if (rollMethodName === 'initiativeDialog' && game.combat) {
+    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG && game.combat) {
       const actors = validActorIds
         .map(id => game.actors.get(id))
         .filter(actor => actor);
@@ -711,7 +733,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       .filter(actor => actor);
     
     // Filter actors for death saves
-    if (rollMethodName === 'deathSave') {
+    if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
       const actorsNeedingDeathSaves = [];
       const actorsSkippingDeathSaves = [];
       
@@ -765,7 +787,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     let config = null;
     if (!skipDialogs) {
       // Use appropriate dialog based on roll type
-      const DialogClass = ['skill', 'tool'].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
+      const DialogClass = [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
       config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
         skipDialogs,
         defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
@@ -791,7 +813,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       };
       
       // Death saves always have DC 10
-      if (rollMethodName === 'deathSave') {
+      if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
         config.target = 10;
       }
     }
@@ -864,21 +886,23 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {boolean} suppressNotification - If true, don't show individual notification
    */
   _sendRollRequestToPlayer(actor, owner, requestType, rollKey, config, suppressNotification = false) {
+    const log = LogUtil.method(this, '_sendRollRequestToPlayer');
     const SETTINGS = getSettings();
     
-    // Map request type to roll type for compatibility with RollInterceptor format
-    const rollTypeMap = {
-      'abilityCheck': 'ability',
-      'savingThrow': 'save',
-      'skill': 'skill',
-      'tool': 'tool',
-      'concentration': 'concentration',
-      'initiativeDialog': 'initiative',
-      'deathSave': 'deathsave',
-      'custom': 'custom',
-    };
+    // Normalize requestType to lowercase for consistent comparisons
+    const normalizedRequestType = requestType?.toLowerCase();
     
-    const rollType = rollTypeMap[requestType] || requestType;
+    // (e.g., "abilitycheck", "savingthrow")
+    let rollType = normalizedRequestType;
+    
+    // Special mapping for compound types that need to map to their base type
+    if (normalizedRequestType === ROLL_TYPES.ABILITY_CHECK) {
+      rollType = ROLL_TYPES.ABILITY;
+    } else if (normalizedRequestType === ROLL_TYPES.SAVING_THROW) {
+      rollType = ROLL_TYPES.SAVE;
+    } else if (normalizedRequestType === ROLL_TYPES.INITIATIVE_DIALOG) {
+      rollType = ROLL_TYPES.INITIATIVE;
+    }
     
     // Build the request data according to Phase 1 spec
     const requestData = {
@@ -923,6 +947,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {string} rollKey - The specific roll key (if applicable)
    */
   _sendConsolidatedNotification(successfulRequests, rollMethodName, rollKey) {
+    const log = LogUtil.method(this, '_sendConsolidatedNotification');
     // Group requests by player
     const requestsByPlayer = {};
     for (const { actor, owner } of successfulRequests) {
@@ -950,13 +975,14 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Add specific roll details if applicable
     if (rollKey) {
-      if (rollTypeKey === 'skill') {
+      const normalizedRollTypeKey = rollTypeKey.toLowerCase();
+      if (normalizedRollTypeKey === ROLL_TYPES.SKILL) {
         rollTypeName = `${rollTypeName} (${CONFIG.DND5E.skills[rollKey]?.label || rollKey})`;
-      } else if (rollTypeKey === 'savingThrow') {
+      } else if (normalizedRollTypeKey === ROLL_TYPES.SAVING_THROW) {
         rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
-      } else if (rollTypeKey === 'abilityCheck') {
+      } else if (normalizedRollTypeKey === ROLL_TYPES.ABILITY_CHECK) {
         rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
-      } else if (rollTypeKey === 'tool') {
+      } else if (normalizedRollTypeKey === ROLL_TYPES.TOOL) {
         // Try to get tool name from enrichmentLookup
         const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
         if (toolData?.id) {
@@ -965,7 +991,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         } else {
           rollTypeName = `${rollTypeName} (${rollKey})`;
         }
-      } else if (rollTypeKey === 'custom') {
+      } else if (normalizedRollTypeKey === ROLL_TYPES.CUSTOM) {
         rollTypeName = `${rollTypeName}: ${rollKey}`;
       }
     }
@@ -982,6 +1008,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {Object} dialogConfig - Configuration from GM dialog
    */
   async _handleNPCRolls(actors, requestType, rollKey, dialogConfig) {
+    const log = LogUtil.method(this, '_handleNPCRolls');
     // Build config for local rolls
     const config = {
       advantage: dialogConfig.advantage || false,
@@ -990,8 +1017,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       parts: dialogConfig.parts || [],
       rollMode: dialogConfig.rollMode || game.settings.get("core", "rollMode"),
       fastForward: dialogConfig.skipDialog || false,
+      skipDialog: dialogConfig.skipDialog || false,  // Add skipDialog flag
       chatMessage: dialogConfig.chatMessage !== false,
-      isRollRequest: dialogConfig.isRollRequest || false,  // Use the value from dialog config
+      isRollRequest: false,  // Always false for local rolls to prevent interception
       target: dialogConfig.target,  // DC value if provided
       ability: dialogConfig.ability,  // Ability override for skills/tools
       attackMode: dialogConfig.attackMode  // Attack mode for attack rolls
@@ -1013,6 +1041,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {Object} config 
    */
   async _executeActorRoll(actor, requestType, rollKey, config) {
+    const log = LogUtil.method(this, '_executeActorRoll');
     try {
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
@@ -1035,6 +1064,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Clean up when closing
    */
   async _onClose(options) {
+    const log = LogUtil.method(this, '_onClose');
     await super._onClose(options);
     
     // Reset state
@@ -1061,6 +1091,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * Override render positioning to use CSS instead of inline styles
    */
   setPosition(position={}) {
+    const log = LogUtil.method(this, 'setPosition');
     // Don't set any inline position styles - let CSS handle it
     return this;
   }
@@ -1070,6 +1101,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @returns {Promise<string|null>} The roll formula or null if cancelled
    */
   async _showCustomRollDialog() {
+    const log = LogUtil.method(this, '_showCustomRollDialog');
     return new Promise(async (resolve) => {
       // Render the template
       const content = await renderTemplate(`modules/${MODULE.ID}/templates/custom-roll-dialog.hbs`, {
@@ -1132,6 +1164,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @static
    */
   static toggle() {
+    const log = LogUtil.method(RollRequestsMenu, 'toggle');
     if (!this.#instance) {
       this.#instance = new RollRequestsMenu();
       this.#instance.render(true);

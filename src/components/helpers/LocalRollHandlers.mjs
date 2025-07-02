@@ -1,9 +1,47 @@
-import { LOCAL_ROLL_TYPES } from "../../constants/General.mjs";
+import { ROLL_TYPES } from "../../constants/General.mjs";
 
 /**
  * Helper functions for local roll handling (NPC rolls)
  */
 export const LocalRollHelpers = {
+  /**
+   * Ensure an actor is added to the active combat
+   * @param {Actor} actor - The actor to add to combat
+   * @returns {Promise<Combatant|null>} The combatant or null if failed
+   */
+  async ensureActorInCombat(actor) {
+    if (!game.combat) {
+      return null;
+    }
+    
+    // Check if actor is already in combat
+    let combatant = game.combat.getCombatantByActor(actor.id);
+    if (combatant) {
+      return combatant;
+    }
+    
+    // Try to add actor to combat
+    const tokens = actor.getActiveTokens();
+    try {
+      if (tokens.length) {
+        // Actor has token on scene
+        const combatantData = await game.combat.createEmbeddedDocuments("Combatant", [{
+          tokenId: tokens[0].id,
+          actorId: actor.id
+        }]);
+        return combatantData[0];
+      } else {
+        // No token on scene, create combatant with just actor
+        const combatantData = await game.combat.createEmbeddedDocuments("Combatant", [{
+          actorId: actor.id
+        }]);
+        return combatantData[0];
+      }
+    } catch (error) {
+      console.error(`Failed to add actor ${actor.name} to combat:`, error);
+      return null;
+    }
+  },
   /**
    * Build ability check configuration
    * @param {string} rollKey - The ability key
@@ -136,27 +174,27 @@ export const LocalRollHelpers = {
  * Handlers for each local roll type
  */
 export const LOCAL_ROLL_HANDLERS = {
-  [LOCAL_ROLL_TYPES.ABILITY_CHECK]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.ABILITY_CHECK]: async (actor, rollKey, config) => {
     const [rollConfig, dialogConfig, messageConfig] = LocalRollHelpers.buildAbilityCheckConfig(rollKey, config);
     await actor.rollAbilityCheck(rollConfig, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.SAVING_THROW]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.SAVING_THROW]: async (actor, rollKey, config) => {
     const [rollConfig, dialogConfig, messageConfig] = LocalRollHelpers.buildAbilityCheckConfig(rollKey, config);
     await actor.rollSavingThrow(rollConfig, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.SKILL]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.SKILL]: async (actor, rollKey, config) => {
     const [rollConfig, dialogConfig, messageConfig] = LocalRollHelpers.buildSkillCheckConfig(rollKey, config);
     await actor.rollSkill(rollConfig, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.TOOL]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.TOOL]: async (actor, rollKey, config) => {
     const [rollConfig, dialogConfig, messageConfig] = LocalRollHelpers.buildToolCheckConfig(rollKey, config);
     await actor.rollToolCheck(rollConfig, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.CONCENTRATION]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.CONCENTRATION]: async (actor, rollKey, config) => {
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
       rollMode: config.rollMode,
@@ -165,10 +203,19 @@ export const LOCAL_ROLL_HANDLERS = {
     await actor.rollConcentration(config, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.INITIATIVE_DIALOG]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.INITIATIVE_DIALOG]: async (actor, rollKey, config) => {
     // Initiative rolls require an active combat
     if (!game.combat) {
       ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
+      return;
+    }
+    
+    // Ensure actor is in combat before rolling
+    const combatant = await LocalRollHelpers.ensureActorInCombat(actor);
+    if (!combatant) {
+      ui.notifications.warn(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorNotInCombat", {
+        actor: actor.name
+      }));
       return;
     }
     
@@ -178,37 +225,13 @@ export const LOCAL_ROLL_HANDLERS = {
       create: config.chatMessage !== false
     };
     
-    const result = await actor.rollInitiativeDialog(config, dialogConfig, messageConfig);
-    
-    // If no result, try a different approach
-    if (!result) {
-      // Get or create combatant
-      let combatant = game.combat.getCombatantByActor(actor.id);
-      if (!combatant) {
-        const tokens = actor.getActiveTokens();
-        if (tokens.length) {
-          await game.combat.createEmbeddedDocuments("Combatant", [{
-            tokenId: tokens[0].id,
-            actorId: actor.id
-          }]);
-          combatant = game.combat.getCombatantByActor(actor.id);
-        }
-      }
-      
-      // Roll initiative directly
-      if (combatant) {
-        const roll = combatant.getInitiativeRoll();
-        await roll.evaluate({async: true});
-        await combatant.update({initiative: roll.total});
-        await roll.toMessage({
-          speaker: ChatMessage.getSpeaker({actor}),
-          flavor: game.i18n.localize("DND5E.Initiative")
-        });
-      }
-    }
+    // Use rollInitiative (without dialog) when skipDialog is true
+    await (config.skipDialog || config.fastForward 
+      ? actor.rollInitiative(config, dialogConfig, messageConfig)
+      : actor.rollInitiativeDialog(config, dialogConfig, messageConfig));
   },
 
-  [LOCAL_ROLL_TYPES.DEATH_SAVE]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.DEATH_SAVE]: async (actor, rollKey, config) => {
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
       rollMode: config.rollMode,
@@ -217,7 +240,7 @@ export const LOCAL_ROLL_HANDLERS = {
     await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
 
-  [LOCAL_ROLL_TYPES.CUSTOM]: async (actor, rollKey, config) => {
+  [ROLL_TYPES.CUSTOM]: async (actor, rollKey, config) => {
     // Custom rolls use the formula in rollKey
     try {
       const roll = new Roll(rollKey, actor.getRollData());

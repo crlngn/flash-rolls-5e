@@ -16,6 +16,8 @@ export class SocketUtil {
    * @param {Function} callbackFunc - Optional callback to execute after registration.
    */
   static initialize = (callbackFunc) => {
+    const log = LogUtil.method(SocketUtil, 'initialize');
+    log('initializing socket', [callbackFunc]);
     Hooks.once(HOOKS_SOCKET.READY, () => { 
 
       // Check if socketlib is available before registering the module
@@ -46,6 +48,8 @@ export class SocketUtil {
    * @param {Function} func - The function to be executed remotely.
    */
   static registerCall = (name, func) => {
+    const log = LogUtil.method(SocketUtil, 'registerCall');
+    log('registering call', [name]);
     if (SocketUtil.socket) {
       SocketUtil.socket.register(name, func);
     } else {
@@ -59,6 +63,8 @@ export class SocketUtil {
    * @param {Function} callback - The callback function to execute after sending.
    */
   static sendMessage = (value, callback) => {
+    const log = LogUtil.method(SocketUtil, 'sendMessage');
+    log('sending message', [value]);
     if (callback) {
         callback();
     }
@@ -72,6 +78,8 @@ export class SocketUtil {
    * @returns {Promise} A promise resolving when the function executes.
    */
   static execForGMs = async (handler, ...parameters) => {
+    const log = LogUtil.method(SocketUtil, 'execForGMs');
+    log('executing for GMs', [handler, ...parameters]);
     if (!SocketUtil.socket) {
       return;
     }
@@ -101,6 +109,8 @@ export class SocketUtil {
    * @returns {Promise} A promise resolving when the function executes.
    */
   static execForUser = async (handler, userId, ...parameters) => {
+    const log = LogUtil.method(SocketUtil, 'execForUser');
+    log('executing for user', [handler, userId, ...parameters]);
     if (!SocketUtil.socket) {
         return;
     }
@@ -134,6 +144,8 @@ export class SocketUtil {
    * @returns {*} - Serialized data
    */
   static serializeForTransport(data, hasRolls=false) { 
+    const log = LogUtil.method(SocketUtil, 'serializeForTransport');
+    log('serializing for transport', [data, hasRolls]);
     // Handle null or undefined
     if (data == null) return data;
     
@@ -159,6 +171,8 @@ export class SocketUtil {
    * @returns {*} - Deserialized data with reconstructed objects
    */
   static deserializeFromTransport(data, hasRolls=false) {
+    const log = LogUtil.method(SocketUtil, 'deserializeFromTransport');
+    log('deserializing from transport', [data, hasRolls]);
     let result = { ...data };
     if (!data) return result;
 

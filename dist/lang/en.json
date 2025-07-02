@@ -91,22 +91,21 @@
       "and": "and"
     },
     "rollTypes": {
-      "abilityCheck": "Ability Check",
-      "savingThrow": "Saving Throw",
+      "abilitycheck": "Ability Check",
+      "savingthrow": "Saving Throw",
       "skill": "Skill Check",
       "tool": "Tool Check",
       "concentration": "Concentration Check",
-      "initiativeDialog": "Initiative Roll",
-      "deathSave": "Death Save",
+      "initiativedialog": "Initiative Roll",
+      "deathsave": "Death Save",
       "custom": "Custom Roll",
       "ability": "Ability Check",
       "save": "Saving Throw",
       "initiative": "Initiative Roll",
-      "deathsave": "Death Save",
       "attack": "Attack Roll",
       "damage": "Damage Roll",
-      "itemSave": "Save (Item)",
-      "hitDie": "Hit Die"
+      "itemsave": "Save (Item)",
+      "hitdie": "Hit Die"
     }
   }
 }

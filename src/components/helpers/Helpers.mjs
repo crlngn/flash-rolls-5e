@@ -2,7 +2,7 @@
  * Helper functions for the Flash Rolls 5e module
  */
 
-import { MODULE, ROLL_TYPES } from '../constants/General.mjs';
+import { MODULE, ROLL_TYPES } from '../../constants/General.mjs';
 
 /**
  * Get display name for roll type with optional details
@@ -13,8 +13,11 @@ import { MODULE, ROLL_TYPES } from '../constants/General.mjs';
 export function getRollTypeDisplay(rollType, rollKey) {
   let display = game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${rollType}`) || rollType;
   
+  // Normalize rollType to lowercase for consistent comparisons
+  const normalizedRollType = rollType?.toLowerCase();
+  
   if (rollKey) {
-    switch (rollType) {
+    switch (normalizedRollType) {
       case ROLL_TYPES.SKILL:
         display += ` (${CONFIG.DND5E.skills[rollKey]?.label || rollKey})`;
         break;

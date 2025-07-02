@@ -1,5 +1,5 @@
 import { LogUtil } from "./LogUtil.mjs";
-import { MODULE_ID } from "../constants/General.mjs";
+import { MODULE_ID, ROLL_TYPES } from "../constants/General.mjs";
 
 /**
  * GM Roll Configuration Dialog
@@ -7,17 +7,21 @@ import { MODULE_ID } from "../constants/General.mjs";
  */
 export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigurationDialog {
   constructor(config = {}, message = {}, options = {}) {
-    
     // Ensure rollType is set in options
     options.rollType = options.rollType || CONFIG.Dice.D20Roll;
     
     // D20RollConfigurationDialog expects (config, message, options)
     super(config, message, options);
     
+    const log = LogUtil.method(this, 'constructor');
+    log('initializing', [config, message, options]);
+    
     // Store GM-specific options
     this.actors = options.actors || [];
+    
     // Use defaultSendRequest if provided, otherwise use sendRequest, otherwise default to true
     this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
+    
     this.showDC = options.showDC || false;
     this.dcValue = options.dcValue || null;
   }
@@ -43,6 +47,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   _prepareConfigurationData(roll, config, dialog, message) {
+    const log = LogUtil.method(this, '_prepareConfigurationData');
+    log('preparing', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     
     // Add GM-specific data
@@ -63,6 +69,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   async _preparePartContext(partId, context, options) {
+    const log = LogUtil.method(this, '_preparePartContext');
+    log('preparing part context', [partId, context, options]);
     context = await super._preparePartContext(partId, context, options);
     
     if (partId === "configuration") {
@@ -80,6 +88,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @inheritDoc
    */
   async _onRender(context, options) {
+    const log = LogUtil.method(this, '_onRender');
+    log('rendering dialog', [context, options]);
     super._onRender(context, options);
     
     
@@ -132,6 +142,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @private
    */
   _attachButtonListeners() {
+    const log = LogUtil.method(this, '_attachButtonListeners');
+    log('attaching button listeners');
     const buttons = this.element.querySelectorAll('[data-action="advantage"], [data-action="normal"], [data-action="disadvantage"]');
     buttons.forEach(button => {
       button.addEventListener('click', (event) => {
@@ -144,6 +156,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @inheritDoc
    */
   _onChangeForm(formConfig, event) {
+    const log = LogUtil.method(this, '_onChangeForm');
+    log('form changed', [formConfig, event]);
     super._onChangeForm(formConfig, event);
     
     // Capture the current state of our custom fields before re-render
@@ -164,6 +178,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @protected
    */
   _buildConfig(config, formData, index) {
+    const log = LogUtil.method(this, '_buildConfig');
+    log('building config', [config, formData, index]);
     // Extract ability from form data if present (for skill/tool dialogs)
     const abilityFromForm = formData?.get("ability");
     const dcFromForm = formData?.get("dc");
@@ -204,6 +220,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   async _processSubmitData(event, form, formData) {
+    const log = LogUtil.method(this, '_processSubmitData');
+    log('processing submit', [event, form, formData]);
     
     await super._processSubmitData(event, form, formData);
     
@@ -235,6 +253,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @override
    */
   _finalizeRolls(action) {
+    const log = LogUtil.method(this, '_finalizeRolls');
+    log('finalizing rolls', [action]);
     
     // Let parent handle advantage/disadvantage mode
     const finalizedRolls = super._finalizeRolls(action);
@@ -261,9 +281,20 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @returns {Promise<object|null>} The configured roll data or null if cancelled
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
+    const log = LogUtil.method(GMRollConfigDialog, 'getConfiguration');
+    log('getting configuration', [actors, rollType, rollKey, options]);
+    
+    // Normalize rollType to lowercase for consistent comparisons
+    const normalizedRollType = rollType?.toLowerCase();
     
     // Determine if we should show DC field
-    const showDC = ['skill', 'save', 'savingThrow', 'ability', 'abilityCheck', 'concentration'].includes(rollType);
+    const showDC = [
+      ROLL_TYPES.SAVE,
+      ROLL_TYPES.SAVING_THROW,
+      ROLL_TYPES.ABILITY,
+      ROLL_TYPES.ABILITY_CHECK,
+      ROLL_TYPES.CONCENTRATION
+    ].includes(normalizedRollType);
     
     // Get first actor for reference
     const actor = actors[0];
@@ -271,9 +302,9 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Determine the appropriate roll class based on roll type
     let rollClass = CONFIG.Dice.D20Roll;
-    if (['damage', 'healing'].includes(rollType)) {
+    if ([ROLL_TYPES.DAMAGE, ROLL_TYPES.HEALING].includes(normalizedRollType)) {
       rollClass = CONFIG.Dice.DamageRoll || CONFIG.Dice.BasicRoll;
-    } else if (['formula', 'custom'].includes(rollType)) {
+    } else if ([ROLL_TYPES.FORMULA, ROLL_TYPES.CUSTOM].includes(normalizedRollType)) {
       rollClass = CONFIG.Dice.BasicRoll;
     }
     
@@ -295,16 +326,16 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     };
     
     // Add roll-specific data
-    switch (rollType) {
-      case 'skill':
+    switch (normalizedRollType) {
+      case ROLL_TYPES.SKILL:
         rollConfig.skill = rollKey;
         break;
-      case 'save':
-      case 'savingThrow':
+      case ROLL_TYPES.SAVE:
+      case ROLL_TYPES.SAVING_THROW:
         rollConfig.ability = rollKey;
         break;
-      case 'ability':
-      case 'abilityCheck':
+      case ROLL_TYPES.ABILITY:
+      case ROLL_TYPES.ABILITY_CHECK:
         rollConfig.ability = rollKey;
         break;
     }
@@ -326,7 +357,7 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
         rollKey,
         rollType: rollClass,  // Set the roll type class here
         window: {
-          title: GMRollConfigDialog._getRollTitle(rollType, rollKey, actor),
+          title: GMRollConfigDialog._getRollTitle(normalizedRollType, rollKey, actor),
           subtitle: actors.map(a => a.name).join(", ")
         },
         ...options
@@ -412,7 +443,7 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     }
     
     // Add ability for skills/tools if it was selected and differs from default
-    if (result.config.ability && ['skill', 'tool'].includes(rollType)) {
+    if (result.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
       // Check if this differs from the default ability for this skill/tool
       const defaultAbility = actor.system.skills?.[rollKey]?.ability || CONFIG.DND5E.skills?.[rollKey]?.ability;
       if (result.config.ability !== defaultAbility) {
@@ -432,6 +463,8 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @private
    */
   static _isPlayerOwned(actor) {
+    const log = LogUtil.method(GMRollConfigDialog, '_isPlayerOwned');
+    log('checking ownership', [actor]);
     return Object.entries(actor.ownership)
       .some(([userId, level]) => {
         const user = game.users.get(userId);
@@ -448,10 +481,15 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
    * @returns {string} The formatted title
    */
   static _getRollTitle(rollType, rollKey, actor) {
+    const log = LogUtil.method(GMRollConfigDialog, '_getRollTitle');
+    log('getting title', [rollType, rollKey, actor]);
     let title = "";
     
-    switch (rollType) {
-      case 'skill':
+    // Convert rollType to lowercase for comparison
+    const normalizedRollType = rollType?.toLowerCase();
+    
+    switch (normalizedRollType) {
+      case ROLL_TYPES.SKILL:
         const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
         // Get the default ability for this skill
         const skill = actor?.system.skills?.[rollKey];
@@ -463,20 +501,20 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
           ability: abilityLabel 
         });
         break;
-      case 'save':
-      case 'savingThrow':
+      case ROLL_TYPES.SAVE:
+      case ROLL_TYPES.SAVING_THROW:
         const saveAbility = CONFIG.DND5E.abilities[rollKey]?.label || rollKey;
         title = game.i18n.format("DND5E.SavePromptTitle", { ability: saveAbility });
         break;
-      case 'ability':
-      case 'abilityCheck':
+      case ROLL_TYPES.ABILITY:
+      case ROLL_TYPES.ABILITY_CHECK:
         const checkAbility = CONFIG.DND5E.abilities[rollKey]?.label || rollKey;
         title = game.i18n.format("DND5E.AbilityPromptTitle", { ability: checkAbility });
         break;
-      case 'concentration':
+      case ROLL_TYPES.CONCENTRATION:
         title = game.i18n.localize("DND5E.Concentration");
         break;
-      case 'tool':
+      case ROLL_TYPES.TOOL:
         const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
         let toolLabel = rollKey;
         if (toolData?.id) {
@@ -485,17 +523,17 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
         }
         title = game.i18n.format("DND5E.ToolPromptTitle", { tool: toolLabel });
         break;
-      case 'deathsave':
-      case 'deathSave':
+      case ROLL_TYPES.DEATH_SAVE:
         title = game.i18n.localize("DND5E.DeathSave");
         break;
-      case 'initiative':
-      case 'initiativeDialog':
+      case ROLL_TYPES.INITIATIVE: 
+      case ROLL_TYPES.INITIATIVE_DIALOG: // Handle alternate case
         title = game.i18n.localize("DND5E.Initiative");
         break;
       default:
         title = game.i18n.localize("DND5E.Roll");
     }
+    LogUtil.log('_getRollTitle', [normalizedRollType, title]);
     
     return title;
   }
@@ -518,10 +556,15 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     // SkillToolRollConfigurationDialog expects (config, message, options)
     super(skillConfig, message, options);
     
+    const log = LogUtil.method(this, 'constructor');
+    log('initializing skill/tool dialog', [config, message, options]);
+    
     // Store GM-specific options
     this.actors = options.actors || [];
+    
     // Use defaultSendRequest if provided, otherwise use sendRequest, otherwise default to true
     this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
+    
     this.showDC = options.showDC || false;
     this.dcValue = options.dcValue || null;
   }
@@ -539,6 +582,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   _prepareConfigurationData(roll, config, dialog, message) {
+    const log = LogUtil.method(this, '_prepareConfigurationData');
+    log('preparing skill/tool config data', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     
     // Add GM-specific data
@@ -554,6 +599,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   async _preparePartContext(partId, context, options) {
+    const log = LogUtil.method(this, '_preparePartContext');
+    log('preparing part context', [partId, context, options]);
     context = await super._preparePartContext(partId, context, options);
     
     if (partId === "configuration") {
@@ -571,6 +618,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   async _onRender(context, options) {
+    const log = LogUtil.method(this, '_onRender');
+    log('rendering dialog', [context, options]);
     super._onRender(context, options);
     
     
@@ -627,6 +676,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @private
    */
   _attachButtonListeners() {
+    const log = LogUtil.method(this, '_attachButtonListeners');
+    log('attaching button listeners');
     const buttons = this.element.querySelectorAll('[data-action="advantage"], [data-action="normal"], [data-action="disadvantage"]');
     buttons.forEach(button => {
       button.addEventListener('click', (event) => {
@@ -639,6 +690,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   _onChangeForm(formConfig, event) {
+    const log = LogUtil.method(this, '_onChangeForm');
+    log('skill/tool form changed', [formConfig, event]);
     super._onChangeForm(formConfig, event);
     
     // Capture the current state of our custom fields before re-render
@@ -664,6 +717,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @protected
    */
   _buildConfig(config, formData, index) {
+    const log = LogUtil.method(this, '_buildConfig');
+    log('building skill/tool config', [config, formData, index]);
     // Extract ability from form data if present
     const abilityFromForm = formData?.get("ability");
     const dcFromForm = formData?.get("dc");
@@ -698,6 +753,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   async _processSubmitData(event, form, formData) {
+    const log = LogUtil.method(this, '_processSubmitData');
+    log('processing skill/tool submit', [event, form, formData]);
     
     await super._processSubmitData(event, form, formData);
     
@@ -725,6 +782,8 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @inheritDoc
    */
   _finalizeRolls(action) {
+    const log = LogUtil.method(this, '_finalizeRolls');
+    log('finalizing skill/tool rolls', [action]);
     
     // Let parent handle advantage/disadvantage mode
     const finalizedRolls = super._finalizeRolls(action);
@@ -751,8 +810,14 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
    * @returns {Promise<object|null>} The configured roll data or null if cancelled
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
+    const log = LogUtil.method(GMSkillToolConfigDialog, 'getConfiguration');
+    log('getting skill/tool configuration', [actors, rollType, rollKey, options]);
+    
+    // Normalize rollType to lowercase for consistent comparisons
+    const normalizedRollType = rollType?.toLowerCase();
+    
     // Determine if we should show DC field
-    const showDC = ['skill', 'tool'].includes(rollType);
+    const showDC = [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType);
     
     // Get first actor for reference
     const actor = actors[0];
@@ -763,10 +828,10 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     
     // Get the default ability for the skill or tool
     let defaultAbility = null;
-    if (rollType === 'skill') {
+    if (normalizedRollType === ROLL_TYPES.SKILL) {
       const skill = actor.system.skills[rollKey];
       defaultAbility = skill?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
-    } else if (rollType === 'tool') {
+    } else if (normalizedRollType === ROLL_TYPES.TOOL) {
       // For tools, check if the actor has a specific ability set for this tool
       const tool = actor.system.tools?.[rollKey];
       defaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
@@ -786,9 +851,9 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     };
     
     // Add the appropriate property for skill or tool
-    if (rollType === 'skill') {
+    if (normalizedRollType === ROLL_TYPES.SKILL) {
       rollConfig.skill = rollKey;
-    } else if (rollType === 'tool') {
+    } else if (normalizedRollType === ROLL_TYPES.TOOL) {
       rollConfig.tool = rollKey;
     }
     
@@ -809,7 +874,7 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
         rollKey,
         rollType: rollClass,  // Set the roll type class here
         window: {
-          title: GMRollConfigDialog._getRollTitle(rollType, rollKey, actor),
+          title: GMRollConfigDialog._getRollTitle(normalizedRollType, rollKey, actor),
           subtitle: actors.map(a => a.name).join(", ")
         },
         ...options
@@ -879,7 +944,7 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
     }
     
     // Add ability if it was selected (always include for skills/tools to ensure proper dialog display)
-    if (result.config.ability && ['skill', 'tool'].includes(rollType)) {
+    if (result.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
       finalConfig.ability = result.config.ability;
     }
     

@@ -52,4 +52,52 @@ export class LogUtil {
     }
     if(options.console) console.error(...DEBUG_TAG, strRef);
   }
+
+  /**
+   * Logs with automatic method name detection
+   * Creates a logging function that automatically includes the class and method name
+   * @param {Object} classInstance - The class instance (use 'this' for instance methods, or the class itself for static methods)
+   * @param {string} methodName - The method name
+   * @returns {Function} A logging function that includes the method name
+   * @example
+   * // In a class method:
+   * const log = LogUtil.method(this, 'myMethod');
+   * log('some data', [data1, data2]);
+   * 
+   * // In a static method:
+   * const log = LogUtil.method(MyClass, 'myStaticMethod');
+   * log('some data', [data1, data2]);
+   */
+  static method(classInstance, methodName) {
+    const className = classInstance.constructor?.name || classInstance.name || 'Unknown';
+    const fullMethodName = `${className}.${methodName}`;
+    
+    return (ref = "", data = [], bypassSettings = false) => {
+      const fullRef = ref ? `${fullMethodName} - ${ref}` : fullMethodName;
+      this.log(fullRef, data, bypassSettings);
+    };
+  }
+
+  /**
+   * Decorator function to automatically log method entry
+   * @param {Function} method - The method to wrap
+   * @param {string} className - The class name
+   * @param {string} methodName - The method name
+   * @returns {Function} The wrapped method
+   * @example
+   * // Define once at class level:
+   * static _getRollTitle = LogUtil.traced(
+   *   function(rollType, rollKey, actor) {
+   *     // method implementation
+   *   },
+   *   'GMRollConfigDialog',
+   *   '_getRollTitle'
+   * );
+   */
+  static traced(method, className, methodName) {
+    return function(...args) {
+      LogUtil.log(`${className}.${methodName}`, ['called with args:', args]);
+      return method.apply(this, args);
+    };
+  }
 }

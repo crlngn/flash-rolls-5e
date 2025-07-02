@@ -17,7 +17,10 @@ export class ActivityUtil {
     
     const activities = item.system.activities;
     
-    switch (rollType) {
+    // Normalize rollType to lowercase for consistent comparisons
+    const normalizedRollType = rollType?.toLowerCase();
+    
+    switch (normalizedRollType) {
       case ROLL_TYPES.ATTACK:
         const attackActivities = activities.getByType("attack");
         return attackActivities?.[0] || null;
@@ -62,6 +65,8 @@ export class ActivityUtil {
    * @returns {boolean} - Whether the item has suitable activities
    */
   static hasActivityForRoll(item, rollType) {
+    const log = LogUtil.method(ActivityUtil, 'hasActivityForRoll');
+    log('checking activity', [item, rollType]);
     return !!this.findActivityForRoll(item, rollType);
   }
   
@@ -74,6 +79,8 @@ export class ActivityUtil {
    * @param {Object} config - Roll configuration
    */
   static async executeActivityRoll(actor, rollType, itemId, activityId, config) {
+    const log = LogUtil.method(ActivityUtil, 'executeActivityRoll');
+    log('executing activity roll', [actor, rollType, itemId, activityId, config]);
     const item = actor.items.get(itemId);
     if (!item) {
       throw new Error(`Item ${itemId} not found on actor ${actor.name}`);
@@ -93,9 +100,12 @@ export class ActivityUtil {
       activity = this.findActivityForRoll(item, rollType);
     }
     
+    // Normalize rollType to lowercase for consistent comparisons
+    const normalizedRollType = rollType?.toLowerCase();
+    
     // Execute the roll based on type
     if (activity) {
-      switch (rollType) {
+      switch (normalizedRollType) {
         case ROLL_TYPES.ATTACK:
           const dialogConfig = {
             configure: true  // Always true for players receiving roll requests
@@ -128,12 +138,12 @@ export class ActivityUtil {
           return await item.use({ activity: activity.id }, { skipDialog: config.fastForward });
           
         default:
-          throw new Error(`Unknown roll type: ${rollType}`);
+          throw new Error(`Unknown roll type: ${normalizedRollType}`);
       }
     } else {
       // Fallback to legacy methods if no activity found
       
-      switch (rollType) {
+      switch (normalizedRollType) {
         case ROLL_TYPES.ATTACK:
           if (item.rollAttack) {
             return await item.rollAttack(config);
@@ -151,7 +161,7 @@ export class ActivityUtil {
           return await item.use({}, { skipDialog: config.fastForward });
       }
       
-      throw new Error(`No suitable method found for ${rollType} on item ${item.name}`);
+      throw new Error(`No suitable method found for ${normalizedRollType} on item ${item.name}`);
     }
   }
   
@@ -161,6 +171,8 @@ export class ActivityUtil {
    * @returns {Object} - Display information
    */
   static getActivityDisplayInfo(activity) {
+    const log = LogUtil.method(ActivityUtil, 'getActivityDisplayInfo');
+    log('getting activity display info', [activity]);
     if (!activity) return null;
     
     return {
@@ -179,6 +191,8 @@ export class ActivityUtil {
    * @returns {string|null} - Combined damage formula or null
    */
   static getDamageFormula(activity) {
+    const log = LogUtil.method(ActivityUtil, 'getDamageFormula');
+    log('getting damage formula', [activity]);
     if (!activity?.damage?.parts?.length) return null;
     
     // Extract all damage formulas and combine them
@@ -187,6 +201,8 @@ export class ActivityUtil {
   }
 
   static async syntheticItemRoll(item, config = {}) {
+    const log = LogUtil.method(ActivityUtil, 'syntheticItemRoll');
+    log('performing synthetic item roll', [item, config]);
     let defaultConfig = {
         consumeUsage: false,
         consumeSpellSlot: false

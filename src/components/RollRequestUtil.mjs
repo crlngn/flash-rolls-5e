@@ -13,6 +13,8 @@ export class RollRequestUtil {
    * @param {Object} requestData - The roll request data
    */
   static async handleRequest(requestData) {
+    const log = LogUtil.method(RollRequestUtil, 'handleRequest');
+    log('handling roll request', [requestData]);
     // Only handle on player side
     if (game.user.isGM) return;
     
@@ -50,7 +52,12 @@ export class RollRequestUtil {
    * @param {Object} requestData 
    */
   static async executeRequest(actor, requestData) {
+    const log = LogUtil.method(RollRequestUtil, 'executeRequest');
+    log('executing roll request', [actor, requestData]);
     try {
+      // Normalize rollType to lowercase for consistent comparisons
+      const normalizedRollType = requestData.rollType?.toLowerCase();
+      
       const rollConfig = {
         advantage: requestData.config.advantage || false,
         disadvantage: requestData.config.disadvantage || false,
@@ -66,7 +73,7 @@ export class RollRequestUtil {
       }
       
       // Add ability for skills/tools if provided
-      if (requestData.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(requestData.rollType)) {
+      if (requestData.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
         rollConfig.ability = requestData.config.ability;
       }
       
@@ -78,7 +85,7 @@ export class RollRequestUtil {
                          requestData.config.disadvantage ? 'disadvantage' : 'normal',
           // Add dialog window configuration
           window: {
-            title: requestData.config.rollTitle || getRollTypeDisplay(requestData.rollType, requestData.rollKey),
+            title: requestData.config.rollTitle || getRollTypeDisplay(normalizedRollType, requestData.rollKey),
             subtitle: actor.name
           }
         }
@@ -91,15 +98,20 @@ export class RollRequestUtil {
       };
       
       // Use the roll handler for the requested roll type
-      const handler = ROLL_HANDLERS[requestData.rollType];
+      const handler = ROLL_HANDLERS[normalizedRollType];
       if (handler) {
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
-        LogUtil.warn(`No handler found for roll type: ${requestData.rollType}`);
-        NotificationManager.notify('warn', game.i18n.localize('CRLNGN_ROLL_REQUESTS.notifications.rollError'));
+        LogUtil.warn(`No handler found for roll type: ${normalizedRollType}`);
+        NotificationManager.notify('warn', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
+          actor: actor.name || 'Unknown Actor'
+        }));
       }
     } catch (error) {
-      NotificationManager.notify('error', game.i18n.localize('CRLNGN_ROLL_REQUESTS.notifications.rollError'));
+      LogUtil.error('Error executing roll request:', error);
+      NotificationManager.notify('error', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
+        actor: actor.name || 'Unknown Actor'
+      }));
     }
   }
 }
