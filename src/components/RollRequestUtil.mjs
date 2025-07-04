@@ -54,6 +54,15 @@ export class RollRequestUtil {
   static async executeRequest(actor, requestData) {
     const log = LogUtil.method(RollRequestUtil, 'executeRequest');
     log('executing roll request', [actor, requestData]);
+    
+    // Debug logging for hit die rolls
+    LogUtil.log('RollRequestUtil.executeRequest - Debug', {
+      rollType: requestData.rollType,
+      rollKey: requestData.rollKey,
+      actorName: actor.name,
+      handlers: Object.keys(ROLL_HANDLERS)
+    });
+    
     try {
       // Normalize rollType to lowercase for consistent comparisons
       const normalizedRollType = requestData.rollType?.toLowerCase();
@@ -96,6 +105,16 @@ export class RollRequestUtil {
         rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
         create: requestData.config.chatMessage !== false
       };
+      
+      // Debug logging for hit die
+      if (normalizedRollType === 'hitdie' || normalizedRollType === 'hit_die') {
+        LogUtil.log('RollRequestUtil - Hit Die Debug', {
+          normalizedRollType,
+          requestData,
+          rollConfig,
+          handlers: Object.keys(ROLL_HANDLERS)
+        });
+      }
       
       // Use the roll handler for the requested roll type
       const handler = ROLL_HANDLERS[normalizedRollType];

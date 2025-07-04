@@ -4,10 +4,10 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './GMRollConfigDialog.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
 import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership } from './helpers/Helpers.mjs';
-import { LOCAL_ROLL_HANDLERS } from './helpers/LocalRollHandlers.mjs';
+import { ROLL_HANDLERS } from './helpers/RollHandlers.mjs';
 import { CustomRollDialog } from './CustomRollDialog.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 
@@ -637,7 +637,14 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Show GM configuration dialog (unless skip dialogs is enabled or it's a custom roll)
     if (!skipDialogs && rollMethodName !== ROLL_TYPES.CUSTOM) {
       // Use appropriate dialog based on roll type
-      const DialogClass = [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
+      let DialogClass;
+      if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName)) {
+        DialogClass = GMSkillToolConfigDialog;
+      } else if (rollMethodName === ROLL_TYPES.HIT_DIE) {
+        DialogClass = GMHitDieConfigDialog;
+      } else {
+        DialogClass = GMRollConfigDialog;
+      }
       const config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
         skipDialogs,
         defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
@@ -828,6 +835,34 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       rollType = ROLL_TYPES.INITIATIVE;
     }
     
+    // Special handling for Hit Die rolls - get the denomination from the actor
+    if (normalizedRequestType === ROLL_TYPES.HIT_DIE) {
+      // Get the first available hit die denomination for this actor
+      const hdData = actor.system.attributes.hd;
+      if (hdData) {
+        // Find the first denomination with available uses
+        const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
+        for (const denom of denominations) {
+          const available = hdData[denom]?.value || 0;
+          if (available > 0) {
+            rollKey = denom;
+            break;
+          }
+        }
+      }
+      if (!rollKey) {
+        // No hit dice available
+        return;
+      }
+    }
+    
+    LogUtil.log('_sendRollRequestToPlayer - Hit Die Debug', {
+      normalizedRequestType,
+      rollType,
+      rollKey,
+      actor: actor.name
+    });
+    
     // Build the request data according to Phase 1 spec
     const requestData = {
       type: "rollRequest",
@@ -846,7 +881,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         target: config.target,  // DC value if provided
         ability: config.ability,  // Ability override for skills/tools
         attackMode: config.attackMode,  // Attack mode for attack rolls
-        rollTitle: config.rollTitle  // Title from the dialog window
+        rollTitle: config.rollTitle,  // Title from the dialog window
+        requestedBy: game.user.name  // Who requested the roll
       },
       skipDialog: config.skipDialog || false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
@@ -970,10 +1006,50 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
       
-      // Use the local roll handler for the requested roll type
-      const handler = LOCAL_ROLL_HANDLERS[normalizedType];
+      // Special handling for Hit Die rolls - get the denomination from the actor
+      let actualRollKey = rollKey;
+      if (normalizedType === ROLL_TYPES.HIT_DIE) {
+        // Get the first available hit die denomination for this actor
+        const hdData = actor.system.attributes.hd;
+        if (hdData) {
+          // Find the first denomination with available uses
+          const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
+          for (const denom of denominations) {
+            const available = hdData[denom]?.value || 0;
+            if (available > 0) {
+              actualRollKey = denom;
+              break;
+            }
+          }
+        }
+        if (!actualRollKey) {
+          // No hit dice available
+          NotificationManager.notify('warn', game.i18n.format("DND5E.HitDiceWarn", { name: actor.name }));
+          return;
+        }
+      }
+      
+      // Build requestData structure expected by ROLL_HANDLERS
+      const requestData = {
+        rollKey: actualRollKey,
+        config: config
+      };
+      
+      // Dialog configuration
+      const dialogConfig = {
+        configure: !config.fastForward && !config.skipDialog
+      };
+      
+      // Message configuration
+      const messageConfig = {
+        rollMode: config.rollMode || game.settings.get("core", "rollMode"),
+        create: config.chatMessage !== false
+      };
+      
+      // Use the roll handler for the requested roll type
+      const handler = ROLL_HANDLERS[normalizedType];
       if (handler) {
-        await handler(actor, rollKey, config);
+        await handler(actor, requestData, config, dialogConfig, messageConfig);
       } else {
         NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);
       }

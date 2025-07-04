@@ -5,7 +5,7 @@ import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { MODULE_ID, ROLL_TYPES } from '../constants/General.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './GMRollConfigDialog.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -43,6 +43,7 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._handlePreRoll.bind(this, ROLL_TYPES.ATTACK));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DAMAGE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DEATH_SAVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.HIT_DIE));
     
@@ -83,9 +84,32 @@ export class RollInterceptor {
   static _handlePreRoll(rollType, config, dialog, message) {
     const log = LogUtil.method(RollInterceptor, '_handlePreRoll');
     log('handling pre-roll', [rollType, config, dialog, message]);
+    
+    // Add detailed logging for initiative debugging
+    if (rollType === ROLL_TYPES.INITIATIVE || rollType === ROLL_TYPES.ABILITY) {
+      LogUtil.log('RollInterceptor._handlePreRoll - Initiative/Ability Debug', {
+        rollType,
+        configType: config?.constructor?.name,
+        configAbility: config?.ability,
+        configSubject: config?.subject,
+        isActor: config instanceof Actor,
+        configKeys: config ? Object.keys(config) : []
+      });
+    }
     // Only intercept on GM side
     if (!game.user.isGM) return;
     
+    
+    // Check for initiativeDialog in hookNames - this indicates an initiative roll
+    // even if it's being processed as an ability check
+    const hookNames = config?.hookNames || dialog?.hookNames || message?.hookNames || [];
+    const isInitiativeRoll = hookNames.includes('initiativeDialog') || hookNames.includes('initiative');
+    
+    // Override rollType if this is actually an initiative roll
+    if (isInitiativeRoll && rollType === ROLL_TYPES.ABILITY) {
+      LogUtil.log('RollInterceptor._handlePreRoll - Overriding ability to initiative', { hookNames });
+      rollType = ROLL_TYPES.INITIATIVE;
+    }
     
     // Special handling for initiative - first parameter is the actor
     let actor;
@@ -151,12 +175,30 @@ export class RollInterceptor {
   static async _showGMConfigDialog(actor, owner, rollType, config, dialog, message) {
     const log = LogUtil.method(RollInterceptor, '_showGMConfigDialog');
     log('showing GM config dialog', [actor, owner, rollType, config, dialog, message]);
+    
+    // Log detailed config information
+    LogUtil.log('RollInterceptor._showGMConfigDialog - Detailed config', {
+      rollType,
+      configAbility: config?.ability,
+      configSubject: config?.subject,
+      configSubjectAbility: config?.subject?.ability,
+      configSkill: config?.skill,
+      configTool: config?.tool,
+      fullConfig: config
+    });
     try {
       // Normalize rollType to lowercase for consistent comparisons
       const normalizedRollType = rollType?.toLowerCase();
       
       // Determine appropriate dialog class based on roll type
-      const DialogClass = [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType) ? GMSkillToolConfigDialog : GMRollConfigDialog;
+      let DialogClass;
+      if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
+        DialogClass = GMSkillToolConfigDialog;
+      } else if (normalizedRollType === ROLL_TYPES.HIT_DIE) {
+        DialogClass = GMHitDieConfigDialog;
+      } else {
+        DialogClass = GMRollConfigDialog;
+      }
       
       // Create base roll config based on roll type
       let rollConfig = {
@@ -190,29 +232,96 @@ export class RollInterceptor {
         case ROLL_TYPES.CONCENTRATION:
           rollConfig.ability = 'con';
           break;
+        case ROLL_TYPES.INITIATIVE:
+          // Initiative rolls don't need special config
+          // The dialog will handle getting the initiative ability
+          break;
+        case ROLL_TYPES.HIT_DIE:
+          // Hit die rolls need the denomination
+          rollConfig.denomination = config.denomination || config.subject?.denomination;
+          break;
       }
+      
+      // Check if we should skip dialogs
+      const SETTINGS = getSettings();
+      const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
       
       const options = {
         actors: [actor],
         rollType: normalizedRollType,
         showDC: true,
         defaultSendRequest: true,
-        skipDialogs: false
+        skipDialogs: skipDialogs
       };
       
-      // Create and render the GM dialog
-      const gmDialog = new DialogClass(rollConfig, {}, options);
-      const result = await gmDialog.render(true);
-      
-      
-      // If dialog was cancelled or sendRequest is false, allow normal roll
-      if (!result || !result.sendRequest) {
+      let result;
+      if (!skipDialogs) {
+        // Extract roll key based on roll type
+        let rollKey = null;
+        switch (normalizedRollType) {
+          case ROLL_TYPES.SKILL:
+            rollKey = config.skill;
+            break;
+          case ROLL_TYPES.TOOL:
+            rollKey = config.tool;
+            break;
+          case ROLL_TYPES.ABILITY:
+          case ROLL_TYPES.SAVE:
+            rollKey = config.ability || config.subject?.ability;
+            break;
+          case ROLL_TYPES.CONCENTRATION:
+            rollKey = 'con'; // Concentration is always Constitution
+            break;
+          case ROLL_TYPES.INITIATIVE:
+            rollKey = actor.system.attributes?.init?.ability || 'dex'; // Default to dexterity
+            break;
+        }
         
+        // Log the data being passed to the dialog
+        LogUtil.log('RollInterceptor._showGMConfigDialog - Calling getConfiguration', {
+          actor: actor.name,
+          normalizedRollType,
+          rollKey,
+          config,
+          DialogClass: DialogClass.name
+        });
+        
+        // Use the static getConfiguration method which properly waits for dialog result
+        result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
+          skipDialogs: false,
+          defaultSendRequest: true
+        });
+      } else {
+        // Skip dialog and use default config
+        result = {
+          sendRequest: true,
+          advantage: false,
+          disadvantage: false,
+          situational: "",
+          rollMode: game.settings.get("core", "rollMode")
+        };
+      }
+      
+      
+      // If dialog was cancelled, do nothing (user cancelled the action)
+      if (!result) {
+        LogUtil.log('RollInterceptor._showGMConfigDialog - Dialog cancelled');
+        return;
+      }
+      
+      LogUtil.log('RollInterceptor._showGMConfigDialog - Dialog result', {
+        sendRequest: result.sendRequest,
+        rollType: normalizedRollType,
+        result
+      });
+      
+      // If sendRequest is false, execute local roll
+      if (!result.sendRequest) {
         // Re-create the roll with the original method
         // We need to return true from _handlePreRoll to allow the original roll to proceed
         // But we can't do that from here since we already returned false
         // Instead, we'll execute the roll ourselves with the updated config
-        await this._executeLocalRoll(actor, rollType, config, result || {});
+        await this._executeLocalRoll(actor, rollType, config, result);
         return;
       }
       
@@ -281,6 +390,16 @@ export class RollInterceptor {
           break;
         case ROLL_TYPES.CONCENTRATION:
           await actor.rollConcentration(config, dialogConfig, messageConfig);
+          break;
+        case ROLL_TYPES.INITIATIVE:
+          await actor.rollInitiative(config, dialogConfig, messageConfig);
+          break;
+        case ROLL_TYPES.DEATH_SAVE:
+          await actor.rollDeathSave(config, dialogConfig, messageConfig);
+          break;
+        case ROLL_TYPES.HIT_DIE:
+          // Hit die rolls need the denomination parameter
+          await actor.rollHitDie(originalConfig.denomination, config, dialogConfig, messageConfig);
           break;
         // Add other roll types as needed
       }
@@ -367,7 +486,13 @@ export class RollInterceptor {
     const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
     
     // Normalize rollType to lowercase for consistent comparisons
-    const normalizedRollType = rollType?.toLowerCase();
+    let normalizedRollType = rollType?.toLowerCase();
+    
+    // Convert INITIATIVE to INITIATIVE_DIALOG for player requests
+    // This ensures players get the proper dialog when GM intercepts initiative rolls
+    if (normalizedRollType === ROLL_TYPES.INITIATIVE) {
+      normalizedRollType = ROLL_TYPES.INITIATIVE_DIALOG;
+    }
     
     // Extract the roll key based on roll type
     let rollKey = null;
@@ -397,6 +522,15 @@ export class RollInterceptor {
       case ROLL_TYPES.HIT_DIE:
         rollKey = config.denomination;
         break;
+      case ROLL_TYPES.INITIATIVE_DIALOG:
+      case ROLL_TYPES.INITIATIVE:
+        // Initiative doesn't need a specific rollKey
+        rollKey = null;
+        break;
+      case ROLL_TYPES.DEATH_SAVE:
+        // Death save doesn't need a specific rollKey
+        rollKey = null;
+        break;
       default:
         // Unknown roll type
         LogUtil.warn(`Unknown roll type: ${rollType}`);
@@ -423,7 +557,10 @@ export class RollInterceptor {
       flavor: config.flavor,
       title: config.title,
       dialogOptions: config.dialogOptions,
-      messageData: config.messageData
+      messageData: config.messageData,
+      ability: config.ability, // Include ability for skill/tool rolls
+      denomination: config.denomination, // Include denomination for hit die rolls
+      requestedBy: config.requestedBy || game.user.name // Include who requested the roll
     };
     
     // Remove undefined values
@@ -446,6 +583,17 @@ export class RollInterceptor {
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
+    
+    // Debug logging for hit die
+    if (normalizedRollType === ROLL_TYPES.HIT_DIE) {
+      LogUtil.log('RollInterceptor._sendRollRequest - Hit Die Debug', {
+        actor: actor.name,
+        owner: owner.name,
+        rollType: normalizedRollType,
+        rollKey,
+        requestData
+      });
+    }
     
     // Send request to player via socket
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);

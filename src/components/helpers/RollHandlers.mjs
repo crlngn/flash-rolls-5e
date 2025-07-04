@@ -256,7 +256,8 @@ export const ROLL_HANDLERS = {
     const rollOptions = actor.getInitiativeRollConfig(rollConfig);
     RollHelpers.addSituationalBonus(rollOptions, requestData.config.situational);
     
-    await actor.rollInitiativeDialog(rollOptions);
+    // Use rollInitiative instead of rollInitiativeDialog since we handle dialog separately
+    await actor.rollInitiative(rollOptions);
   },
   
   // Alias for INITIATIVE_DIALOG
@@ -272,8 +273,16 @@ export const ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.HIT_DIE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    rollConfig.denomination = requestData.rollKey;
-    await actor.rollHitDie(rollConfig, dialogConfig, messageConfig);
+    LogUtil.log('HIT_DIE handler called', {
+      actor: actor.name,
+      requestData,
+      rollConfig,
+      dialogConfig,
+      messageConfig
+    });
+    const denomination = requestData.rollKey;
+    // rollHitDie expects denomination as first parameter
+    await actor.rollHitDie(denomination, rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.CUSTOM]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {

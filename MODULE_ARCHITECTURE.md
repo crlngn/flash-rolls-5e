@@ -14,8 +14,8 @@ The module follows a modular architecture with clear separation of concerns:
 
 ### Helper Components
 - **helpers/Helpers.mjs**: General utility functions, presentation utilities
-- **helpers/RollHandlers.mjs**: Roll type handlers and configuration helpers
-- **helpers/LocalRollHandlers.mjs**: Local NPC roll handlers
+- **helpers/RollHandlers.mjs**: Roll type handlers and configuration helpers (used for both player and local rolls)
+- **helpers/RollValidationHelpers.mjs**: Roll validation utilities (combat, initiative, death saves)
 
 ### Utility Components
 - **DiceConfigUtil.mjs**: Dice configuration management
@@ -28,6 +28,7 @@ The module follows a modular architecture with clear separation of concerns:
 ### UI Components
 - **RollRequestsMenu.mjs**: GM interface for roll requests
 - **GMRollConfigDialog.mjs**: Extended roll configuration dialogs
+- **CustomRollDialog.mjs**: Custom roll formula dialog
 
 ## Core Components
 
@@ -244,7 +245,8 @@ Centralized notification system with batching support:
   - Uses NotificationManager for consolidated notifications
 
 - **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single NPC roll
-  - Uses LOCAL_ROLL_HANDLERS for all roll types
+  - Builds requestData structure for ROLL_HANDLERS
+  - Uses ROLL_HANDLERS for all roll types (same as player rolls)
   - Delegates to appropriate handler based on requestType
   - Uses NotificationManager for error handling
 
@@ -283,34 +285,6 @@ Centralized notification system with batching support:
   - Sets isRollRequest flags to prevent re-interception
   - Calls appropriate actor roll method
 
-### 15. helpers/LocalRollHandlers.mjs
-**Purpose**: Handles local NPC rolls executed by the GM
-
-#### LocalRollHelpers Object
-Static helper functions for local roll configuration:
-
-- **`buildAbilityCheckConfig(rollKey, config)`**: Builds ability check configuration
-  - Used by ability checks and saving throws
-  - Returns array: [rollConfig, dialogConfig, messageConfig]
-
-- **`buildSkillCheckConfig(rollKey, config)`**: Builds skill check configuration
-  - Handles ability selection and choice
-  - Adds custom flavor text
-
-- **`buildToolCheckConfig(rollKey, config)`**: Builds tool check configuration
-  - Similar to skill checks with tool-specific handling
-  - Uses enrichmentLookup for tool names
-
-#### LOCAL_ROLL_HANDLERS Object
-Map of local roll type handlers:
-- `abilitycheck`: Ability check handler
-- `savingthrow`: Saving throw handler
-- `skill`: Skill check handler
-- `tool`: Tool check handler
-- `concentration`: Concentration handler
-- `initiativedialog`: Initiative handler with combat check
-- `deathsave`: Death save handler
-- `custom`: Custom formula handler
 
 - **`_getActorOwner(actor)`**: Finds the player owner of an actor
   - Returns first non-GM user with OWNER permission
@@ -321,7 +295,21 @@ Map of local roll type handlers:
   - Sends via SocketUtil
   - Shows GM notification
 
-### 8. GMRollConfigDialog.mjs
+### 8. helpers/RollValidationHelpers.mjs
+**Purpose**: Roll validation utilities for combat, initiative, and death saves
+
+#### Methods
+- **`ensureCombatForInitiative()`**: Ensures combat exists before rolling initiative
+  - Shows dialog if no combat active
+  - Creates combat encounter if user confirms
+  - Returns boolean indicating if combat is ready
+
+- **`filterActorsForInitiative(actors)`**: Filters actors for initiative rolls
+  - Separates actors that already have initiative
+  - Shows dialog if some actors have initiative
+  - Returns filtered array of actors to roll for
+
+### 9. GMRollConfigDialog.mjs
 **Purpose**: Extended D&D5e roll configuration dialogs for GM use
 
 #### GMRollConfigDialog Class
@@ -353,7 +341,7 @@ Extends D&D5e's D20RollConfigurationDialog
 #### GMSkillToolConfigDialog Class
 Extends GMRollConfigDialog for skill/tool specific handling
 
-### 9. SocketUtil.mjs
+### 10. SocketUtil.mjs
 **Purpose**: Wrapper around socketlib for socket communication
 
 #### Properties
@@ -373,7 +361,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`execForEveryone(callName, ...args)`**: Executes method on all clients
 
-### 10. SettingsUtil.mjs
+### 11. SettingsUtil.mjs
 **Purpose**: Module settings management
 
 #### Methods
@@ -390,7 +378,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`toggle(key)`**: Toggles a boolean setting
 
-### 11. LogUtil.mjs
+### 12. LogUtil.mjs
 **Purpose**: Debug logging utility
 
 #### Methods
@@ -398,7 +386,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
   - Only logs if debugMode is enabled or force=true
   - Formats output with timestamp and module prefix
 
-### 12. ActivityUtil.mjs
+### 13. ActivityUtil.mjs
 **Purpose**: Handles D&D5e activity-based rolls (attacks, damage, etc.)
 
 #### Methods
@@ -407,7 +395,7 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`executeActivityRoll(actor, rollType, itemId, activityId, config)`**: Executes activity-based roll
 
-### 13. helpers/RollHandlers.mjs
+### 14. helpers/RollHandlers.mjs
 **Purpose**: Centralized roll handling logic with reusable helpers
 
 #### RollHelpers Object
@@ -444,7 +432,41 @@ Map of roll type handlers, each as an async function:
 - `[ROLL_TYPES.HIT_DIE]`: Hit die handler
 - `[ROLL_TYPES.CUSTOM]`: Custom roll handler
 
-### 14. SidebarUtil.mjs
+### 15. CustomRollDialog.mjs
+**Purpose**: ApplicationV2 dialog for custom roll formulas
+
+#### Properties
+- `formula`: The roll formula
+- `readonly`: Whether formula is read-only
+- `actor`: Actor performing the roll
+- `callback`: Function to call on roll
+- `diceCounts`: Map for dice consolidation
+
+#### Methods
+- **`addDie(event, target)`**: Adds die to formula with consolidation
+  - Parses existing formula for dice expressions
+  - Consolidates multiple dice of same type (e.g., 1d6 + 1d6 + 1d6 → 3d6)
+  - Updates formula input
+
+- **`validateFormula(formula)`**: Validates roll formula
+  - Uses Roll.validate when available
+  - Falls back to creating test roll
+  - Returns boolean validity
+
+- **`updateValidationMessage(messageElement)`**: Updates validation UI
+  - Shows success/error state
+  - Updates localized message text
+
+- **`rollDice()`**: Executes the roll
+  - Validates formula
+  - Calls callback if provided
+  - Closes dialog
+
+- **`prompt(options)`**: Static method for showing dialog
+  - Returns promise resolving to formula or null
+  - Handles dialog cancellation
+
+### 16. SidebarUtil.mjs
 **Purpose**: Manages sidebar controls to avoid circular dependencies
 
 #### Methods

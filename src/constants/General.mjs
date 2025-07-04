@@ -87,7 +87,7 @@ export const ROLL_TYPES = {
   INITIATIVE: "initiative",
   INITIATIVE_DIALOG: "initiativedialog",
   DEATH_SAVE: "deathsave",
-  HIT_DIE: "hitDie",
+  HIT_DIE: "hitdie",
   ITEM_SAVE: "itemSave",
   CUSTOM: "custom",
   HEALING: "healing",
@@ -102,8 +102,9 @@ export const ROLL_REQUEST_OPTIONS = {
   CONCENTRATION: { name: ROLL_TYPES.CONCENTRATION, label: "Concentration Check", subList: null, actorPath: '' },
   INITIATIVE: { name: ROLL_TYPES.INITIATIVE_DIALOG, label: "Initiative Roll", subList: null, actorPath: '' },
   DEATH_SAVE: { name: ROLL_TYPES.DEATH_SAVE, label: "Death Save", subList: null, actorPath: '' },
+  // ITEM_SAVE: { name: ROLL_TYPES.ITEM_SAVE, label: "Item Save", subList: null, actorPath: '' },
+  HIT_DIE: { name: ROLL_TYPES.HIT_DIE, label: "Hit Die", subList: null, actorPath: '' },
   CUSTOM: { name: ROLL_TYPES.CUSTOM, label: "Custom Roll", subList: null, actorPath: '' },
-  // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
 }
 
 /**

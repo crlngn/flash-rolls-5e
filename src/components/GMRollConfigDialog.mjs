@@ -284,6 +284,20 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     const log = LogUtil.method(GMRollConfigDialog, 'getConfiguration');
     log('getting configuration', [actors, rollType, rollKey, options]);
     
+    // Log detailed information about what we're receiving
+    LogUtil.log('GMRollConfigDialog.getConfiguration - Detailed input', {
+      actorNames: actors.map(a => a.name),
+      rollType,
+      rollKey,
+      options,
+      firstActorData: actors[0] ? {
+        name: actors[0].name,
+        abilities: Object.keys(actors[0].system.abilities || {}),
+        skills: Object.keys(actors[0].system.skills || {}),
+        initAbility: actors[0].system.attributes?.init?.ability
+      } : null
+    });
+    
     // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
     
@@ -304,7 +318,7 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     let rollClass = CONFIG.Dice.D20Roll;
     if ([ROLL_TYPES.DAMAGE, ROLL_TYPES.HEALING].includes(normalizedRollType)) {
       rollClass = CONFIG.Dice.DamageRoll || CONFIG.Dice.BasicRoll;
-    } else if ([ROLL_TYPES.FORMULA, ROLL_TYPES.CUSTOM].includes(normalizedRollType)) {
+    } else if ([ROLL_TYPES.FORMULA, ROLL_TYPES.CUSTOM, ROLL_TYPES.HIT_DIE].includes(normalizedRollType)) {
       rollClass = CONFIG.Dice.BasicRoll;
     }
     
@@ -337,6 +351,12 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       case ROLL_TYPES.ABILITY:
       case ROLL_TYPES.ABILITY_CHECK:
         rollConfig.ability = rollKey;
+        break;
+      case ROLL_TYPES.HIT_DIE:
+        // For hit die, use a placeholder formula since actual denomination varies by actor
+        // We'll show "Hit Die" in the formula display
+        rollConfig.rolls[0].parts = [];
+        rollConfig.rolls[0].options.flavor = "Hit Die Roll";
         break;
     }
     
@@ -483,10 +503,26 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   static _getRollTitle(rollType, rollKey, actor) {
     const log = LogUtil.method(GMRollConfigDialog, '_getRollTitle');
     log('getting title', [rollType, rollKey, actor]);
+    
+    // Log detailed information about title generation
+    LogUtil.log('GMRollConfigDialog._getRollTitle - Detailed', {
+      rollType,
+      rollKey,
+      actorName: actor?.name,
+      actorAbilities: actor?.system?.abilities ? Object.keys(actor.system.abilities) : [],
+      actorSkills: actor?.system?.skills ? Object.keys(actor.system.skills) : [],
+      actorInitAbility: actor?.system?.attributes?.init?.ability
+    });
+    
     let title = "";
     
     // Convert rollType to lowercase for comparison
     const normalizedRollType = rollType?.toLowerCase();
+    
+    // Log if rollKey is missing for certain types
+    if ([ROLL_TYPES.SAVE, ROLL_TYPES.ABILITY, ROLL_TYPES.ABILITY_CHECK].includes(normalizedRollType) && !rollKey) {
+      LogUtil.warn('Missing rollKey for roll type', [normalizedRollType, rollKey]);
+    }
     
     switch (normalizedRollType) {
       case ROLL_TYPES.SKILL:
@@ -536,6 +572,220 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     LogUtil.log('_getRollTitle', [normalizedRollType, title]);
     
     return title;
+  }
+}
+
+/**
+ * GM Hit Die Configuration Dialog
+ * Extends base RollConfigurationDialog for hit die rolls
+ */
+export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurationDialog {
+  constructor(config = {}, message = {}, options = {}) {
+    // Ensure rollType is set to BasicRoll for hit die
+    options.rollType = CONFIG.Dice.BasicRoll || Roll;
+    
+    super(config, message, options);
+    
+    const log = LogUtil.method(this, 'constructor');
+    log('initializing hit die dialog', [config, message, options]);
+    
+    // Store GM-specific options
+    this.actors = options.actors || [];
+    this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
+    this.showDC = false; // No DC for hit die rolls
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      classes: ["dnd5e2", "roll-configuration", "gm-roll-config", "hit-die-config"]
+    });
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  _prepareConfigurationData(roll, config, dialog, message) {
+    const log = LogUtil.method(this, '_prepareConfigurationData');
+    log('preparing hit die config', [roll, config, dialog, message]);
+    const data = super._prepareConfigurationData(roll, config, dialog, message);
+    
+    // Override the formula display for hit die
+    data.formula = "Hit Die (varies by actor)";
+    data.sendRequest = this.sendRequest;
+    data.actorCount = this.actors.length;
+    
+    return data;
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  async _preparePartContext(partId, context, options) {
+    context = await super._preparePartContext(partId, context, options);
+    
+    if (partId === "configuration") {
+      context.sendRequest = this.sendRequest;
+      context.actorCount = this.actors.length;
+      // Override formula display
+      context.formula = "Hit Die (varies by actor)";
+    }
+    
+    return context;
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  async _onRender(context, options) {
+    super._onRender(context, options);
+    
+    // Check if we've already injected our fields
+    if (this.element.querySelector('.gm-roll-config-fields')) {
+      return;
+    }
+    
+    // Inject send request toggle
+    let configSection = this.element.querySelector('.rolls .formulas');
+    
+    if (configSection && this.actors.length > 0) {
+      const templateData = {
+        showDC: false,
+        showSendRequest: this.actors.length > 0,
+        sendRequest: this.sendRequest
+      };
+      
+      const template = await renderTemplate(`modules/${MODULE_ID}/templates/gm-roll-config-fields.hbs`, templateData);
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'gm-roll-config-fields';
+      wrapper.innerHTML = template;
+      
+      configSection.parentNode.insertBefore(wrapper, configSection);
+    }
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  _onChangeForm(formConfig, event) {
+    super._onChangeForm(formConfig, event);
+    
+    // Capture send request state
+    const sendRequestCheckbox = this.element.querySelector('input[name="crlngn-send-request"]');
+    if (sendRequestCheckbox) {
+      this.sendRequest = sendRequestCheckbox.checked;
+    }
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  async _processSubmitData(event, form, formData) {
+    await super._processSubmitData(event, form, formData);
+    
+    // Store send request preference
+    this.sendRequest = formData.get("crlngn-send-request") !== "false";
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  _finalizeRolls(action) {
+    const finalizedRolls = super._finalizeRolls(action);
+    
+    // Store our custom properties
+    this.config.sendRequest = this.sendRequest;
+    
+    return finalizedRolls;
+  }
+  
+  /**
+   * Static method to create and display the dialog
+   */
+  static async getConfiguration(actors, rollType, rollKey, options = {}) {
+    const log = LogUtil.method(GMHitDieConfigDialog, 'getConfiguration');
+    log('getting hit die configuration', [actors, rollType, rollKey, options]);
+    
+    const actor = actors[0];
+    if (!actor) return null;
+    
+    // Build basic roll configuration
+    const rollConfig = {
+      data: actor.getRollData(),
+      subject: actor,
+      rolls: [{
+        parts: [],
+        data: actor.getRollData(),
+        options: {
+          flavor: "Hit Die Roll"
+        }
+      }]
+    };
+    
+    const messageConfig = {
+      create: false,
+      data: {
+        speaker: ChatMessage.getSpeaker({ actor })
+      }
+    };
+    
+    const dialogConfig = {
+      options: {
+        actors,
+        sendRequest: actors.some(a => GMRollConfigDialog._isPlayerOwned(a)),
+        rollKey,
+        rollType: CONFIG.Dice.BasicRoll || Roll,
+        window: {
+          title: game.i18n.localize("DND5E.HitDice"),
+          subtitle: actors.map(a => a.name).join(", ")
+        },
+        ...options
+      }
+    };
+    
+    // Create and render the dialog
+    const app = new this(rollConfig, messageConfig, dialogConfig.options);
+    
+    const result = await new Promise(resolve => {
+      app.addEventListener("close", () => {
+        resolve({
+          rolls: app.rolls,
+          config: app.config,
+          message: app.message,
+          sendRequest: app.sendRequest
+        });
+      }, { once: true });
+      app.render({ force: true });
+    });
+    
+    if (!result.rolls || result.rolls.length === 0) return null;
+    
+    // Build return configuration
+    const finalConfig = {
+      chatMessage: true,
+      isRollRequest: result.sendRequest,
+      skipDialog: options.skipDialogs || false,
+      sendRequest: result.sendRequest
+    };
+    
+    // Check if rollMode differs from default
+    const defaultRollMode = game.settings.get("core", "rollMode");
+    if (result.message.rollMode && result.message.rollMode !== defaultRollMode) {
+      finalConfig.rollMode = result.message.rollMode;
+    }
+    
+    // Add situational bonus if provided
+    const firstRoll = result.rolls[0];
+    const situational = firstRoll?.options?.situational || firstRoll?.data?.situational || "";
+    if (situational) {
+      finalConfig.situational = situational;
+      finalConfig.parts = ["@situational"];
+    }
+    
+    return finalConfig;
   }
 }
 
