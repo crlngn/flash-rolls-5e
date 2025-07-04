@@ -78,7 +78,9 @@ export const HOOKS_DND5E = {
   ROLL_NPC_HIT_POINTS: "dnd5e.rollNPChitPoints",
   
   // Initiative
+  PRE_CONFIGURE_INITIATIVE: "dnd5e.preConfigureInitiative",
   PRE_ROLL_INITIATIVE_DIALOG: "dnd5e.preRollInitiativeDialog",
+  PRE_ROLL_INITIATIVE_DIALOG_V2: "dnd5e.preRollInitiativeDialogV2",
   PRE_ROLL_INITIATIVE: "dnd5e.preRollInitiative",
   ROLL_INITIATIVE: "dnd5e.rollInitiative",
   

@@ -5,6 +5,7 @@ import { DiceConfigUtil } from "./DiceConfigUtil.mjs";
 import { RollInterceptor } from "./RollInterceptor.mjs";
 import { updateSidebarClass, isSidebarExpanded } from "./helpers/Helpers.mjs";
 import { SidebarUtil } from "./SidebarUtil.mjs";
+import { LogUtil } from "./LogUtil.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -65,6 +66,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessage.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
+    // this._registerHook(HOOKS_DND5E.PRE_CONFIGURE_INITIATIVE, this._onPreConfigureInitiative.bind(this));
   }
   
   /**
@@ -126,14 +128,45 @@ export class HooksUtil {
    * Used to add custom situational bonus from data, since the default DnD5e dialog does not seem to handle that
    */
   static _onRenderRollConfigDialog(app, html, data) {
+    LogUtil.log("_onRenderRollConfigDialog triggered", [{
+      app,
+      config: app.config,
+      rolls: app.config?.rolls,
+      situational: app.config?.situational,
+      bonus: app.config?.bonus,
+      data
+    }]);
+
+    
     // Do not continue if we've already triggered
     if (app._situationalTriggered) return;
+
+    // if(app.config?.rolls?.[0]?.data?.situational){
+    //   app.config.situational = app.config.rolls[0].data.situational;
+    //   app.config.bonus = app.config.rolls[0].data.situational;
+    // }
     
     // Does the dialog have a situational input field?
     const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    let hasTriggered = false;
+    LogUtil.log("Found situational inputs:", [situationalInputs.length]);
     
-    situationalInputs.forEach(input => {
+    let hasTriggered = false;
+    app.config.bonus = app.config.bonus || app.config.rolls[0].data.situational;
+    
+    situationalInputs.forEach((input, index) => {
+      LogUtil.log(`Situational input ${index}:`, [{
+        name: input.name,
+        value: input.value,
+        type: input.type
+      }]);
+      
+      // check if we need to populate the value
+      if (!input.value && (app.config?.bonus || app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
+        LogUtil.log("Populating concentration situational bonus:", app.config.bonus);
+        input.value = app.config.bonus || app.config.rolls[0].data.situational;
+        hasTriggered = true;
+      }
+      
       if (input.value && !hasTriggered) {
         // Apply flag to prevent re-render loop
         app._situationalTriggered = true;
@@ -169,6 +202,36 @@ export class HooksUtil {
    */
   static _onRenderSidebarTab(app, html, options) {
     SidebarUtil.addSidebarControls(app, html, options);
+  }
+  
+  /**
+   * Handle pre-configure initiative hook to add situational bonus
+   */
+  static _onPreConfigureInitiative(actor, config) {
+    // Check if there's a stored situational bonus for this actor
+    if (actor._initiativeSituationalBonus) {
+      LogUtil.log("Adding situational bonus to initiative:", [
+        "actor:", actor.name,
+        "situational:", actor._initiativeSituationalBonus,
+        "config before:", config
+      ]);
+      
+      // Initialize rolls array if needed
+      if (!config.rolls || config.rolls.length === 0) {
+        config.rolls = [{
+          parts: [],
+          data: {},
+          options: {}
+        }];
+      }
+      
+      // Add situational bonus to the roll data
+      // config.situational = actor._initiativeSituationalBonus;
+      // config.bonus = actor._initiativeSituationalBonus;
+      config.rolls[0].data.situational = actor._initiativeSituationalBonus;
+      
+      LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", config);
+    }
   }
   
   /**

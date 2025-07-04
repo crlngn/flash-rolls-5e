@@ -1,5 +1,6 @@
 import { ROLL_TYPES, MODULE_ID } from "../../constants/General.mjs";
 import { ActivityUtil } from "../ActivityUtil.mjs";
+import { LogUtil } from "../LogUtil.mjs";
 
 /**
  * Helper functions for roll handling
@@ -13,20 +14,22 @@ export const RollHelpers = {
    */
   addSituationalBonus(config, situational) {
     if (situational) {
-      // Set bonus for direct roll execution
+      LogUtil.log("Flash Rolls 5e | Adding situational bonus:", [situational, "to config:", config]);
       config.bonus = situational;
+      config.situational = situational;
       
-      // Also set it in the rolls array structure for the dialog to find
-      if (!config.rolls) {
+      // For ability checks and saves, we need the rolls array for the dialog
+      if (!config.rolls || config.rolls.length === 0) {
         config.rolls = [{
           parts: [],
           data: {},
           options: {}
         }];
+        // Only add to rolls array if we created it
+        config.rolls[0].data.situational = situational;
       }
       
-      // Add the situational value where the dialog expects it
-      config.rolls[0].data.situational = situational;
+      LogUtil.log("Flash Rolls 5e | Config after adding bonus:", [config]);
     }
     return config;
   },
@@ -176,6 +179,9 @@ export const ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.CONCENTRATION]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    // Set legacy = false to prevent the config from being cleared
+    rollConfig.legacy = false;
+    // Use the same approach as saving throws
     RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
     await actor.rollConcentration(rollConfig, dialogConfig, messageConfig);
   },
@@ -198,8 +204,27 @@ export const ROLL_HANDLERS = {
       ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
       return;
     }
-    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
-    await actor.rollInitiativeDialog(rollConfig, dialogConfig, messageConfig);
+    
+    // rollInitiativeDialog expects rollOptions with specific structure
+    // const rollOptions = {
+    //   advantage: rollConfig.advantage,
+    //   disadvantage: rollConfig.disadvantage,
+    //   bonus: requestData.config.situational || rollConfig.bonus,
+    //   situational: requestData.config.situational || rollConfig.bonus,
+    // };
+    // Debug: Test what getInitiativeRollConfig returns
+    // const testConfig = actor.getInitiativeRollConfig(rollOptions);
+    // LogUtil.log("Initiative roll config test:", [
+    //   "rollOptions:", rollOptions,
+    //   "getInitiativeRollConfig result:", testConfig,
+    //   "parts:", testConfig?.parts,
+    //   "data:", testConfig?.data,
+    //   "options:", testConfig?.options
+    // ]);
+    const rollOptions = actor.getInitiativeRollConfig(rollConfig);
+    RollHelpers.addSituationalBonus(rollOptions, requestData.config.situational);
+    
+    await actor.rollInitiativeDialog(rollOptions);
   },
   
   // Alias for INITIATIVE_DIALOG
@@ -208,6 +233,9 @@ export const ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.DEATH_SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    // Set legacy = false to prevent the config from being cleared
+    rollConfig.legacy = false;
+    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
     await actor.rollDeathSave(rollConfig, dialogConfig, messageConfig);
   },
 

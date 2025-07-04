@@ -1,4 +1,4 @@
-# Situational Bonuses in Flash Rolls 5e
+# Situational Bonuses - The Nightmare
 
 ## Overview
 This document details how situational bonuses are handled throughout the Flash Rolls 5e module for different roll types and scenarios.
@@ -80,17 +80,18 @@ addSituationalBonus(config, situational) {
     // Set bonus for direct roll execution
     config.bonus = situational;
     
-    // Also set it in the rolls array structure for the dialog to find
-    if (!config.rolls) {
+    // Enable situational bonus field in dialog
+    config.situational = situational;
+    
+    // For ability checks and saves, we need the rolls array for the dialog
+    if (!config.rolls || config.rolls.length === 0) {
       config.rolls = [{
         parts: [],
         data: {},
         options: {}
       }];
+      config.rolls[0].data.situational = situational;
     }
-    
-    // Add the situational value where the dialog expects it
-    config.rolls[0].data.situational = situational;
   }
   return config;
 }
@@ -98,7 +99,8 @@ addSituationalBonus(config, situational) {
 
 This dual approach ensures:
 - The `bonus` property is set for direct roll execution
-- The `rolls[0].data.situational` is set for the dialog to display the value
+- The `config.situational` property enables the dialog field
+- The `rolls[0].data.situational` is set for dialogs that need it
 
 ### 3. Roll Request Flow
 
@@ -109,6 +111,39 @@ This dual approach ensures:
 5. **D&D5e roll method** uses `config.bonus` for execution
 
 ## Important Notes
+
+### Legacy Mode Issue
+
+For certain roll types (concentration, death saves), the D&D5e system checks for `config.legacy !== false` and clears the entire config if legacy mode is not explicitly disabled. To prevent this:
+
+```javascript
+// Set legacy = false to prevent the config from being cleared
+rollConfig.legacy = false;
+```
+
+This fix is required for:
+- Concentration checks (`rollConcentration`)
+- Death saves (`rollDeathSave`)
+
+### Initiative Rolls
+
+Initiative rolls require a special approach because `rollInitiativeDialog` builds its own config internally. We use the `dnd5e.preConfigureInitiative` hook:
+
+```javascript
+// Store situational bonus temporarily on the actor
+actor._initiativeSituationalBonus = situationalBonus;
+
+// Call rollInitiativeDialog
+await actor.rollInitiativeDialog(rollOptions);
+
+// In the preConfigureInitiative hook:
+if (actor._initiativeSituationalBonus) {
+  config.rolls[0].data.situational = actor._initiativeSituationalBonus;
+}
+
+// Clean up after the roll
+delete actor._initiativeSituationalBonus;
+```
 
 ### Avoiding Duplication
 
@@ -165,3 +200,11 @@ When testing situational bonuses:
 ### Symptom: Situational bonus not applied to roll result
 **Cause**: `config.bonus` not set for the roll method
 **Fix**: Ensure `config.bonus` is set in addition to the rolls array structure
+
+### Symptom: Situational bonus not showing in concentration/death save dialogs
+**Cause**: D&D5e system clears config when `legacy !== false`
+**Fix**: Add `rollConfig.legacy = false` before calling the roll method
+
+### Symptom: Initiative dialog not showing situational bonus
+**Cause**: `rollInitiativeDialog` builds its own config internally
+**Fix**: Use `dnd5e.preConfigureInitiative` hook to add situational bonus to `config.rolls[0].data.situational`
