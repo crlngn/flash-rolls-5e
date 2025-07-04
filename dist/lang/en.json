@@ -73,6 +73,8 @@
         "rerollInitiative": "These actors already have initiative: <b>{actors}</b>. Do you want to re-roll?",
         "customRollTitle": "Custom Roll",
         "rollFormula": "Roll Formula",
+        "formulaValid": "Valid formula",
+        "formulaInvalid": "Invalid formula",
         "gmRollConfigTitle": "GM Roll Configuration",
         "gmRollConfigActors": "Rolling for {count} actors",
         "optional": "optional",

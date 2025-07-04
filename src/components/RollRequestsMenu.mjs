@@ -6,8 +6,10 @@ import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog } from './GMRollConfigDialog.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
-import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager } from './helpers/Helpers.mjs';
+import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership } from './helpers/Helpers.mjs';
 import { LOCAL_ROLL_HANDLERS } from './helpers/LocalRollHandlers.mjs';
+import { CustomRollDialog } from './CustomRollDialog.mjs';
+import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -450,20 +452,14 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   _initializeFromSelectedTokens() {
     const log = LogUtil.method(this, '_initializeFromSelectedTokens');
-    // Get controlled tokens
     const controlledTokens = canvas.tokens?.controlled || [];
-    
-    // Clear existing selections first
     this.selectedActors.clear();
     
-    // Add actors from controlled tokens
     for (const token of controlledTokens) {
       if (token.actor) {
         this.selectedActors.add(token.actor.id);
         
-        // Set the current tab based on first selected token's actor type
         if (this.selectedActors.size === 1) {
-          // Check if this is a PC or NPC
           const isPC = isPlayerOwned(token.actor);
           this.currentTab = isPC ? 'pc' : 'npc';
         }
@@ -481,13 +477,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const tab = event.currentTarget.dataset.tab;
     if (tab === this.currentTab) return;
     
-    // Clear selected actors when switching tabs
     this.selectedActors.clear();
-    
-    // Also clear any canvas token selections
     canvas.tokens?.releaseAll();
-    
-    // Reset selected request type since it may not apply to new tab
     this.selectedRequestType = null;
     
     this.currentTab = tab;
@@ -499,7 +490,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   _onActorClick(event) {
     const log = LogUtil.method(this, '_onActorClick');
-    // Ignore if clicking on the select button itself
     if (event.target.closest('.actor-select')) return;
     
     const actorElement = event.currentTarget;
@@ -512,7 +502,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   _onActorSelectClick(event) {
     const log = LogUtil.method(this, '_onActorSelectClick');
-    event.stopPropagation(); // Prevent triggering the actor row click
+    event.stopPropagation();
     const actorId = event.currentTarget.dataset.id;
     this._toggleActorSelection(actorId);
   }
@@ -527,15 +517,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     if (this.selectedActors.has(actorId)) {
       this.selectedActors.delete(actorId);
-      // Deselect token on canvas
       updateCanvasTokenSelection(actorId, false);
     } else {
       this.selectedActors.add(actorId);
-      // Select token on canvas
       updateCanvasTokenSelection(actorId, true);
     }
     
-    // Re-enable token control hook after a short delay
     setTimeout(() => {
       this._ignoreTokenControl = false;
     }, 100);
@@ -553,8 +540,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   _updateRequestTypesVisibility() {
     const log = LogUtil.method(this, '_updateRequestTypesVisibility');
-    // Since we're now controlling visibility through template data,
-    // we need to re-render when actor selection changes
+    // re-render when actor selection changes
     this.render();
   }
 
@@ -586,18 +572,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       return;
     }
     
-    // Toggle selection - if clicking the same type, deselect it
     if (this.selectedRequestType === requestType) {
       this.selectedRequestType = null;
     } else {
       this.selectedRequestType = requestType;
     }
     
-    // If this type has a sublist, re-render to show/hide roll types
     if (rollOption.subList) {
       await this.render();
     } else if (this.selectedRequestType) {
-      // Direct roll without sublist (only if we just selected it)
       this._triggerRoll(requestType, null);
     }
   }
@@ -614,193 +597,56 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   }
 
   /**
-   * Trigger the roll for selected actors
-   * @param {string} requestType - The type of roll request (e.g., 'skill', 'ability')
-   * @param {string} rollKey - The specific roll key (e.g., 'acr' for Acrobatics)
+   * Get valid actor IDs based on current tab
+   * @param {Array<string>} selectedActorIds - Array of selected actor IDs
+   * @returns {Array<string>} Filtered array of valid actor IDs
    */
-  async _triggerRoll(requestType, rollKey) {
-    const log = LogUtil.method(this, '_triggerRoll');
-    const SETTINGS = getSettings();
-    const selectedActorIds = Array.from(this.selectedActors);
-    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
-    
-    // Safety check: Filter selected actors to only include those from current tab
-    const validActorIds = selectedActorIds.filter(actorId => {
+  _getValidActorIds(selectedActorIds) {
+    return selectedActorIds.filter(actorId => {
       const actor = game.actors.get(actorId);
       if (!actor) return false;
-      
       const isPC = isPlayerOwned(actor);
       const isNPC = !isPC && hasTokenInScene(actor);
       
-      // Only include actors that match the current tab
       return (this.currentTab === 'pc' && isPC) || (this.currentTab === 'npc' && isNPC);
     });
-    
-    // Get the roll option to get the actual method name
-    const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
-    const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
-    
-    // Handle custom rolls with a dialog
-    if (rollMethodName === ROLL_TYPES.CUSTOM) {
-      const formula = await this._showCustomRollDialog();
-      if (!formula) return; // User cancelled
-      
-      // Store the custom formula as the rollKey
-      rollKey = formula;
-    }
-    
-    // Check for initiative rolls without active combat
-    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG && !game.combat) {
-      const createCombat = await Dialog.confirm({
-        title: game.i18n.localize("COMBAT.Create"),
-        content: "<p>" + game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.noCombatActive") + "</p>",
-        yes: () => true,
-        no: () => false,
-        defaultYes: true,
-        options: {
-          classes: ["crlngn-rolls-dialog"]
-        }
-      });
-      
-      if (createCombat) {
-        // Create a new combat encounter
-        const combat = await game.combats.documentClass.create({scene: game.scenes.active.id});
-        await combat.activate();
-        NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.combatCreated"));
-      } else {
-        // User chose not to create combat, abort the roll
-        return;
-      }
-    }
-    
-    // Filter actors for initiative rolls based on existing initiative
-    let actorIdsToRoll = validActorIds;
-    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG && game.combat) {
-      const actors = validActorIds
-        .map(id => game.actors.get(id))
-        .filter(actor => actor);
-      
-      // Check which actors already have initiative
-      const actorsWithInitiative = [];
-      const actorIdsWithInitiative = new Set();
-      for (const actor of actors) {
-        const combatant = game.combat.getCombatantByActor(actor.id);
-        if (combatant && combatant.initiative !== null) {
-          actorsWithInitiative.push(actor.name);
-          actorIdsWithInitiative.add(actor.id);
-        }
-      }
-      
-      // If any actors already have initiative, confirm re-roll
-      if (actorsWithInitiative.length > 0) {
-        const reroll = await Dialog.confirm({
-          title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.rerollInitiativeTitle"),
-          content: "<p>" + game.i18n.format("CRLNGN_ROLLS.ui.dialogs.rerollInitiative", {
-            actors: actorsWithInitiative.join(", ")
-          }) + "</p>",
-          yes: () => true,
-          no: () => false,
-          defaultYes: false,
-          options: {
-            classes: ["crlngn-rolls-dialog"]
-          }
-        });
-        
-        if (!reroll) {
-          // User chose not to re-roll, filter out actors with initiative
-          actorIdsToRoll = validActorIds.filter(id => !actorIdsWithInitiative.has(id));
-          
-          // If no actors left to roll, abort
-          if (actorIdsToRoll.length === 0) {
-            NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.allActorsHaveInitiative"));
-            return;
-          }
-        } else {
-          // User chose to re-roll, clear initiative for actors that have it
-          for (const actorId of actorIdsWithInitiative) {
-            const combatant = game.combat.getCombatantByActor(actorId);
-            if (combatant) {
-              await combatant.update({ initiative: null });
-            }
-          }
-        }
-      }
-    }
-    
-    // Get the actual actors
-    let actors = actorIdsToRoll
-      .map(id => game.actors.get(id))
-      .filter(actor => actor);
-    
-    // Filter actors for death saves
-    if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
-      const actorsNeedingDeathSaves = [];
-      const actorsSkippingDeathSaves = [];
-      
-      for (const actor of actors) {
-        const hp = actor.system.attributes.hp?.value || 0;
-        const deathSaves = actor.system.attributes.death || {};
-        const successes = deathSaves.success || 0;
-        const failures = deathSaves.failure || 0;
-        
-        // Check if actor needs a death save
-        if (hp <= 0 && successes < 3 && failures < 3) {
-          actorsNeedingDeathSaves.push(actor);
-        } else {
-          actorsSkippingDeathSaves.push(actor.name);
-        }
-      }
-      
-      // Notify about actors that don't need death saves
-      if (actorsSkippingDeathSaves.length > 0) {
-        NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorsSkippingDeathSave", {
-          actors: actorsSkippingDeathSaves.join(", ")
-        }));
-      }
-      
-      // Update actors list to only include those needing death saves
-      actors = actorsNeedingDeathSaves;
-    }
-    
-    if (!actors.length) {
-      NotificationManager.notify('warn', "No valid actors selected");
-      return;
-    }
-    
-    // Separate PC and NPC actors
-    const pcActors = [];
-    const npcActors = [];
-    
-    for (const actor of actors) {
-      const owner = getPlayerOwner(actor);
-      if (owner) {
-        pcActors.push({ actor, owner });
-      } else {
-        npcActors.push(actor);
-      }
-    }
-    
-    // Get rollRequestsEnabled setting to determine default sendRequest value
+  }
+
+  /**
+   * Handle custom roll dialog
+   * @returns {Promise<string|null>} The roll formula or null if cancelled
+   */
+  async _handleCustomRoll() {
+    const formula = await this._showCustomRollDialog();
+    return formula; // Will be null if cancelled
+  }
+
+  /**
+   * Get roll configuration from dialog or create default
+   * @param {Actor[]} actors - Actors being rolled for
+   * @param {string} rollMethodName - The roll method name
+   * @param {string} rollKey - The roll key
+   * @param {boolean} skipDialogs - Whether to skip dialogs
+   * @param {Array} pcActors - PC actors with owners
+   * @returns {Promise<Object|null>} Configuration object or null if cancelled
+   */
+  async _getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors) {
+    const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     
-    // Show GM configuration dialog (unless skip dialogs is enabled)
-    let config = null;
-    if (!skipDialogs) {
+    // Show GM configuration dialog (unless skip dialogs is enabled or it's a custom roll)
+    if (!skipDialogs && rollMethodName !== ROLL_TYPES.CUSTOM) {
       // Use appropriate dialog based on roll type
       const DialogClass = [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName) ? GMSkillToolConfigDialog : GMRollConfigDialog;
-      config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
+      const config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
         skipDialogs,
         defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
       });
       
-      
-      // User cancelled the dialog
-      if (!config) {
-        return;
-      }
+      return config; // Will be null if cancelled
     } else {
       // Use default configuration when skipping dialogs
-      config = {
+      const config = {
         advantage: false,
         disadvantage: false,
         situational: "",
@@ -816,7 +662,21 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
         config.target = 10;
       }
+      
+      return config;
     }
+  }
+
+  /**
+   * Execute roll requests for PC and NPC actors
+   * @param {Object} config - Roll configuration
+   * @param {Array} pcActors - PC actors with owners
+   * @param {Actor[]} npcActors - NPC actors
+   * @param {string} rollMethodName - The roll method name
+   * @param {string} rollKey - The roll key
+   */
+  async _executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey) {
+    const SETTINGS = getSettings();
     
     // Handle PC actors - send roll requests (if sendRequest is true)
     const successfulRequests = []; // Track successful requests for consolidated notification
@@ -861,17 +721,81 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     
     // Handle NPC actors - roll locally
     if (npcActors.length > 0) {
-      // Ensure skipDialog is passed correctly for local NPC rolls
       const npcConfig = { ...config };
-      // Always skip individual dialogs for local rolls when we've already configured them
-      // Either through the GM dialog (!skipDialogs) or when skipDialogs is true
-      npcConfig.fastForward = true;  // Use fastForward for NPC rolls
+      npcConfig.fastForward = true;
       npcConfig.skipDialog = true;
       await this._handleNPCRolls(npcActors, rollMethodName, rollKey, npcConfig);
     }
+  }
+
+  /**
+   * Trigger the roll for selected actors
+   * @param {string} requestType - The type of roll request (e.g., 'skill', 'ability')
+   * @param {string} rollKey - The specific roll key (e.g., 'acr' for Acrobatics)
+   */
+  async _triggerRoll(requestType, rollKey) {
+    const log = LogUtil.method(this, '_triggerRoll');
+    const SETTINGS = getSettings();
+    const selectedActorIds = Array.from(this.selectedActors);
+    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
     
-    // Close the menu after all rolls are complete
-    // Add a small delay to ensure async operations complete
+    // Step 1: Validate and filter actors
+    const validActorIds = this._getValidActorIds(selectedActorIds);
+    
+    // Step 2: Get roll method name
+    const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
+    const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
+    
+    // Step 3: Handle custom rolls
+    if (rollMethodName === ROLL_TYPES.CUSTOM) {
+      rollKey = await this._handleCustomRoll();
+      if (!rollKey) return;
+    }
+    
+    // Step 4: Ensure combat exists for initiative
+    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG) {
+      const combatReady = await ensureCombatForInitiative();
+      if (!combatReady) return;
+    }
+    
+    // Step 5: Filter actors for specific roll types
+    let actorIdsToRoll = validActorIds;
+    if (rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG && game.combat) {
+      actorIdsToRoll = await filterActorsForInitiative(validActorIds, game);
+      if (!actorIdsToRoll.length) return;
+    }
+    
+    // Step 6: Get actors and apply death save filter
+    let actors = actorIdsToRoll
+      .map(id => game.actors.get(id))
+      .filter(actor => actor);
+      
+    if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
+      actors = await filterActorsForDeathSaves(actors);
+    }
+    
+    if (!actors.length) {
+      NotificationManager.notify('warn', "No valid actors selected");
+      return;
+    }
+    
+    // Step 7: Categorize actors
+    const { pcActors, npcActors } = categorizeActorsByOwnership(actors);
+    
+    // Step 8: Get roll configuration
+    const config = await this._getRollConfiguration(
+      actors, 
+      rollMethodName, 
+      rollKey, 
+      skipDialogs, 
+      pcActors
+    );
+    if (!config) return;
+    
+    // Step 9: Execute rolls
+    await this._executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey);
+    
+    // Step 10: Close menu
     setTimeout(() => this.close(), 500);
   }
   
@@ -1102,60 +1026,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   async _showCustomRollDialog() {
     const log = LogUtil.method(this, '_showCustomRollDialog');
-    return new Promise(async (resolve) => {
-      // Render the template
-      const content = await renderTemplate(`modules/${MODULE.ID}/templates/custom-roll-dialog.hbs`, {
-        formula: "",
-        readonly: false
-      });
-      
-      const dialog = new Dialog({
-        title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.customRollTitle"),
-        content,
-        buttons: {
-          roll: {
-            icon: '<i class="fas fa-dice-d20"></i>',
-            label: game.i18n.localize("Roll"),
-            callback: (html) => {
-              const formulaElement = html[0] || html;
-              const formula = formulaElement.querySelector('#custom-roll-formula').value.trim();
-              resolve(formula || null);
-            }
-          },
-          cancel: {
-            icon: '<i class="fas fa-times"></i>',
-            label: game.i18n.localize("Cancel"),
-            callback: () => resolve(null)
-          }
-        },
-        default: "roll",
-        render: (html) => {
-          const htmlElement = html[0] || html;
-          const formulaInput = htmlElement.querySelector('#custom-roll-formula');
-          const diceCounts = {};
-          
-          // Handle dice button clicks
-          htmlElement.querySelectorAll('.dice-button').forEach(button => {
-            button.addEventListener('click', (event) => {
-              const die = event.currentTarget.dataset.die;
-              diceCounts[die] = (diceCounts[die] || 0) + 1;
-              
-              // Build formula from dice counts
-              const parts = [];
-              for (const [dieType, count] of Object.entries(diceCounts)) {
-                if (count > 0) {
-                  parts.push(`${count}${dieType}`);
-                }
-              }
-              formulaInput.value = parts.join(' + ');
-            });
-          });
-        }
-      }, {
-        classes: ["crlngn-rolls-dialog", "crlngn-custom-roll-dialog"]
-      });
-      
-      dialog.render(true);
+    return CustomRollDialog.prompt({
+      formula: "",
+      readonly: false
     });
   }
 

@@ -425,3 +425,57 @@ export class NotificationManager {
     NotificationManager.pendingNotifications = [];
   }
 }
+
+/**
+ * Filter actors based on death save requirements
+ * @param {Actor[]} actors - Array of actors to filter
+ * @returns {Actor[]} Array of actors that need death saves
+ */
+export function filterActorsForDeathSaves(actors) {
+  const actorsNeedingDeathSaves = [];
+  const actorsSkippingDeathSaves = [];
+  
+  for (const actor of actors) {
+    const hp = actor.system.attributes.hp?.value || 0;
+    const deathSaves = actor.system.attributes.death || {};
+    const successes = deathSaves.success || 0;
+    const failures = deathSaves.failure || 0;
+    
+    // Check if actor needs a death save
+    if (hp <= 0 && successes < 3 && failures < 3) {
+      actorsNeedingDeathSaves.push(actor);
+    } else {
+      actorsSkippingDeathSaves.push(actor.name);
+    }
+  }
+  
+  // Notify about actors that don't need death saves
+  if (actorsSkippingDeathSaves.length > 0) {
+    NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorsSkippingDeathSave", {
+      actors: actorsSkippingDeathSaves.join(", ")
+    }));
+  }
+  
+  return actorsNeedingDeathSaves;
+}
+
+/**
+ * Categorize actors by ownership (PC vs NPC)
+ * @param {Actor[]} actors - Array of actors to categorize
+ * @returns {{pcActors: Array, npcActors: Actor[]}} Object with categorized actors
+ */
+export function categorizeActorsByOwnership(actors) {
+  const pcActors = [];
+  const npcActors = [];
+  
+  for (const actor of actors) {
+    const owner = getPlayerOwner(actor);
+    if (owner) {
+      pcActors.push({ actor, owner });
+    } else {
+      npcActors.push(actor);
+    }
+  }
+  
+  return { pcActors, npcActors };
+}

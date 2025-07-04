@@ -67,10 +67,7 @@ export class RollRequestUtil {
         _requestedBy: requestData.config.requestedBy || 'GM' // Who requested the roll
       };
       
-      // Add situational bonus if provided
-      if (requestData.config.situational) {
-        rollConfig.bonus = requestData.config.situational;
-      }
+      
       
       // Add ability for skills/tools if provided
       if (requestData.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
@@ -78,8 +75,11 @@ export class RollRequestUtil {
       }
       
       // Dialog configuration (second parameter)
+      // For custom rolls, always skip the dialog since we already have the formula
+      const shouldSkipDialog = requestData.skipDialog || normalizedRollType === ROLL_TYPES.CUSTOM;
+      
       const dialogConfig = {
-        configure: !requestData.skipDialog,
+        configure: !shouldSkipDialog,
         options: {
           defaultButton: requestData.config.advantage ? 'advantage' : 
                          requestData.config.disadvantage ? 'disadvantage' : 'normal',

@@ -91,10 +91,9 @@ export const LocalRollHelpers = {
       advantage: config.advantage,
       disadvantage: config.disadvantage,
       ability: config.ability,
-      chooseAbility: !config.ability
+      chooseAbility: !!config.ability
     };
     
-    if (config.situational) rollConfig.bonus = config.situational;
     if (config.target) rollConfig.target = config.target;
     
     const dialogConfig = {
@@ -137,7 +136,6 @@ export const LocalRollHelpers = {
       chooseAbility: !config.ability
     };
     
-    if (config.situational) rollConfig.bonus = config.situational;
     if (config.target) rollConfig.target = config.target;
     
     const dialogConfig = {
@@ -201,10 +199,6 @@ export const LOCAL_ROLL_HANDLERS = {
       target: config.target
     };
     
-    // Add situational bonus if present
-    if (config.situational) {
-      rollConfig.bonus = config.situational;
-    }
     
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
@@ -235,10 +229,6 @@ export const LOCAL_ROLL_HANDLERS = {
       disadvantage: config.disadvantage
     };
     
-    // Add situational bonus if present
-    if (config.situational) {
-      rollConfig.bonus = config.situational;
-    }
     
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
@@ -259,10 +249,6 @@ export const LOCAL_ROLL_HANDLERS = {
       target: config.target
     };
     
-    // Add situational bonus if present
-    if (config.situational) {
-      rollConfig.bonus = config.situational;
-    }
     
     const dialogConfig = { configure: !config.fastForward && !config.skipDialog };
     const messageConfig = {
@@ -275,11 +261,21 @@ export const LOCAL_ROLL_HANDLERS = {
   [ROLL_TYPES.CUSTOM]: async (actor, rollKey, config) => {
     // Custom rolls use the formula in rollKey
     try {
-      const roll = new Roll(rollKey, actor.getRollData());
+      // For custom rolls, we need to ensure they aren't intercepted
+      // Since we can't use actor roll methods, we'll create a basic roll
+      const rollData = actor.getRollData();
+      const roll = new Roll(rollKey, rollData);
+      
+      // Mark the roll to bypass any interceptors
+      roll.options = roll.options || {};
+      roll.options.isRollRequest = true;
+      
       await roll.evaluate({async: true});
+      
       await roll.toMessage({
         speaker: ChatMessage.getSpeaker({actor}),
-        flavor: game.i18n.localize("CRLNGN_ROLLS.rollTypes.custom")
+        flavor: config.rollTitle || game.i18n.localize("CRLNGN_ROLLS.rollTypes.custom"),
+        rollMode: config.rollMode
       });
     } catch (error) {
       ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: rollKey}));

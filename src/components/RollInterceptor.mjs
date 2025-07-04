@@ -71,76 +71,6 @@ export class RollInterceptor {
     }
     this.registeredHooks.clear();
   }
-  
-  /**
-   * Handle generic pre-roll v2 hook to intercept all rolls
-   * @param {Object} config - Roll configuration (first parameter)
-   * @param {Object} options - Additional options (second parameter)
-   * @returns {boolean|void} - Return false to prevent the roll
-   */
-  static _handleGenericPreRoll(config, options) {
-    const log = LogUtil.method(RollInterceptor, '_handleGenericPreRoll');
-    log('handling generic pre-roll', [config, options]);
-    // Only intercept on GM side
-    if (!game.user.isGM) return;
-    
-    
-    // Check to avoid loops
-    if (config?.isRollRequest) return;
-    
-    // or non activity rolls, config.subject is the actor
-    const actor = config?.subject;
-    
-    // Check if roll interception and requests are enabled
-    const SETTINGS = getSettings();
-    const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    if (!rollInterceptionEnabled || !rollRequestsEnabled) {
-      // Allow the roll to proceed normally when either setting is disabled
-      return;
-    }
-
-    
-    if (!actor || actor.documentName !== 'Actor') {
-      return;
-    }
-    
-    // Check if the actor is owned by a player (not the GM)
-    const owner = this._getActorOwner(actor);
-    if (!owner || owner.id === game.user.id) {
-      return;
-    }
-    
-    // Check if the owner is online
-    if (!owner.active) {
-      return;
-    }
-    
-    // Determine roll type from the config
-    let rollType = 'unknown';
-    let rollKey = null;
-    
-    // Check config for more specific information
-    if (config?.ability) {
-      rollType = config.save ? ROLL_TYPES.SAVE : ROLL_TYPES.ABILITY;
-      rollKey = config.ability;
-    } else if (config?.skill) {
-      rollType = ROLL_TYPES.SKILL;
-      rollKey = config.skill;
-    } else if (config?.tool) {
-      rollType = ROLL_TYPES.TOOL;
-      rollKey = config.tool;
-    }
-    
-    // Pass the roll key along with the config if we found it
-    if (rollKey && config) {
-      config = { ...config, ability: rollKey };
-    }
-    this._sendRollRequest(actor, owner, rollType, config);
-    
-    // Prevent the normal roll
-    return false;
-  }
 
   /**
    * Handle pre-roll hooks to intercept rolls
@@ -319,7 +249,6 @@ export class RollInterceptor {
       ...originalConfig,
       advantage: dialogResult.advantage || originalConfig.advantage,
       disadvantage: dialogResult.disadvantage || originalConfig.disadvantage,
-      bonus: dialogResult.situational || originalConfig.bonus,
       target: dialogResult.dc || originalConfig.target,
       rollMode: dialogResult.rollMode || originalConfig.rollMode,
       isRollRequest: false // Ensure we don't intercept this roll

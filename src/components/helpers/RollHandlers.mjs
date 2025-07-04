@@ -1,6 +1,7 @@
 import { ROLL_TYPES, MODULE_ID } from "../../constants/General.mjs";
 import { ActivityUtil } from "../ActivityUtil.mjs";
 import { LogUtil } from "../LogUtil.mjs";
+import { CustomRollDialog } from "../CustomRollDialog.mjs";
 
 /**
  * Helper functions for roll handling
@@ -15,7 +16,6 @@ export const RollHelpers = {
   addSituationalBonus(config, situational) {
     if (situational) {
       LogUtil.log("Flash Rolls 5e | Adding situational bonus:", [situational, "to config:", config]);
-      config.bonus = situational;
       config.situational = situational;
       
       // For ability checks and saves, we need the rolls array for the dialog
@@ -85,43 +85,35 @@ export const RollHelpers = {
   async handleCustomRoll(actor, requestData) {
     const formula = requestData.rollKey; // Formula is stored in rollKey
     
-    // Render the template with readonly formula
-    const content = await renderTemplate(`modules/${MODULE_ID}/templates/custom-roll-dialog.hbs`, {
+    // Show the dialog with the formula in readonly mode
+    const dialog = new CustomRollDialog({
       formula: formula,
-      readonly: true
-    });
-    
-    const dialog = new Dialog({
-      title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.customRollTitle"),
-      content,
-      buttons: {
-        roll: {
-          icon: '<i class="fas fa-dice-d20"></i>',
-          label: game.i18n.localize("Roll"),
-          callback: async () => {
-            try {
-              // Create and evaluate the roll
-              const roll = new Roll(formula, actor.getRollData());
-              await roll.evaluate({async: true});
-              
-              // Post to chat
-              await roll.toMessage({
-                speaker: ChatMessage.getSpeaker({actor}),
-                flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`)
-              });
-            } catch (error) {
-              ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula}));
-            }
-          }
-        },
-        cancel: {
-          icon: '<i class="fas fa-times"></i>',
-          label: game.i18n.localize("Cancel")
+      readonly: true,
+      actor: actor,
+      callback: async (confirmedFormula) => {
+        try {
+          // Create and evaluate the roll
+          const roll = new Roll(confirmedFormula, actor.getRollData());
+          
+          // Mark the roll to bypass any interceptors
+          roll.options = roll.options || {};
+          roll.options.isRollRequest = true;
+          
+          await roll.evaluate({async: true});
+          
+          // Post to chat with isRollRequest flag in message data
+          await roll.toMessage({
+            speaker: ChatMessage.getSpeaker({actor}),
+            flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
+            rollMode: requestData.config.rollMode,
+            isRollRequest: true,
+            _showRequestedBy: true,
+            _requestedBy: requestData.config.requestedBy || 'GM'
+          });
+        } catch (error) {
+          ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: confirmedFormula}));
         }
-      },
-      default: "roll"
-    }, {
-      classes: ["crlngn-rolls-dialog", "crlngn-custom-roll-dialog"]
+      }
     });
     
     dialog.render(true);
@@ -155,27 +147,68 @@ export const ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.SKILL]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = {
-      ...rollConfig,
-      skill: requestData.rollKey,
-      chooseAbility: true
-    };
+    // const config = {
+    //   skill: requestData.rollKey,
+    //   chooseAbility: true,
+    //   advantage: rollConfig.advantage || false,
+    //   disadvantage: rollConfig.disadvantage || false,
+    //   target: rollConfig.target,
+    //   isRollRequest: true,
+    //   _showRequestedBy: true,
+    //   _requestedBy: rollConfig._requestedBy || 'GM'
+    // };
+    // if (requestData.config.ability) {
+    //   config.ability = requestData.config.ability;
+    // }
+    // // For skills, we need to set situational property for dialog display
+    // if (requestData.config.situational) {
+    //   config.situational = requestData.config.situational;
+    // }
+
+    rollConfig.legacy = false;
+    rollConfig.skill = requestData.rollKey;
+    rollConfig.chooseAbility = true;
     if (requestData.config.ability) {
-      config.ability = requestData.config.ability;
+      rollConfig.ability = requestData.config.ability;
     }
-    await actor.rollSkill(config, dialogConfig, messageConfig);
+    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
+
+    LogUtil.log("TEST", [rollConfig]);
+
+    // const config = RollHelpers.buildSkillConfig(requestData, rollConfig);
+    await actor.rollSkill(rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.TOOL]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = {
-      ...rollConfig,
-      tool: requestData.rollKey,
-      chooseAbility: true
-    };
+    // const config = {
+    //   tool: requestData.rollKey,
+    //   chooseAbility: true,
+    //   advantage: rollConfig.advantage || false,
+    //   disadvantage: rollConfig.disadvantage || false,
+    //   target: rollConfig.target,
+    //   isRollRequest: true,
+    //   _showRequestedBy: true,
+    //   _requestedBy: rollConfig._requestedBy || 'GM'
+    // };
+    // if (requestData.config.ability) {
+    //   config.ability = requestData.config.ability;
+    // }
+    // // For tools, we need to set situational property for dialog display
+    // if (requestData.config.situational) {
+    //   config.situational = requestData.config.situational;
+    // }
+
+    rollConfig.legacy = false;
+    rollConfig.tool = requestData.rollKey;
+    rollConfig.chooseAbility = true;
     if (requestData.config.ability) {
-      config.ability = requestData.config.ability;
+      rollConfig.ability = requestData.config.ability;
     }
-    await actor.rollToolCheck(config, dialogConfig, messageConfig);
+    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
+
+    LogUtil.log("TEST", [rollConfig]);
+    
+    await actor.rollToolCheck(rollConfig, dialogConfig, messageConfig);
   },
 
   [ROLL_TYPES.CONCENTRATION]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
@@ -209,7 +242,6 @@ export const ROLL_HANDLERS = {
     // const rollOptions = {
     //   advantage: rollConfig.advantage,
     //   disadvantage: rollConfig.disadvantage,
-    //   bonus: requestData.config.situational || rollConfig.bonus,
     //   situational: requestData.config.situational || rollConfig.bonus,
     // };
     // Debug: Test what getInitiativeRollConfig returns
@@ -245,6 +277,7 @@ export const ROLL_HANDLERS = {
   },
 
   [ROLL_TYPES.CUSTOM]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    // For custom rolls, always skip the dialog since we already have the formula
     await RollHelpers.handleCustomRoll(actor, requestData);
   }
 };

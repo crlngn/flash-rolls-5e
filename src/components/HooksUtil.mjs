@@ -133,7 +133,6 @@ export class HooksUtil {
       config: app.config,
       rolls: app.config?.rolls,
       situational: app.config?.situational,
-      bonus: app.config?.bonus,
       data
     }]);
 
@@ -143,7 +142,6 @@ export class HooksUtil {
 
     // if(app.config?.rolls?.[0]?.data?.situational){
     //   app.config.situational = app.config.rolls[0].data.situational;
-    //   app.config.bonus = app.config.rolls[0].data.situational;
     // }
     
     // Does the dialog have a situational input field?
@@ -151,8 +149,6 @@ export class HooksUtil {
     LogUtil.log("Found situational inputs:", [situationalInputs.length]);
     
     let hasTriggered = false;
-    app.config.bonus = app.config.bonus || app.config.rolls[0].data.situational;
-    
     situationalInputs.forEach((input, index) => {
       LogUtil.log(`Situational input ${index}:`, [{
         name: input.name,
@@ -161,9 +157,9 @@ export class HooksUtil {
       }]);
       
       // check if we need to populate the value
-      if (!input.value && (app.config?.bonus || app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
+      if (!input.value && (app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
         LogUtil.log("Populating concentration situational bonus:", app.config.bonus);
-        input.value = app.config.bonus || app.config.rolls[0].data.situational;
+        input.value = app.config.rolls[0].data.situational;
         hasTriggered = true;
       }
       
@@ -227,7 +223,6 @@ export class HooksUtil {
       
       // Add situational bonus to the roll data
       // config.situational = actor._initiativeSituationalBonus;
-      // config.bonus = actor._initiativeSituationalBonus;
       config.rolls[0].data.situational = actor._initiativeSituationalBonus;
       
       LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", config);

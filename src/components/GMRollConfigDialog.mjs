@@ -14,7 +14,7 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     super(config, message, options);
     
     const log = LogUtil.method(this, 'constructor');
-    log('initializing', [config, message, options]);
+    log('initializing GM Dialog', [config, message, options]);
     
     // Store GM-specific options
     this.actors = options.actors || [];

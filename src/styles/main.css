@@ -159,7 +159,8 @@ body{
     height: auto;
   }
   .dice-buttons button, 
-  .dialog-buttons button {
+  .dialog-buttons button,
+  .application-footer button {
     background: #252830;
     border: 1px solid rgba(0, 0, 0, .35);
     color: var(--color-light-1);
@@ -177,14 +178,41 @@ body{
     margin: 1em 0 0.5em 0;
   }
   .formula-input input[type="text"] {
+    border: 1px solid rgba(0, 0, 0, .25);
     color: var(--color-light-1);
-    padding: 0.35em;
-    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: var(--color-cool-4);
     height: 2rem;
+    padding: .35em;
+    margin: 0.5em 0;
 
     &::selection {
-      background-color: var(--color-warm-2); /* Example: different color for input selection */
-      color: var(--color-light-1); /* Example: different text color for input selection */
+      background-color: var(--color-warm-2);
+      color: var(--color-light-1);
+    }
+  }
+  
+  .validation-message {
+    font-size: var(--font-size-12);
+    margin-top: 0.25em;
+    padding: 0.25em 0.5em;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+    opacity: 0;
+    
+    &.error {
+      color: #894a4a;
+      background-color: rgba(255, 107, 107, 0.1);
+      opacity: 1;
+    }
+    
+    &.success {
+      color: #5a9464;
+      background-color: rgba(81, 207, 102, 0.1);
+      opacity: 1;
+    }
+    
+    &:empty {
+      opacity: 0;
     }
   }
 }
