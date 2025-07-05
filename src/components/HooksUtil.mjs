@@ -48,12 +48,14 @@ export class HooksUtil {
       CONFIG.debug.hooks = true;
     }
     RollInterceptor.initialize();
+    
     this._registerDnd5eHooks();
 
     if (game.user.isGM) {
       this._registerGMHooks();
     }else{
       DiceConfigUtil.getDiceConfig();
+      this._registerPlayerHooks();
     }
     updateSidebarClass(isSidebarExpanded());
   }
@@ -79,6 +81,12 @@ export class HooksUtil {
     game.users.forEach(user => {
       this._onUserConnected(user);
     });
+  }
+
+  static _registerPlayerHooks() {
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._onPreRollInitiativeDialogV2.bind(this));
+    this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderHitDieDialog.bind(this));
   }
   
   /**
@@ -158,7 +166,7 @@ export class HooksUtil {
       
       // check if we need to populate the value
       if (!input.value && (app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
-        LogUtil.log("Populating concentration situational bonus:", app.config.bonus);
+        LogUtil.log("Populating concentration situational bonus:", [app.config.bonus]);
         input.value = app.config.rolls[0].data.situational;
         hasTriggered = true;
       }
@@ -225,7 +233,7 @@ export class HooksUtil {
       // config.situational = actor._initiativeSituationalBonus;
       config.rolls[0].data.situational = actor._initiativeSituationalBonus;
       
-      LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", config);
+      LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", [config]);
     }
   }
   
@@ -264,5 +272,167 @@ export class HooksUtil {
       }
     }
     return false;
+  }
+  
+  /**
+   * Handle pre-roll hit die hook to consolidate situational bonus
+   */
+  static _onPreRollHitDieV2(config, dialogOptions, messageOptions) {
+    LogUtil.log("_onPreRollHitDieV2 triggered", [config, dialogOptions, messageOptions]);
+    
+    // Check if we have multiple rolls with situational bonus
+    if (config.rolls && config.rolls.length > 1) {
+      const secondRoll = config.rolls[1];
+      if (secondRoll && secondRoll.data && secondRoll.data.situational) {
+        if (!config.rolls[0].data) {
+          config.rolls[0].data = {};
+        }
+        config.rolls[0].data.situational = secondRoll.data.situational;
+        config.rolls.splice(1, 1);
+        
+        LogUtil.log("Consolidated hit die rolls with situational bonus", config.rolls);
+      }
+    }
+  }
+  
+  /**
+   * Handle pre-roll initiative dialog hook to add situational bonus
+   */
+  static _onPreRollInitiativeDialogV2(config, dialogOptions, messageOptions) {
+    LogUtil.log("_onPreRollInitiativeDialogV2 triggered", [config, dialogOptions, messageOptions]);
+    
+    // Check if actor has stored situational bonus
+    const actor = config.subject;
+    if (actor && actor._initiativeSituationalBonus) {
+      if (!config.rolls || config.rolls.length === 0) {
+        const initiativeConfig = actor.getInitiativeRollConfig({});
+        config.rolls = initiativeConfig.rolls || [];
+      }
+      
+      // Add situational bonus
+      if (config.rolls.length > 0) {
+        if (!config.rolls[0].data) {
+          config.rolls[0].data = {};
+        }
+        config.rolls[0].data.situational = actor._initiativeSituationalBonus;
+        
+        LogUtil.log("Added situational bonus to initiative dialog", [{
+          bonus: actor._initiativeSituationalBonus,
+          rolls: config.rolls
+        }]);
+        
+        // Clean up the temporary storage
+        delete actor._initiativeSituationalBonus;
+      }
+    }
+  }
+  
+  /**
+   * Handle rendering of hit die dialog to add denomination selector for multiclass
+   */
+  static _onRenderHitDieDialog(app, html, data) {
+    // Only process hit die dialogs - check window title
+    const title = html.querySelector('.window-title')?.textContent;
+    if (!title || !title.includes('Hit Die')) return;
+    
+    const actor = app.config?.subject;
+    if (!actor) return;
+    
+    LogUtil.log("_onRenderHitDieDialog triggered", [{
+      app,
+      actor: actor.name,
+      hd: actor.system.attributes.hd
+    }]);
+    
+    // Get available hit dice from the actor's classes
+    const hdData = actor.system.attributes.hd;
+    const availableDice = [];
+    
+    // Get hit dice from actor's classes
+    for (const cls of Object.values(actor.classes || {})) {
+      const denom = cls.system.hitDice;
+      const classHD = cls.system.levels;
+      const usedHD = cls.system.hitDiceUsed || 0;
+      const availableHD = classHD - usedHD;
+      
+      if (availableHD > 0) {
+        // Check if we already have this denomination
+        const existing = availableDice.find(d => d.denomination === denom);
+        if (existing) {
+          existing.available += availableHD;
+          existing.classes.push(cls.name);
+        } else {
+          availableDice.push({
+            denomination: denom,
+            available: availableHD,
+            max: classHD,
+            classes: [cls.name]
+          });
+        }
+      }
+    }
+    
+    // Only add selector if multiple dice types are available
+    if (availableDice.length > 1) {
+      // Find the formula section
+      const formulaSection = html.querySelector('.formulas');
+      if (!formulaSection) return;
+      
+      // Get current denomination from the roll
+      const currentDenom = app.config.rolls?.[0]?.options?.denomination || hdData.largestAvailable;
+      
+      // Create hit die selector
+      const selectorHtml = `
+        <div class="form-group">
+          <label>${game.i18n.localize("DND5E.HitDice")}</label>
+          <select name="hitDieSelector" class="hit-die-selector">
+            ${availableDice.map(die => `
+              <option value="${die.denomination}" ${die.denomination === currentDenom ? 'selected' : ''}>
+                ${die.denomination} (${die.available} ${game.i18n.localize("DND5E.available")}) - ${die.classes.join(', ')}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+      `;
+      
+      // Insert before the first form group
+      const firstFormGroup = formulaSection.querySelector('.form-group');
+      if (firstFormGroup) {
+        firstFormGroup.insertAdjacentHTML('beforebegin', selectorHtml);
+        
+        // Add change handler
+        const selector = html.querySelector('.hit-die-selector');
+        selector?.addEventListener('change', async (event) => {
+          const newDenom = event.target.value;
+          
+          // Update the roll configuration
+          if (app.config.rolls?.[0]?.options) {
+            app.config.rolls[0].options.denomination = newDenom;
+          }
+          
+          // Recalculate the formula
+          const conMod = actor.system.abilities.con.mod;
+          const newFormula = `max(0, 1${newDenom} + ${conMod})`;
+          
+          if (app.config.rolls?.[0]) {
+            app.config.rolls[0].formula = newFormula;
+            
+            // Re-evaluate the roll to update the preview
+            const roll = new CONFIG.Dice.D20Roll(newFormula, actor.getRollData());
+            await roll.evaluate({async: false});
+            app.config.rolls[0] = roll;
+          }
+          
+          // Force re-render of the dialog
+          app.render(true);
+          
+          LogUtil.log("Updated hit die denomination", [{
+            newDenom,
+            newFormula,
+            conMod
+          }]);
+        });
+      }
+    }
   }
 }

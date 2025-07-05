@@ -65,8 +65,7 @@ export class ActivityUtil {
    * @returns {boolean} - Whether the item has suitable activities
    */
   static hasActivityForRoll(item, rollType) {
-    const log = LogUtil.method(ActivityUtil, 'hasActivityForRoll');
-    log('checking activity', [item, rollType]);
+    LogUtil.log('hasActivityForRoll', [item, rollType]);
     return !!this.findActivityForRoll(item, rollType);
   }
   
@@ -79,8 +78,7 @@ export class ActivityUtil {
    * @param {Object} config - Roll configuration
    */
   static async executeActivityRoll(actor, rollType, itemId, activityId, config) {
-    const log = LogUtil.method(ActivityUtil, 'executeActivityRoll');
-    log('executing activity roll', [actor, rollType, itemId, activityId, config]);
+    LogUtil.log('executeActivityRoll', [actor, rollType, itemId, activityId, config]);
     const item = actor.items.get(itemId);
     if (!item) {
       throw new Error(`Item ${itemId} not found on actor ${actor.name}`);
@@ -171,8 +169,7 @@ export class ActivityUtil {
    * @returns {Object} - Display information
    */
   static getActivityDisplayInfo(activity) {
-    const log = LogUtil.method(ActivityUtil, 'getActivityDisplayInfo');
-    log('getting activity display info', [activity]);
+    LogUtil.log('getActivityDisplayInfo', [activity]);
     if (!activity) return null;
     
     return {
@@ -191,8 +188,7 @@ export class ActivityUtil {
    * @returns {string|null} - Combined damage formula or null
    */
   static getDamageFormula(activity) {
-    const log = LogUtil.method(ActivityUtil, 'getDamageFormula');
-    log('getting damage formula', [activity]);
+    LogUtil.log('getDamageFormula', [activity]);
     if (!activity?.damage?.parts?.length) return null;
     
     // Extract all damage formulas and combine them
@@ -201,8 +197,7 @@ export class ActivityUtil {
   }
 
   static async syntheticItemRoll(item, config = {}) {
-    const log = LogUtil.method(ActivityUtil, 'syntheticItemRoll');
-    log('performing synthetic item roll', [item, config]);
+    LogUtil.log('syntheticItemRoll', [item, config]);
     let defaultConfig = {
         consumeUsage: false,
         consumeSpellSlot: false

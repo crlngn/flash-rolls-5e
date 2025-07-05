@@ -1,6 +1,6 @@
 import { ROLL_TYPES } from "../constants/General.mjs";
 import { getRollTypeDisplay, applyTargetTokens, NotificationManager } from "./helpers/Helpers.mjs";
-import { ROLL_HANDLERS } from "./helpers/RollHandlers.mjs";
+import { RollHandlers } from "./helpers/RollHandlers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 
 /**
@@ -13,25 +13,20 @@ export class RollRequestUtil {
    * @param {Object} requestData - The roll request data
    */
   static async handleRequest(requestData) {
-    const log = LogUtil.method(RollRequestUtil, 'handleRequest');
-    log('handling roll request', [requestData]);
-    // Only handle on player side
+    LogUtil.log('handleRequest', [requestData]);
     if (game.user.isGM) return;
     
-    // Get the actor
     const actor = game.actors.get(requestData.actorId);
     if (!actor || !actor.isOwner) {
       return;
     }
     
-    // Apply GM targets if configured
     if (requestData.preserveTargets && 
         requestData.targetTokenIds?.length > 0 && 
         game.user.targets.size === 0) {
       applyTargetTokens(requestData.targetTokenIds);
     }
     
-    // Add to pending notifications for batching
     NotificationManager.notify('info', '', {
       batch: true,
       batchData: {
@@ -42,7 +37,6 @@ export class RollRequestUtil {
       }
     });
     
-    // Execute the requested roll
     RollRequestUtil.executeRequest(actor, requestData);
   }
   
@@ -52,16 +46,15 @@ export class RollRequestUtil {
    * @param {Object} requestData 
    */
   static async executeRequest(actor, requestData) {
-    const log = LogUtil.method(RollRequestUtil, 'executeRequest');
-    log('executing roll request', [actor, requestData]);
+    LogUtil.log('executeRequest', [actor, requestData]);
     
     // Debug logging for hit die rolls
-    LogUtil.log('RollRequestUtil.executeRequest - Debug', {
+    LogUtil.log('executeRequest - Debug', [{
       rollType: requestData.rollType,
       rollKey: requestData.rollKey,
       actorName: actor.name,
-      handlers: Object.keys(ROLL_HANDLERS)
-    });
+      handlers: Object.keys(RollHandlers)
+    }]);
     
     try {
       // Normalize rollType to lowercase for consistent comparisons
@@ -73,10 +66,8 @@ export class RollRequestUtil {
         isRollRequest: true, // Custom flag to prevent re-interception
         target: requestData.config.target, // DC value
         _showRequestedBy: true, // Flag to show who requested the roll in chat
-        _requestedBy: requestData.config.requestedBy || 'GM' // Who requested the roll
+        _requestedBy: requestData.config.requestedBy || 'GM'
       };
-      
-      
       
       // Add ability for skills/tools if provided
       if (requestData.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
@@ -84,8 +75,8 @@ export class RollRequestUtil {
       }
       
       // Dialog configuration (second parameter)
-      // For custom rolls, always skip the dialog since we already have the formula
-      const shouldSkipDialog = requestData.skipDialog || normalizedRollType === ROLL_TYPES.CUSTOM;
+      const shouldSkipDialog = game.user.isGM ? requestData.skipDialog : false;
+      // requestData.skipDialog || normalizedRollType === ROLL_TYPES.CUSTOM;
       
       const dialogConfig = {
         configure: !shouldSkipDialog,
@@ -107,17 +98,17 @@ export class RollRequestUtil {
       };
       
       // Debug logging for hit die
-      if (normalizedRollType === 'hitdie' || normalizedRollType === 'hit_die') {
-        LogUtil.log('RollRequestUtil - Hit Die Debug', {
+      if (normalizedRollType === 'hitdie') {
+        LogUtil.log('RollRequestUtil - Hit Die Debug', [{
           normalizedRollType,
           requestData,
           rollConfig,
-          handlers: Object.keys(ROLL_HANDLERS)
-        });
+          handlers: Object.keys(RollHandlers)
+        }]);
       }
       
       // Use the roll handler for the requested roll type
-      const handler = ROLL_HANDLERS[normalizedRollType];
+      const handler = RollHandlers[normalizedRollType];
       if (handler) {
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
@@ -127,7 +118,7 @@ export class RollRequestUtil {
         }));
       }
     } catch (error) {
-      LogUtil.error('Error executing roll request:', error);
+      LogUtil.error('Error executing roll request:', [error]);
       NotificationManager.notify('error', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
         actor: actor.name || 'Unknown Actor'
       }));

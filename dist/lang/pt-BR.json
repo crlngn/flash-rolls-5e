@@ -10,7 +10,14 @@
       "allActorsHaveInitiative": "All selected actors already have initiative",
       "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
-      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}"
+      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
+      "noHitDice": "No available hit dice for {actor}"
+    },
+    "hitDie": {
+      "refillTitle": "No Hit Dice Available",
+      "refillMessage": "{actor} has no hit dice available. Would you like to refill their hit dice and send the request?",
+      "refillAndSend": "Refill & Send",
+      "refilled": "Hit dice refilled for {actor}"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -105,8 +112,8 @@
       "deathsave": "Death Save",
       "attack": "Attack Roll",
       "damage": "Damage Roll",
-      "itemSave": "Save (Item)",
-      "hitDie": "Hit Die"
+      "itemsave": "Save (Item)",
+      "hitdie": "Hit Die"
     }
   }
 }

@@ -88,7 +88,7 @@ export const ROLL_TYPES = {
   INITIATIVE_DIALOG: "initiativedialog",
   DEATH_SAVE: "deathsave",
   HIT_DIE: "hitdie",
-  ITEM_SAVE: "itemSave",
+  ITEM_SAVE: "itemsave",
   CUSTOM: "custom",
   HEALING: "healing",
   FORMULA: "formula"

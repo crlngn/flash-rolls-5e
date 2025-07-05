@@ -14,20 +14,23 @@ export const RollHelpers = {
    * @returns {Object} The modified config
    */
   addSituationalBonus(config, situational) {
+    LogUtil.log("Flash Rolls 5e | Config before adding bonus:", [situational, !config.rolls, config]);
     if (situational) {
-      LogUtil.log("Flash Rolls 5e | Adding situational bonus:", [situational, "to config:", config]);
       config.situational = situational;
       
-      // For ability checks and saves, we need the rolls array for the dialog
-      if (!config.rolls || config.rolls.length === 0) {
-        config.rolls = [{
+      // Use mergeObject to properly create/update the rolls structure
+      const rollsUpdate = {
+        rolls: [{
           parts: [],
-          data: {},
+          data: {
+            situational: situational
+          },
           options: {}
-        }];
-        // Only add to rolls array if we created it
-        config.rolls[0].data.situational = situational;
-      }
+        }]
+      };
+      
+      // Deep merge to preserve any existing structure
+      foundry.utils.mergeObject(config, rollsUpdate, {inplace: true});
       
       LogUtil.log("Flash Rolls 5e | Config after adding bonus:", [config]);
     }
@@ -41,12 +44,26 @@ export const RollHelpers = {
    * @returns {Object} The ability configuration
    */
   buildAbilityConfig(requestData, rollConfig) {
-    return {
+    const config = {
+      rolls: [{ ...rollConfig }],
       ability: requestData.rollKey,
       advantage: requestData.config.advantage || false,
       disadvantage: requestData.config.disadvantage || false,
-      target: requestData.config.target,
-      isRollRequest: true,
+      target: requestData.config.target
+    };
+    return this.ensureRollFlags(config, requestData);
+  },
+
+  /**
+   * Ensure roll config has the required flags to prevent re-interception
+   * @param {Object} config - The roll configuration
+   * @param {Object} requestData - The roll request data
+   * @returns {Object} The updated config with required flags
+   */
+  ensureRollFlags(config, requestData) {
+    return {
+      ...config,
+      isRollRequest: game.user.isGM ? false : true,
       _showRequestedBy: true,
       _requestedBy: requestData.config.requestedBy || 'GM'
     };
@@ -92,7 +109,6 @@ export const RollHelpers = {
       actor: actor,
       callback: async (confirmedFormula) => {
         try {
-          // Create and evaluate the roll
           const roll = new Roll(confirmedFormula, actor.getRollData());
           
           // Mark the roll to bypass any interceptors
@@ -117,176 +133,212 @@ export const RollHelpers = {
     });
     
     dialog.render(true);
+  },
+
+  async regainHitDice(actor) {
+    const result = foundry.utils.mergeObject({
+      type: "long",
+      deltas: {
+        hitDice: 0
+      },
+      newDay: false,
+      rolls: [],
+      updateData: {},
+      updateItems: []
+    }, {});
+    // result.clone ??= actor.clone();
+    if ( "dhd" in result ) result.deltas.hitDice = result.dhd;
+
+    actor._getRestHitDiceRecovery({ maxHitDice: actor.system.attributes.hd.max, type: "long" }, result);
+
+    LogUtil.log('RollHelpers.regainHitDice #1', [result]);
+    result.dhd = result.deltas.hitDice;
+    result.longRest = true;
+    LogUtil.log('RollHelpers.regainHitDice #2', [result]);
+
+    try {
+      if (result.updateData && Object.keys(result.updateData).length > 0) {
+        const updateResult = await actor.update(result.updateData, { isRest: false });
+      } else {
+        LogUtil.log('No actor updates to perform', []);
+      }
+      
+      if (result.updateItems && result.updateItems.length > 0) {
+        const itemUpdateResult = await actor.updateEmbeddedDocuments("Item", result.updateItems, { isRest: false });
+      } else {
+        LogUtil.log('No item updates to perform', []);
+      }
+    } catch (error) {
+      LogUtil.error('Error during updates in regainHitDice:', [error]);
+      throw error;
+    }
+
+    LogUtil.log('RollHelpers.regainHitDice #3', [result]);
+    // Return data summarizing the rest effects
+    return result;
+
   }
 };
 
 /**
  * Roll handlers for each roll type
+ * 
+  ABILITY: "ability",
+  ABILITY_CHECK: "abilitycheck",
+  SAVE: "save",
+  SAVING_THROW: "savingthrow",
+  SKILL: "skill",
+  TOOL: "tool",
+  CONCENTRATION: "concentration",
+  ATTACK: "attack",
+  DAMAGE: "damage",
+  INITIATIVE: "initiative",
+  INITIATIVE_DIALOG: "initiativedialog",
+  DEATH_SAVE: "deathsave",
+  HIT_DIE: "hitdie",
+  ITEM_SAVE: "itemsave",
+  CUSTOM: "custom",
+  HEALING: "healing",
+  FORMULA: "formula"
  */
-export const ROLL_HANDLERS = {
-  [ROLL_TYPES.ABILITY]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+
+export const RollHandlers = {
+  ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildAbilityConfig(requestData, rollConfig);
-    RollHelpers.addSituationalBonus(config, requestData.config.situational);
+
+    // Use situational from either source
+    const situational = requestData.config.situational || rollConfig.situational || config.situational || "";
+    RollHelpers.addSituationalBonus(config, situational);
+    config.situational = situational;
+    LogUtil.log('RollHelpers.rollAbilityCheck', [situational, config, requestData, dialogConfig]);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
-  // Alias for ABILITY_CHECK
-  [ROLL_TYPES.ABILITY_CHECK]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    return ROLL_HANDLERS[ROLL_TYPES.ABILITY](actor, requestData, rollConfig, dialogConfig, messageConfig);
+  abilitycheck: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return RollHandlers.ability(actor, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+  save: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildAbilityConfig(requestData, rollConfig);
-    RollHelpers.addSituationalBonus(config, requestData.config.situational);
+    // Use situational from either source
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
   },
   
-  // Alias for SAVING_THROW
-  [ROLL_TYPES.SAVING_THROW]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    return ROLL_HANDLERS[ROLL_TYPES.SAVE](actor, requestData, rollConfig, dialogConfig, messageConfig);
+  savingthrow: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return RollHandlers.save(actor, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.SKILL]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // const config = {
-    //   skill: requestData.rollKey,
-    //   chooseAbility: true,
-    //   advantage: rollConfig.advantage || false,
-    //   disadvantage: rollConfig.disadvantage || false,
-    //   target: rollConfig.target,
-    //   isRollRequest: true,
-    //   _showRequestedBy: true,
-    //   _requestedBy: rollConfig._requestedBy || 'GM'
-    // };
-    // if (requestData.config.ability) {
-    //   config.ability = requestData.config.ability;
-    // }
-    // // For skills, we need to set situational property for dialog display
-    // if (requestData.config.situational) {
-    //   config.situational = requestData.config.situational;
-    // }
-
-    rollConfig.legacy = false;
-    rollConfig.skill = requestData.rollKey;
-    rollConfig.chooseAbility = true;
-    if (requestData.config.ability) {
-      rollConfig.ability = requestData.config.ability;
-    }
-    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
-
-    LogUtil.log("TEST", [rollConfig]);
-
-    // const config = RollHelpers.buildSkillConfig(requestData, rollConfig);
-    await actor.rollSkill(rollConfig, dialogConfig, messageConfig);
-  },
-
-  [ROLL_TYPES.TOOL]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // const config = {
-    //   tool: requestData.rollKey,
-    //   chooseAbility: true,
-    //   advantage: rollConfig.advantage || false,
-    //   disadvantage: rollConfig.disadvantage || false,
-    //   target: rollConfig.target,
-    //   isRollRequest: true,
-    //   _showRequestedBy: true,
-    //   _requestedBy: rollConfig._requestedBy || 'GM'
-    // };
-    // if (requestData.config.ability) {
-    //   config.ability = requestData.config.ability;
-    // }
-    // // For tools, we need to set situational property for dialog display
-    // if (requestData.config.situational) {
-    //   config.situational = requestData.config.situational;
-    // }
-
-    rollConfig.legacy = false;
-    rollConfig.tool = requestData.rollKey;
-    rollConfig.chooseAbility = true;
-    if (requestData.config.ability) {
-      rollConfig.ability = requestData.config.ability;
-    }
-    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
-
-    LogUtil.log("TEST", [rollConfig]);
+  skill: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const config = RollHelpers.ensureRollFlags({
+      // ...rollConfig,
+      legacy: false,
+      skill: requestData.rollKey,
+      chooseAbility: true,
+      ability: requestData.config.ability || undefined
+    }, requestData);
     
-    await actor.rollToolCheck(rollConfig, dialogConfig, messageConfig);
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
+    await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.CONCENTRATION]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // Set legacy = false to prevent the config from being cleared
-    rollConfig.legacy = false;
-    // Use the same approach as saving throws
-    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
-    await actor.rollConcentration(rollConfig, dialogConfig, messageConfig);
+  tool: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const config = RollHelpers.ensureRollFlags({
+      // ...rollConfig,
+      legacy: false,
+      tool: requestData.rollKey,
+      chooseAbility: true,
+      ability: requestData.config.ability || undefined
+    }, requestData);
+    
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
+    await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.ATTACK]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+  concentration: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const config = RollHelpers.ensureRollFlags({
+      // ...rollConfig,
+      legacy: false
+    }, requestData);
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
+    await actor.rollConcentration(config, dialogConfig, messageConfig);
+  },
+
+  attack: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     await RollHelpers.executeActivityRoll(actor, ROLL_TYPES.ATTACK, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.DAMAGE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+  damage: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     await RollHelpers.executeActivityRoll(actor, ROLL_TYPES.DAMAGE, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.ITEM_SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+  itemsave: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     await RollHelpers.executeActivityRoll(actor, ROLL_TYPES.ITEM_SAVE, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.INITIATIVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+  initiative: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     // Initiative rolls require an active combat
     if (!game.combat) {
       ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
       return;
     }
     
-    // rollInitiativeDialog expects rollOptions with specific structure
-    // const rollOptions = {
-    //   advantage: rollConfig.advantage,
-    //   disadvantage: rollConfig.disadvantage,
-    //   situational: requestData.config.situational || rollConfig.bonus,
-    // };
-    // Debug: Test what getInitiativeRollConfig returns
-    // const testConfig = actor.getInitiativeRollConfig(rollOptions);
-    // LogUtil.log("Initiative roll config test:", [
-    //   "rollOptions:", rollOptions,
-    //   "getInitiativeRollConfig result:", testConfig,
-    //   "parts:", testConfig?.parts,
-    //   "data:", testConfig?.data,
-    //   "options:", testConfig?.options
-    // ]);
-    const rollOptions = actor.getInitiativeRollConfig(rollConfig);
-    RollHelpers.addSituationalBonus(rollOptions, requestData.config.situational);
+    // Store situational bonus temporarily on actor for the hook to pick up
+    if (requestData.config.situational && dialogConfig.configure && !game.user.isGM) {
+      actor._initiativeSituationalBonus = requestData.config.situational;
+    }
     
-    // Use rollInitiative instead of rollInitiativeDialog since we handle dialog separately
-    await actor.rollInitiative(rollOptions);
+    if (dialogConfig.configure && !game.user.isGM) {
+      await actor.rollInitiativeDialog(rollConfig); // Player side with dialog
+    } else {
+      const rollOptions = actor.getInitiativeRollConfig(rollConfig);
+      RollHelpers.addSituationalBonus(rollOptions, requestData.config.situational);
+      await actor.rollInitiative({}, rollOptions); // GM can skip dialog
+    }
   },
   
   // Alias for INITIATIVE_DIALOG
-  [ROLL_TYPES.INITIATIVE_DIALOG]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    return ROLL_HANDLERS[ROLL_TYPES.INITIATIVE](actor, requestData, rollConfig, dialogConfig, messageConfig);
+  initiativedialog: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    return RollHandlers.initiative(actor, requestData, rollConfig, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.DEATH_SAVE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // Set legacy = false to prevent the config from being cleared
-    rollConfig.legacy = false;
-    RollHelpers.addSituationalBonus(rollConfig, requestData.config.situational);
-    await actor.rollDeathSave(rollConfig, dialogConfig, messageConfig);
+  deathsave: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const config = RollHelpers.ensureRollFlags({
+      ...rollConfig,
+      legacy: false
+    }, requestData);
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
+    await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.HIT_DIE]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    LogUtil.log('HIT_DIE handler called', {
-      actor: actor.name,
-      requestData,
-      rollConfig,
-      dialogConfig,
-      messageConfig
-    });
-    const denomination = requestData.rollKey;
-    // rollHitDie expects denomination as first parameter
-    await actor.rollHitDie(denomination, rollConfig, dialogConfig, messageConfig);
+  hitdie: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    dialogConfig.configure = game.user.isGM ? dialogConfig.configure : true;
+    
+    const config = RollHelpers.ensureRollFlags(rollConfig, requestData);
+    const situational = requestData.config.situational || rollConfig.situational || config.situational;
+    if (situational) {
+      RollHelpers.addSituationalBonus(config, situational);
+    }
+    
+    await actor.rollHitDie(config, dialogConfig, messageConfig);
   },
 
-  [ROLL_TYPES.CUSTOM]: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // For custom rolls, always skip the dialog since we already have the formula
+  custom: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     await RollHelpers.handleCustomRoll(actor, requestData);
   }
 };

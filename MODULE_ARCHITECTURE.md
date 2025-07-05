@@ -112,7 +112,7 @@ The module follows a modular architecture with clear separation of concerns:
     - `_showRequestedBy`: Shows requester in chat
     - `_requestedBy`: Requester name
   - Sets up dialogConfig and messageConfig
-  - Uses ROLL_HANDLERS to execute the appropriate roll type
+  - Uses RollHandlers to execute the appropriate roll type
   - Uses NotificationManager for error notifications
 
 ### 4. helpers/Helpers.mjs
@@ -245,8 +245,8 @@ Centralized notification system with batching support:
   - Uses NotificationManager for consolidated notifications
 
 - **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single NPC roll
-  - Builds requestData structure for ROLL_HANDLERS
-  - Uses ROLL_HANDLERS for all roll types (same as player rolls)
+  - Builds requestData structure for RollHandlers
+  - Uses RollHandlers for all roll types (same as player rolls)
   - Delegates to appropriate handler based on requestType
   - Uses NotificationManager for error handling
 
@@ -417,7 +417,7 @@ Static helper functions for roll handling:
   - Shows dialog with readonly formula
   - Executes roll when confirmed
 
-#### ROLL_HANDLERS Object
+#### RollHandlers Object
 Map of roll type handlers, each as an async function:
 - `[ROLL_TYPES.ABILITY]`: Ability check handler
 - `[ROLL_TYPES.SAVE]`: Saving throw handler
@@ -437,7 +437,7 @@ Map of roll type handlers, each as an async function:
 
 #### Properties
 - `formula`: The roll formula
-- `readonly`: Whether formula is read-only
+- `readonly`: Whether formula is read-only (true for player-requested rolls)
 - `actor`: Actor performing the roll
 - `callback`: Function to call on roll
 - `diceCounts`: Map for dice consolidation
@@ -499,8 +499,34 @@ Map of roll type handlers, each as an async function:
 3. Validates actor ownership
 4. Applies GM configuration
 5. Shows roll dialog (unless skipDialog=true)
-6. Executes roll using ROLL_HANDLERS
+6. Executes roll using RollHandlers
 7. Posts to chat with requester info
+
+## Recent Architecture Changes
+
+### Hit Die Multiclass Support
+- Added denomination selector in hit die dialog for multiclass characters
+- Hook `_onRenderHitDieDialog` dynamically adds UI based on available hit dice
+- Consolidates hit dice by denomination across classes
+- Allows real-time formula updates when denomination changes
+
+### Initiative Situational Bonus Fix
+- Uses temporary storage pattern (`actor._initiativeSituationalBonus`)
+- Hook `_onPreRollInitiativeDialogV2` applies bonus from temporary storage
+- Cleans up temporary data after use
+- Works around D&D5e dialog not properly handling situational bonuses
+
+### Improved Roll Flag Handling
+- `RollHelpers.ensureRollFlags()` sets context-aware flags
+- `isRollRequest` is false for GM, true for players
+- Prevents re-interception of rolls in the correct context
+- All handlers now use this centralized flag logic
+
+### Custom Roll Implementation
+- Working custom rolls from RollRequestsMenu
+- Formula validation before execution
+- Proper integration with roll request system
+- Chat messages include requester attribution
 
 ## Key Data Structures
 
@@ -554,8 +580,8 @@ Used throughout the module to avoid hardcoded strings:
 - `DAMAGE`: "damage"
 - `INITIATIVE`: "initiative"
 - `DEATH_SAVE`: "deathsave"
-- `HIT_DIE`: "hitDie"
-- `ITEM_SAVE`: "itemSave"
+- `HIT_DIE`: "hitdie"
+- `ITEM_SAVE`: "itemsave"
 - `CUSTOM`: "custom"
 
 ### SOCKET_CALLS

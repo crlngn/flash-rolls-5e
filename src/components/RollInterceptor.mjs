@@ -3,7 +3,7 @@ import { getSettings } from '../constants/Settings.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
-import { MODULE_ID, ROLL_TYPES } from '../constants/General.mjs';
+import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './GMRollConfigDialog.mjs';
 
@@ -20,8 +20,7 @@ export class RollInterceptor {
    * Initialize the roll interceptor
    */
   static initialize() {
-    const log = LogUtil.method(RollInterceptor, 'initialize');
-    log('initializing');
+    LogUtil.log('RollInterceptor.initialize');
     
     // Only initialize for GM users
     if (!game.user.isGM) return;
@@ -33,8 +32,7 @@ export class RollInterceptor {
    * Register all necessary hooks for roll interception
    */
   static registerHooks() {
-    const log = LogUtil.method(RollInterceptor, 'registerHooks');
-    log('registering hooks');
+    LogUtil.log('RollInterceptor.registerHooks');
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, this._handlePreRoll.bind(this, ROLL_TYPES.ABILITY));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, this._handlePreRoll.bind(this, ROLL_TYPES.SAVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SKILL_V2, this._handlePreRoll.bind(this, ROLL_TYPES.SKILL));
@@ -55,8 +53,7 @@ export class RollInterceptor {
    * @param {Function} handler 
    */
   static _registerHook(hookName, handler) {
-    const log = LogUtil.method(RollInterceptor, '_registerHook');
-    log('registering hook', [hookName]);
+    LogUtil.log('RollInterceptor._registerHook');
     const hookId = Hooks.on(hookName, handler);
     this.registeredHooks.add({ hookName, hookId });
   }
@@ -65,8 +62,7 @@ export class RollInterceptor {
    * Unregister all hooks (for cleanup)
    */
   static unregisterHooks() {
-    const log = LogUtil.method(RollInterceptor, 'unregisterHooks');
-    log('unregistering all hooks');
+    LogUtil.log('RollInterceptor.unregisterHooks');
     for (const { hookName, hookId } of this.registeredHooks) {
       Hooks.off(hookName, hookId);
     }
@@ -82,23 +78,16 @@ export class RollInterceptor {
    * @returns {boolean|void} - Return false to prevent the roll
    */
   static _handlePreRoll(rollType, config, dialog, message) {
-    const log = LogUtil.method(RollInterceptor, '_handlePreRoll');
-    log('handling pre-roll', [rollType, config, dialog, message]);
     
     // Add detailed logging for initiative debugging
-    if (rollType === ROLL_TYPES.INITIATIVE || rollType === ROLL_TYPES.ABILITY) {
-      LogUtil.log('RollInterceptor._handlePreRoll - Initiative/Ability Debug', {
-        rollType,
-        configType: config?.constructor?.name,
-        configAbility: config?.ability,
-        configSubject: config?.subject,
-        isActor: config instanceof Actor,
-        configKeys: config ? Object.keys(config) : []
-      });
-    }
+    LogUtil.log('_handlePreRoll - Initiative/Ability Debug', [{
+      rollType,
+      config
+    }]);
     // Only intercept on GM side
     if (!game.user.isGM) return;
-    
+
+    LogUtil.log('_handlePreRoll #2');
     
     // Check for initiativeDialog in hookNames - this indicates an initiative roll
     // even if it's being processed as an ability check
@@ -107,7 +96,7 @@ export class RollInterceptor {
     
     // Override rollType if this is actually an initiative roll
     if (isInitiativeRoll && rollType === ROLL_TYPES.ABILITY) {
-      LogUtil.log('RollInterceptor._handlePreRoll - Overriding ability to initiative', { hookNames });
+      LogUtil.log('RollInterceptor._handlePreRoll - Overriding ability to initiative', [{ hookNames }]);
       rollType = ROLL_TYPES.INITIATIVE;
     }
     
@@ -119,6 +108,14 @@ export class RollInterceptor {
       // if (dialog?.isRollRequest) return;
       // Also check third parameter for rollInitiative calls
       // if (message?.isRollRequest) return;
+    } else if (rollType === ROLL_TYPES.HIT_DIE) {
+      // For hit die rolls, first parameter is denomination string, second is config
+      // Check if this is a roll request to avoid loops
+      if (dialog?.isRollRequest || message?.isRollRequest) {
+        return;
+      }
+      // Extract actor from the second parameter (dialog is actually the config for hit die)
+      actor = dialog?.subject?.actor || dialog?.subject || dialog?.actor;
     } else {
       // Check all three parameters for isRollRequest flag to avoid loops
       if (config?.isRollRequest || dialog?.isRollRequest || message?.isRollRequest) {
@@ -128,33 +125,24 @@ export class RollInterceptor {
       // Extract actor from the config
       actor = config.subject?.actor || config.subject || config.actor;
     }
+    LogUtil.log('_handlePreRoll #3');
     
     // Check if roll interception and requests are enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    if (!rollInterceptionEnabled || !rollRequestsEnabled) {
-      // Allow the roll to proceed normally when either setting is disabled
+    if(!rollInterceptionEnabled || !rollRequestsEnabled ||
+        !actor || actor.documentName !== 'Actor') {
       return;
     }
-    
-    if (!actor || actor.documentName !== 'Actor') {
-      return;
+    LogUtil.log('_handlePreRoll #4');
+
+    const owner = this._getActorOwner(actor);   
+    if (!owner || owner.id === game.user.id || !owner.active || // player owner inexistent or not active
+        dialog.configure===false || config.skipDialog===true || config.fastForward===true) { // config skips the dialog
+      return; // undefined - don't intercept, let the roll proceed
     }
-    
-    // Check if the actor is owned by a player (not the GM)
-    const owner = this._getActorOwner(actor);
-    if (!owner || owner.id === game.user.id) {
-      // Actor is owned by GM or has no owner, allow normal roll
-      return;
-    }
-    
-    // Check if the owner is online
-    if (!owner.active) {
-      // Player is offline - allow GM to roll normally
-      return; // Don't intercept, let the roll proceed
-    }
-    
+    LogUtil.log('_handlePreRoll #5');
     
     // Show GM configuration dialog before sending to player
     this._showGMConfigDialog(actor, owner, rollType, config, dialog, message);
@@ -173,11 +161,11 @@ export class RollInterceptor {
    * @param {Object} message 
    */
   static async _showGMConfigDialog(actor, owner, rollType, config, dialog, message) {
-    const log = LogUtil.method(RollInterceptor, '_showGMConfigDialog');
-    log('showing GM config dialog', [actor, owner, rollType, config, dialog, message]);
+    console.trace(DEBUG_TAG + ' _showGMConfigDialog', [actor, owner, rollType, config, dialog, message]);
+    // LogUtil.log('_showGMConfigDialog', [actor, owner, rollType, config, dialog, message]);
     
     // Log detailed config information
-    LogUtil.log('RollInterceptor._showGMConfigDialog - Detailed config', {
+    LogUtil.log('_showGMConfigDialog - Detailed config', [{
       rollType,
       configAbility: config?.ability,
       configSubject: config?.subject,
@@ -185,7 +173,7 @@ export class RollInterceptor {
       configSkill: config?.skill,
       configTool: config?.tool,
       fullConfig: config
-    });
+    }]);
     try {
       // Normalize rollType to lowercase for consistent comparisons
       const normalizedRollType = rollType?.toLowerCase();
@@ -234,11 +222,11 @@ export class RollInterceptor {
           break;
         case ROLL_TYPES.INITIATIVE:
           // Initiative rolls don't need special config
-          // The dialog will handle getting the initiative ability
           break;
         case ROLL_TYPES.HIT_DIE:
           // Hit die rolls need the denomination
-          rollConfig.denomination = config.denomination || config.subject?.denomination;
+          // For hit die rolls, the first parameter is the denomination string (e.g., "d8")
+          rollConfig.denomination = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
           break;
       }
       
@@ -275,6 +263,10 @@ export class RollInterceptor {
           case ROLL_TYPES.INITIATIVE:
             rollKey = actor.system.attributes?.init?.ability || 'dex'; // Default to dexterity
             break;
+          case ROLL_TYPES.HIT_DIE:
+            // For hit die rolls, the first parameter is the denomination string (e.g., "d8")
+            rollKey = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
+            break;
         }
         
         // Log the data being passed to the dialog
@@ -309,11 +301,11 @@ export class RollInterceptor {
         return;
       }
       
-      LogUtil.log('RollInterceptor._showGMConfigDialog - Dialog result', {
+      LogUtil.log('RollInterceptor._showGMConfigDialog - Dialog result', [{
         sendRequest: result.sendRequest,
         rollType: normalizedRollType,
         result
-      });
+      }]);
       
       // If sendRequest is false, execute local roll
       if (!result.sendRequest) {
@@ -348,8 +340,7 @@ export class RollInterceptor {
    * @param {Object} dialogResult
    */
   static async _executeLocalRoll(actor, rollType, originalConfig, dialogResult) {
-    const log = LogUtil.method(RollInterceptor, '_executeLocalRoll');
-    log('executing local roll', [actor, rollType, originalConfig, dialogResult]);
+    LogUtil.log('RollInterceptor._executeLocalRoll', [actor, rollType, originalConfig, dialogResult]);
     // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
     
@@ -392,14 +383,15 @@ export class RollInterceptor {
           await actor.rollConcentration(config, dialogConfig, messageConfig);
           break;
         case ROLL_TYPES.INITIATIVE:
-          await actor.rollInitiative(config, dialogConfig, messageConfig);
+          await actor.rollInitiativeD(config, dialogConfig, messageConfig);
           break;
         case ROLL_TYPES.DEATH_SAVE:
           await actor.rollDeathSave(config, dialogConfig, messageConfig);
           break;
         case ROLL_TYPES.HIT_DIE:
           // Hit die rolls need the denomination parameter
-          await actor.rollHitDie(originalConfig.denomination, config, dialogConfig, messageConfig);
+          const denomination = typeof originalConfig === 'string' ? originalConfig : originalConfig.denomination;
+          await actor.rollHitDie(denomination, config, dialogConfig, messageConfig);
           break;
         // Add other roll types as needed
       }
@@ -417,10 +409,9 @@ export class RollInterceptor {
    * @param {Object} message 
    */
   static async _showConfigurationDialog(actor, owner, rollType, config, dialog, message) {
-    const log = LogUtil.method(RollInterceptor, '_showConfigurationDialog');
-    log('showing configuration dialog', [actor, owner, rollType, config, dialog, message]);
+    LogUtil.log('RollInterceptor._showConfigurationDialog', [actor, owner, rollType, config, dialog, message]);
+
     try {
-      
       // Create a wrapper function that will be called instead of the normal roll
       const rollWrapper = async (finalConfig) => {
         // Send the configured roll request to the player
@@ -455,8 +446,7 @@ export class RollInterceptor {
    * @returns {User|null}
    */
   static _getActorOwner(actor) {
-    const log = LogUtil.method(RollInterceptor, '_getActorOwner');
-    log('getting actor owner', [actor]);
+    LogUtil.log('_getActorOwner', [actor]);
     // Find the first active player who owns this actor
     const ownership = actor.ownership || {};
     
@@ -480,8 +470,7 @@ export class RollInterceptor {
    * @param {Object} config 
    */
   static _sendRollRequest(actor, owner, rollType, config) {
-    const log = LogUtil.method(RollInterceptor, '_sendRollRequest');
-    log('sending roll request', [actor, owner, rollType, config]);
+    LogUtil.log('_sendRollRequest', [actor, owner, rollType, config]);
     const SETTINGS = getSettings();
     const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
     
@@ -520,7 +509,8 @@ export class RollInterceptor {
         }
         break;
       case ROLL_TYPES.HIT_DIE:
-        rollKey = config.denomination;
+        // For hit die rolls, the first parameter might be the denomination string
+        rollKey = typeof config === 'string' ? config : config.denomination;
         break;
       case ROLL_TYPES.INITIATIVE_DIALOG:
       case ROLL_TYPES.INITIATIVE:
@@ -559,7 +549,7 @@ export class RollInterceptor {
       dialogOptions: config.dialogOptions,
       messageData: config.messageData,
       ability: config.ability, // Include ability for skill/tool rolls
-      denomination: config.denomination, // Include denomination for hit die rolls
+      denomination: typeof config === 'string' ? config : config.denomination, // Include denomination for hit die rolls
       requestedBy: config.requestedBy || game.user.name // Include who requested the roll
     };
     
@@ -586,13 +576,13 @@ export class RollInterceptor {
     
     // Debug logging for hit die
     if (normalizedRollType === ROLL_TYPES.HIT_DIE) {
-      LogUtil.log('RollInterceptor._sendRollRequest - Hit Die Debug', {
+      LogUtil.log('RollInterceptor._sendRollRequest - Hit Die Debug', [{
         actor: actor.name,
         owner: owner.name,
         rollType: normalizedRollType,
         rollKey,
         requestData
-      });
+      }]);
     }
     
     // Send request to player via socket

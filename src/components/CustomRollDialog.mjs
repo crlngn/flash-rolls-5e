@@ -210,7 +210,7 @@ export class CustomRollDialog extends foundry.applications.api.HandlebarsApplica
    * Handle roll button click
    */
   async rollDice() {
-    const log = LogUtil.method(this, 'rollDice');
+    LogUtil.log('rollDice');
     
     // Validate the formula
     if (!this.validateFormula(this.formula)) {

@@ -10,7 +10,8 @@
       "allActorsHaveInitiative": "All selected actors already have initiative",
       "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
-      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}"
+      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
+      "noHitDice": "No available hit dice for {actor}"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -83,7 +84,13 @@
         "sendRequest": "Send as Request",
         "sendRequestNote": "Choose whether to send rolls to players or execute locally",
         "sendToPlayers": "Send to Players",
-        "rollLocally": "Roll Locally"
+        "rollLocally": "Roll Locally",
+        "hitDie": {
+          "refillTitle": "No Hit Dice Available",
+          "refillMessage": "{actor} has no hit dice available. Would you like to refill their hit dice and send the request?",
+          "refillAndSend": "Refill & Send",
+          "refilled": "Hit dice refilled for {actor}"
+        }
       },
       "menus": {
         "rollRequestsTitle": "Roll Requests"

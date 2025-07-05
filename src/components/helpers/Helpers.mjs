@@ -479,3 +479,16 @@ export function categorizeActorsByOwnership(actors) {
   
   return { pcActors, npcActors };
 }
+
+
+export function addHDUpdate(updates, newUpdate){
+  const existingIndex = updates.findIndex(update => update._id === newUpdate._id);
+  if(existingIndex > -1){
+    updates[existingIndex] = foundry.utils.mergeObject(
+      updates[existingIndex],
+      newUpdate
+    )
+  }else{
+    updates.push(newUpdate);
+  }
+}
