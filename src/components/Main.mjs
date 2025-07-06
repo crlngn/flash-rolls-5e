@@ -31,7 +31,7 @@ export class Main {
 
   /**
    * Handle roll request from GM on player side
-   * @param {Object} requestData - The roll request data
+   * @param {import('./RollRequestUtil.mjs').RollRequestData} requestData - The roll request data
    */
   static async handleRollRequest(requestData) {
     return RollRequestUtil.handleRequest(requestData);

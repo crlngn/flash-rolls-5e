@@ -234,17 +234,24 @@ Centralized notification system with batching support:
 
 - **`_updateAllActorsCheckbox()`**: Updates "select all" checkbox state
 
-- **`_handleNPCRolls(actors, rollType, rollKey)`**: Processes NPC rolls
-  - Shows GM configuration dialog
+- **`_executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey)`**: Orchestrates roll execution
+  - Separates online/offline players
+  - Routes PC rolls to players via _sendRollRequestToPlayer
+  - Routes NPC and offline player rolls to _handleGMRolls
+  - Shows consolidated notifications
+
+- **`_handleGMRolls(actors, requestType, rollKey, rollProcessConfig)`**: Executes rolls locally on GM client
+  - Used for NPCs and offline player characters
   - Handles bulk rolls with delays using delay helper
-  - Uses NotificationManager for all notifications
+  - Accepts BasicRollProcessConfiguration from dialog
 
-- **`_handlePCRolls(actors, rollType, rollKey)`**: Processes PC rolls
-  - Shows GM configuration dialog
-  - Sends requests to players
-  - Uses NotificationManager for consolidated notifications
+- **`_sendRollRequestToPlayer(actor, owner, requestType, rollKey, config, suppressNotification)`**: Sends roll request to player
+  - Handles special cases like hit die refills
+  - Builds RollRequestData with rollProcessConfig
+  - Sends via SocketUtil to specific player
+  - Shows notification unless suppressed
 
-- **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single NPC roll
+- **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single actor roll
   - Builds requestData structure for RollHandlers
   - Uses RollHandlers for all roll types (same as player rolls)
   - Delegates to appropriate handler based on requestType
@@ -401,13 +408,19 @@ Extends GMRollConfigDialog for skill/tool specific handling
 #### RollHelpers Object
 Static helper functions for roll handling:
 
-- **`addSituationalBonus(config, situational)`**: Adds situational bonus to roll config
-  - Creates rolls array with situational data
-  - Used by ability checks, saves, concentration, and initiative
+- **`addSituationalBonus(config, situational)`**: Adds situational bonus to BasicRollProcessConfiguration
+  - Adds "@situational" to rolls[0].parts array
+  - Sets situational value in rolls[0].data
+  - Ensures proper D&D5e roll structure
 
-- **`buildAbilityConfig(requestData, rollConfig)`**: Builds config for ability-based rolls
-  - Used by ability checks and saving throws
+- **`buildAbilityConfig(requestData, rollConfig)`**: Builds BasicRollProcessConfiguration for ability-based rolls
+  - Takes BasicRollConfiguration and returns BasicRollProcessConfiguration
+  - Creates proper rolls array with parts[], data{}, options{} structure
   - Sets up advantage, disadvantage, target, and request flags
+
+- **`ensureRollFlags(config, requestData)`**: Adds module-specific flags to prevent re-interception
+  - Sets isRollRequest, _showRequestedBy, _requestedBy flags
+  - Preserves BasicRollProcessConfiguration structure
 
 - **`executeActivityRoll(actor, rollType, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles activity-based rolls
   - Used by attack, damage, and item save rolls
@@ -504,6 +517,13 @@ Map of roll type handlers, each as an async function:
 
 ## Recent Architecture Changes
 
+### Proper D&D5e Type Usage
+- Module now uses standard D&D5e roll configuration types throughout
+- GMRollConfigDialog.getConfiguration() returns proper BasicRollProcessConfiguration
+- All RollHandlers updated to build correct BasicRollProcessConfiguration structures
+- Situational bonuses properly stored in rolls[0].data.situational with "@situational" in parts[]
+- Eliminates custom flat configuration objects in favor of D&D5e's expected types
+
 ### Hit Die Multiclass Support
 - Added denomination selector in hit die dialog for multiclass characters
 - Hook `_onRenderHitDieDialog` dynamically adds UI based on available hit dice
@@ -554,18 +574,49 @@ Map of roll type handlers, each as an async function:
 }
 ```
 
-### GM Dialog Result
+### Roll Configuration Types
+
+#### BasicRollConfiguration
+Individual roll configuration used within BasicRollProcessConfiguration:
 ```javascript
 {
-  advantage: boolean,
-  disadvantage: boolean,
-  situational: "bonus formula",
-  dc: number,
-  rollMode: "roll|gmroll|blindroll|selfroll",
-  ability: "str|dex|etc",
-  sendRequest: boolean
+  parts: string[],     // Roll formula parts like ["@mod", "@situational"]
+  data: {              // Data for formula resolution
+    situational?: string,  // Situational bonus formula
+    // ... other data
+  },
+  options: {}          // Roll options
 }
 ```
+
+#### BasicRollProcessConfiguration  
+Process-level configuration passed to D&D5e actor roll methods:
+```javascript
+{
+  rolls: BasicRollConfiguration[],  // Array of roll configurations
+  subject?: Actor,                  // Actor performing the roll
+  ability?: string,                 // Ability key for ability checks/saves
+  skill?: string,                   // Skill key for skill checks
+  tool?: string,                    // Tool key for tool checks
+  advantage?: boolean,              // Roll with advantage
+  disadvantage?: boolean,           // Roll with disadvantage
+  target?: number,                  // DC value
+  chatMessage?: boolean,            // Create chat message
+  rollMode?: string,                // Roll visibility mode
+  // Custom module flags:
+  isRollRequest?: boolean,          // Prevents re-interception
+  sendRequest?: boolean,            // Send to player vs roll locally
+  skipDialog?: boolean,             // Skip configuration dialog
+  _showRequestedBy?: boolean,       // Show requester in chat
+  _requestedBy?: string             // Requester name
+}
+```
+
+### GM Dialog Result
+GMRollConfigDialog.getConfiguration() returns BasicRollProcessConfiguration with:
+- Properly structured rolls array containing situational bonus
+- All standard D&D5e properties (advantage, disadvantage, target)
+- Custom module flags (sendRequest, isRollRequest, etc.)
 
 ## Constants
 

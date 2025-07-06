@@ -68,7 +68,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessage.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
-    // this._registerHook(HOOKS_DND5E.PRE_CONFIGURE_INITIATIVE, this._onPreConfigureInitiative.bind(this));
+    this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
   }
   
   /**
@@ -136,37 +136,19 @@ export class HooksUtil {
    * Used to add custom situational bonus from data, since the default DnD5e dialog does not seem to handle that
    */
   static _onRenderRollConfigDialog(app, html, data) {
-    LogUtil.log("_onRenderRollConfigDialog triggered", [{
-      app,
-      config: app.config,
-      rolls: app.config?.rolls,
-      situational: app.config?.situational,
-      data
-    }]);
-
+    LogUtil.log("_onRenderRollConfigDialog triggered", [ app, data ]);
     
     // Do not continue if we've already triggered
     if (app._situationalTriggered) return;
-
-    // if(app.config?.rolls?.[0]?.data?.situational){
-    //   app.config.situational = app.config.rolls[0].data.situational;
-    // }
     
     // Does the dialog have a situational input field?
     const situationalInputs = html.querySelectorAll('input[name*="situational"]');
     LogUtil.log("Found situational inputs:", [situationalInputs.length]);
     
     let hasTriggered = false;
-    situationalInputs.forEach((input, index) => {
-      LogUtil.log(`Situational input ${index}:`, [{
-        name: input.name,
-        value: input.value,
-        type: input.type
-      }]);
-      
+    situationalInputs.forEach((input, index) => {      
       // check if we need to populate the value
       if (!input.value && (app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
-        LogUtil.log("Populating concentration situational bonus:", [app.config.bonus]);
         input.value = app.config.rolls[0].data.situational;
         hasTriggered = true;
       }
@@ -208,34 +190,34 @@ export class HooksUtil {
     SidebarUtil.addSidebarControls(app, html, options);
   }
   
-  /**
-   * Handle pre-configure initiative hook to add situational bonus
-   */
-  static _onPreConfigureInitiative(actor, config) {
-    // Check if there's a stored situational bonus for this actor
-    if (actor._initiativeSituationalBonus) {
-      LogUtil.log("Adding situational bonus to initiative:", [
-        "actor:", actor.name,
-        "situational:", actor._initiativeSituationalBonus,
-        "config before:", config
-      ]);
+  // /**
+  //  * Handle pre-configure initiative hook to add situational bonus
+  //  */
+  // static _onPreConfigureInitiative(actor, config) {
+  //   // Check if there's a stored situational bonus for this actor
+  //   if (actor._initiativeSituationalBonus) {
+  //     LogUtil.log("Adding situational bonus to initiative:", [
+  //       "actor:", actor.name,
+  //       "situational:", actor._initiativeSituationalBonus,
+  //       "config before:", config
+  //     ]);
       
-      // Initialize rolls array if needed
-      if (!config.rolls || config.rolls.length === 0) {
-        config.rolls = [{
-          parts: [],
-          data: {},
-          options: {}
-        }];
-      }
+  //     // Initialize rolls array if needed
+  //     if (!config.rolls || config.rolls.length === 0) {
+  //       config.rolls = [{
+  //         parts: [],
+  //         data: {},
+  //         options: {}
+  //       }];
+  //     }
       
-      // Add situational bonus to the roll data
-      // config.situational = actor._initiativeSituationalBonus;
-      config.rolls[0].data.situational = actor._initiativeSituationalBonus;
+  //     // Add situational bonus to the roll data
+  //     // config.situational = actor._initiativeSituationalBonus;
+  //     config.rolls[0].data.situational = actor._initiativeSituationalBonus;
       
-      LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", [config]);
-    }
-  }
+  //     LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", [config]);
+  //   }
+  // }
   
   /**
    * Register a hook and track it
@@ -324,6 +306,35 @@ export class HooksUtil {
         // Clean up the temporary storage
         delete actor._initiativeSituationalBonus;
       }
+    }
+  }
+  
+  /**
+   * Handle rendering of skill/tool configuration dialog to fix message flavor
+   */
+  static _onRenderSkillToolDialog(app, html, data) {
+    LogUtil.log("_onRenderSkillToolDialog triggered", [app]);
+    
+    // Only process if this is from a roll request and has a pre-selected ability
+    if (!app.config?.isRollRequest || !app.config?.ability) return;
+    
+    // Find the ability selector
+    const abilitySelect = html.querySelector('select[name="ability"]');
+    if (!abilitySelect) return;
+    
+    const selectedAbility = abilitySelect.value;
+    const configAbility = app.config.ability;
+
+    // Is the selected ability different from the default?
+    if (selectedAbility === configAbility) {
+      // Trigger a change event to force message flavor to update
+      setTimeout(() => {
+        const changeEvent = new Event('change', {
+          bubbles: true,
+          cancelable: true
+        });
+        abilitySelect.dispatchEvent(changeEvent);
+      }, 50);
     }
   }
   

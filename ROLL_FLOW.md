@@ -83,7 +83,7 @@ There are two main paths:
 #### 5B. If Send as Request = FALSE (GM Local Roll)
 
 **Class: `RollRequestsMenu`**
-- `_handleNPCRolls(actors, requestType, rollKey, dialogConfig)`
+- `_handleGMRolls(actors, requestType, rollKey, dialogConfig)`
   - Builds config for local rolls
   - For each actor, calls → `_executeActorRoll()`
 

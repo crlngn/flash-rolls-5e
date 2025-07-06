@@ -9,56 +9,66 @@ import { CustomRollDialog } from "../CustomRollDialog.mjs";
 export const RollHelpers = {
   /**
    * Add situational bonus to a roll configuration
-   * @param {Object} config - The roll configuration
+   * @param {BasicRollProcessConfiguration} config - The process configuration with rolls array
    * @param {string} situational - The situational bonus formula
-   * @returns {Object} The modified config
+   * @returns {BasicRollProcessConfiguration} The modified config
    */
   addSituationalBonus(config, situational) {
-    LogUtil.log("Flash Rolls 5e | Config before adding bonus:", [situational, !config.rolls, config]);
-    if (situational) {
+    LogUtil.log("Config before adding bonus:", [situational, !config.rolls, config]);
+    if (situational && config.rolls?.[0]) {
+      // Ensure the roll has proper structure
+      if (!config.rolls[0].parts) config.rolls[0].parts = [];
+      if (!config.rolls[0].data) config.rolls[0].data = {};
+      
+      // Set situational bonus in data - D&D5e will add "@situational" to parts automatically
+      config.rolls[0].data.situational = situational;
+      
+      // Also set at top level for compatibility
       config.situational = situational;
       
-      // Use mergeObject to properly create/update the rolls structure
-      const rollsUpdate = {
-        rolls: [{
-          parts: [],
-          data: {
-            situational: situational
-          },
-          options: {}
-        }]
-      };
-      
-      // Deep merge to preserve any existing structure
-      foundry.utils.mergeObject(config, rollsUpdate, {inplace: true});
-      
-      LogUtil.log("Flash Rolls 5e | Config after adding bonus:", [config]);
+      LogUtil.log("Config after adding bonus:", [config]);
     }
     return config;
   },
 
   /**
-   * Build base configuration for ability-based rolls
+   * Build base configuration for all roll types
    * @param {Object} requestData - The roll request data
-   * @param {Object} rollConfig - Base roll configuration
-   * @returns {Object} The ability configuration
+   * @param {BasicRollConfiguration} rollConfig - Individual roll configuration with parts[], data{}, options{}
+   * @param {Object} additionalConfig - Additional configuration specific to the roll type
+   * @returns {BasicRollProcessConfiguration} The process configuration for D&D5e actor roll methods
    */
-  buildAbilityConfig(requestData, rollConfig) {
+  buildRollConfig(requestData, rollConfig, additionalConfig = {}) {
+    // Build a proper BasicRollProcessConfiguration
     const config = {
-      rolls: [{ ...rollConfig }],
-      ability: requestData.rollKey,
+      rolls: [{
+        parts: rollConfig.parts || [],
+        data: rollConfig.data || {},
+        options: rollConfig.options || {}
+      }],
       advantage: requestData.config.advantage || false,
       disadvantage: requestData.config.disadvantage || false,
-      target: requestData.config.target
+      target: requestData.config.target,
+      subject: null, // Will be set by the actor
+      chatMessage: true,
+      legacy: false,
+      ...additionalConfig
     };
+    
+    // Add situational bonus if present
+    const situational = requestData.config.situational;
+    if (situational) {
+      this.addSituationalBonus(config, situational);
+    }
+    
     return this.ensureRollFlags(config, requestData);
   },
 
   /**
    * Ensure roll config has the required flags to prevent re-interception
-   * @param {Object} config - The roll configuration
+   * @param {BasicRollProcessConfiguration} config - The process configuration
    * @param {Object} requestData - The roll request data
-   * @returns {Object} The updated config with required flags
+   * @returns {BasicRollProcessConfiguration} The updated config with required flags
    */
   ensureRollFlags(config, requestData) {
     return {
@@ -204,13 +214,9 @@ export const RollHelpers = {
 
 export const RollHandlers = {
   ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.buildAbilityConfig(requestData, rollConfig);
-
-    // Use situational from either source
-    const situational = requestData.config.situational || rollConfig.situational || config.situational || "";
-    RollHelpers.addSituationalBonus(config, situational);
-    config.situational = situational;
-    LogUtil.log('RollHelpers.rollAbilityCheck', [situational, config, requestData, dialogConfig]);
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
+      ability: requestData.rollKey
+    });
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -219,12 +225,9 @@ export const RollHandlers = {
   },
 
   save: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.buildAbilityConfig(requestData, rollConfig);
-    // Use situational from either source
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
+      ability: requestData.rollKey
+    });
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
   },
   
@@ -233,46 +236,25 @@ export const RollHandlers = {
   },
 
   skill: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.ensureRollFlags({
-      // ...rollConfig,
-      legacy: false,
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       skill: requestData.rollKey,
       chooseAbility: true,
       ability: requestData.config.ability || undefined
-    }, requestData);
-    
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
+    });
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
   tool: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.ensureRollFlags({
-      // ...rollConfig,
-      legacy: false,
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       tool: requestData.rollKey,
       chooseAbility: true,
       ability: requestData.config.ability || undefined
-    }, requestData);
-    
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
+    });
     await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
 
   concentration: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.ensureRollFlags({
-      // ...rollConfig,
-      legacy: false
-    }, requestData);
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig);
     await actor.rollConcentration(config, dialogConfig, messageConfig);
   },
 
@@ -295,17 +277,18 @@ export const RollHandlers = {
       return;
     }
     
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig);
+    
     // Store situational bonus temporarily on actor for the hook to pick up
-    if (requestData.config.situational && dialogConfig.configure && !game.user.isGM) {
-      actor._initiativeSituationalBonus = requestData.config.situational;
+    const situational = requestData.config.situational;
+    if (situational && dialogConfig.configure && !game.user.isGM) {
+      actor._initiativeSituationalBonus = situational;
     }
     
     if (dialogConfig.configure && !game.user.isGM) {
-      await actor.rollInitiativeDialog(rollConfig); // Player side with dialog
+      await actor.rollInitiativeDialog(config); // Player side with dialog
     } else {
-      const rollOptions = actor.getInitiativeRollConfig(rollConfig);
-      RollHelpers.addSituationalBonus(rollOptions, requestData.config.situational);
-      await actor.rollInitiative({}, rollOptions); // GM can skip dialog
+      await actor.rollInitiative({}, config); // GM can skip dialog
     }
   },
   
@@ -315,26 +298,16 @@ export const RollHandlers = {
   },
 
   deathsave: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    const config = RollHelpers.ensureRollFlags({
-      ...rollConfig,
-      legacy: false
-    }, requestData);
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig);
     await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
 
   hitdie: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     dialogConfig.configure = game.user.isGM ? dialogConfig.configure : true;
     
-    const config = RollHelpers.ensureRollFlags(rollConfig, requestData);
-    const situational = requestData.config.situational || rollConfig.situational || config.situational;
-    if (situational) {
-      RollHelpers.addSituationalBonus(config, situational);
-    }
-    
+    const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
+      denomination: requestData.rollKey // The hit die denomination (d6, d8, etc.)
+    });
     await actor.rollHitDie(config, dialogConfig, messageConfig);
   },
 

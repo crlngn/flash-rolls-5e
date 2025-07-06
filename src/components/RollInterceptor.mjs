@@ -5,7 +5,7 @@ import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMAttackConfigDialog } from './GMRollConfigDialog.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -80,12 +80,12 @@ export class RollInterceptor {
   static _handlePreRoll(rollType, config, dialog, message) {
     
     // Add detailed logging for initiative debugging
-    LogUtil.log('_handlePreRoll - Initiative/Ability Debug', [{
+    LogUtil.log('_handlePreRoll #1', [{
       rollType,
       config
     }]);
     // Only intercept on GM side
-    if (!game.user.isGM) return;
+    if (!game.user.isGM || config.isRollRequest === false) return;
 
     LogUtil.log('_handlePreRoll #2');
     
@@ -184,6 +184,8 @@ export class RollInterceptor {
         DialogClass = GMSkillToolConfigDialog;
       } else if (normalizedRollType === ROLL_TYPES.HIT_DIE) {
         DialogClass = GMHitDieConfigDialog;
+      } else if (normalizedRollType === ROLL_TYPES.ATTACK) {
+        DialogClass = GMAttackConfigDialog;
       } else {
         DialogClass = GMRollConfigDialog;
       }
@@ -267,6 +269,10 @@ export class RollInterceptor {
             // For hit die rolls, the first parameter is the denomination string (e.g., "d8")
             rollKey = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
             break;
+          case ROLL_TYPES.ATTACK:
+            // For attack rolls, we need the item ID
+            rollKey = config.subject?.item?.id;
+            break;
         }
         
         // Log the data being passed to the dialog
@@ -279,10 +285,18 @@ export class RollInterceptor {
         });
         
         // Use the static getConfiguration method which properly waits for dialog result
-        result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
-          skipDialogs: false,
-          defaultSendRequest: true
-        });
+        if (normalizedRollType === ROLL_TYPES.ATTACK) {
+          // Attack dialog needs the original config
+          result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
+            skipDialogs: false,
+            defaultSendRequest: true
+          }, config);
+        } else {
+          result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
+            skipDialogs: false,
+            defaultSendRequest: true
+          });
+        }
       } else {
         // Skip dialog and use default config
         result = {
@@ -393,6 +407,16 @@ export class RollInterceptor {
           const denomination = typeof originalConfig === 'string' ? originalConfig : originalConfig.denomination;
           await actor.rollHitDie(denomination, config, dialogConfig, messageConfig);
           break;
+        case ROLL_TYPES.ATTACK:
+          // Attack rolls need the item and activity
+          const item = originalConfig.subject?.item;
+          if (item) {
+            const activity = ActivityUtil.findActivityForRoll(item, ROLL_TYPES.ATTACK);
+            if (activity) {
+              await activity.use(config, dialogConfig, messageConfig);
+            }
+          }
+          break;
         // Add other roll types as needed
       }
     } catch (error) {
@@ -467,7 +491,7 @@ export class RollInterceptor {
    * @param {Actor} actor 
    * @param {User} owner 
    * @param {string} rollType 
-   * @param {Object} config 
+   * @param {BasicRollProcessConfiguration} config - The roll process configuration
    */
   static _sendRollRequest(actor, owner, rollType, config) {
     LogUtil.log('_sendRollRequest', [actor, owner, rollType, config]);
@@ -527,40 +551,7 @@ export class RollInterceptor {
         return;
     }
     
-    // Clean up config to remove non-serializable properties
-    const cleanConfig = {
-      advantage: config.advantage || false,
-      disadvantage: config.disadvantage || false,
-      situational: config.situational || 0,
-      parts: config.parts || [],
-      rollMode: config.rollMode || game.settings.get("core", "rollMode"),
-      elvenAccuracy: config.elvenAccuracy || false,
-      halflingLucky: config.halflingLucky || false,
-      reliableTalent: config.reliableTalent || false,
-      minimum: config.minimum,
-      maximize: config.maximize,
-      critical: config.critical,
-      fumble: config.fumble,
-      targetValue: config.targetValue,
-      fastForward: config.fastForward || false,
-      chatMessage: config.chatMessage !== false,
-      flavor: config.flavor,
-      title: config.title,
-      dialogOptions: config.dialogOptions,
-      messageData: config.messageData,
-      ability: config.ability, // Include ability for skill/tool rolls
-      denomination: typeof config === 'string' ? config : config.denomination, // Include denomination for hit die rolls
-      requestedBy: config.requestedBy || game.user.name // Include who requested the roll
-    };
-    
-    // Remove undefined values
-    Object.keys(cleanConfig).forEach(key => {
-      if (cleanConfig[key] === undefined) {
-        delete cleanConfig[key];
-      }
-    });
-    
-    // Build the request data according to Phase 1 spec
+    // Build the request data with proper rollProcessConfig
     const requestData = {
       type: "rollRequest",
       requestId: foundry.utils.randomID(),
@@ -568,7 +559,10 @@ export class RollInterceptor {
       rollType: normalizedRollType,
       rollKey,
       activityId,
-      config: cleanConfig,
+      rollProcessConfig: {
+        ...config,
+        _requestedBy: game.user.name  // Add who requested the roll
+      },
       skipDialog: skipDialogs,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)

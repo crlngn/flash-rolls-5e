@@ -9,7 +9,7 @@
   right: var(--current-sidebar-width, 5px);
   bottom: 0;
   width: auto;
-  z-index: 100;
+  z-index: 166;
   pointer-events: none;
   height: auto;
 

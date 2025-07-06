@@ -606,7 +606,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {string} rollKey - The roll key
    * @param {boolean} skipDialogs - Whether to skip dialogs
    * @param {Array} pcActors - PC actors with owners
-   * @returns {Promise<Object|null>} Configuration object or null if cancelled
+   * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration or null if cancelled
    */
   async _getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors) {
     const SETTINGS = getSettings();
@@ -630,12 +630,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       return config; // Will be null if cancelled
     } else {
-      // Use default configuration when skipping dialogs
+      // Use default BasicRollProcessConfiguration when skipping dialogs
       const config = {
+        rolls: [{
+          parts: [],
+          data: {},
+          options: {}
+        }],
         advantage: false,
         disadvantage: false,
-        situational: "",
-        parts: [],
         rollMode: game.settings.get("core", "rollMode"),
         chatMessage: true,
         isRollRequest: false,  // Don't intercept when rolling locally
@@ -704,7 +707,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // No more dialog since the GM already configured the roll
     if (offlinePlayerActors.length > 0) {
       const offlineConfig = { ...config, skipDialog: true };
-      await this._handleNPCRolls(offlinePlayerActors, rollMethodName, rollKey, offlineConfig);
+      await this._handleGMRolls(offlinePlayerActors, rollMethodName, rollKey, offlineConfig);
     }
     
     // For NPC actors, GM rolls locally
@@ -712,7 +715,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       const npcConfig = { ...config };
       npcConfig.fastForward = true;
       npcConfig.skipDialog = true;
-      await this._handleNPCRolls(npcActors, rollMethodName, rollKey, npcConfig);
+      await this._handleGMRolls(npcActors, rollMethodName, rollKey, npcConfig);
     }
   }
 
@@ -896,7 +899,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       actor: actor.name
     }]);
     
-    // Build the request data according to Phase 1 spec
+    // Build the request data with proper rollProcessConfig
     const requestData = {
       type: "rollRequest",
       requestId: foundry.utils.randomID(),
@@ -904,18 +907,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       rollType,
       rollKey,
       activityId: null,  // Menu-initiated rolls don't use activities
-      config: {
-        rollMode: config.rollMode || game.settings.get("core", "rollMode"),
-        advantage: config.advantage || false,
-        disadvantage: config.disadvantage || false,
-        situational: config.situational || "",
-        parts: config.parts || [],
-        chatMessage: config.chatMessage !== false,
-        target: config.target,  // DC value if provided
-        ability: config.ability,  // Ability override for skills/tools
-        attackMode: config.attackMode,  // Attack mode for attack rolls
-        rollTitle: config.rollTitle,  // Title from the dialog window
-        requestedBy: game.user.name  // Who requested the roll
+      rollProcessConfig: {
+        ...config,
+        _requestedBy: game.user.name  // Add who requested the roll
       },
       skipDialog: false, // Never skip to player when it's a request
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
@@ -998,29 +992,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {Actor[]} actors 
    * @param {string} requestType 
    * @param {string} rollKey 
-   * @param {Object} dialogConfig - Configuration from GM dialog
+   * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
-  async _handleNPCRolls(actors, requestType, rollKey, dialogConfig) {
-    LogUtil.log('_handleNPCRolls', [actors, requestType, rollKey, dialogConfig]);
-    // Build config for local rolls
-    const config = {
-      advantage: dialogConfig.advantage || false,
-      disadvantage: dialogConfig.disadvantage || false,
-      situational: dialogConfig.situational || "",
-      parts: dialogConfig.parts || [],
-      rollMode: dialogConfig.rollMode || game.settings.get("core", "rollMode"),
-      fastForward: dialogConfig.skipDialog || false,
-      skipDialog: dialogConfig.skipDialog || false,  // Add skipDialog flag
-      chatMessage: dialogConfig.chatMessage !== false,
-      isRollRequest: false,  // Always false for local rolls to prevent interception
-      target: dialogConfig.target,  // DC value if provided
-      ability: dialogConfig.ability,  // Ability override for skills/tools
-      attackMode: dialogConfig.attackMode  // Attack mode for attack rolls
-    };
+  async _handleGMRolls(actors, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_handleGMRolls', [actors, requestType, rollKey, rollProcessConfig]);
     
-    // Roll for each NPC with a small delay between rolls
     for (const actor of actors) {
-      await this._executeActorRoll(actor, requestType, rollKey, config);
+      await this._executeActorRoll(actor, requestType, rollKey, rollProcessConfig);
       // Delay between rolls to prevent lag and improve chat readability
       await delay(100);
     }
@@ -1031,10 +1009,10 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {Actor} actor 
    * @param {string} requestType 
    * @param {string} rollKey 
-   * @param {Object} config 
+   * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
-  async _executeActorRoll(actor, requestType, rollKey, config) {
-    LogUtil.log('_executeActorRoll', [requestType, rollKey, config]);
+  async _executeActorRoll(actor, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_executeActorRoll', [requestType, rollKey, rollProcessConfig]);
     try {
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
@@ -1062,27 +1040,40 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         }
       }
       
+      // Extract situational bonus from the rolls array if present
+      const situational = rollProcessConfig.rolls?.[0]?.data?.situational || "";
+      
       // Build requestData structure expected by RollHandlers
       const requestData = {
         rollKey: actualRollKey,
-        config: config
+        config: {
+          ...rollProcessConfig,
+          situational: situational,
+          rollMode: rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
+          advantage: rollProcessConfig.advantage || false,
+          disadvantage: rollProcessConfig.disadvantage || false,
+          target: rollProcessConfig.target
+        }
       };
       
       // Dialog configuration
       const dialogConfig = {
-        configure: !config.fastForward && !config.skipDialog
+        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipDialog
       };
       
       // Message configuration
       const messageConfig = {
-        rollMode: config.rollMode || game.settings.get("core", "rollMode"),
-        create: config.chatMessage !== false
+        rollMode: rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
+        create: rollProcessConfig.chatMessage !== false
       };
+      
+      // Pass the proper roll configuration structure
+      const rollConfig = rollProcessConfig.rolls?.[0] || {};
       
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];
       if (handler) {
-        await handler(actor, requestData, config, dialogConfig, messageConfig);
+        await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
         NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);
       }

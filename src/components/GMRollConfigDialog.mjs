@@ -6,6 +6,21 @@ import { MODULE_ID, ROLL_TYPES } from "../constants/General.mjs";
  * Extends the standard D&D5e roll configuration dialogs to add DC field and send request toggle
  */
 export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigurationDialog {
+  /**
+   * Create a new GM Roll Configuration Dialog.
+   * @param {BasicRollProcessConfiguration} [config={}] - Process configuration containing rolls array of BasicRollConfiguration objects.
+   * @param {BasicRollMessageConfiguration} [message={}] - Message configuration for chat output.
+   * @param {BasicRollConfigurationDialogOptions} [options={}] - Dialog rendering options.
+   * @param {Actor[]} [options.actors] - Array of actors this roll is being made for.
+   * @param {boolean} [options.sendRequest] - Whether to send this as a roll request to players.
+   * @param {boolean} [options.showDC] - Whether to show the DC input field.
+   * @param {string} [options.rollKey] - The specific roll key (e.g., "str" for strength save).
+   * @param {typeof BasicRoll} [options.rollType] - The roll class to use (D20Roll, DamageRoll, etc.).
+   * @param {string} [options.rollTypeString] - The roll type as a string for identification.
+   * @param {object} [options.window] - Window configuration options.
+   * @param {string} [options.window.title] - The window title.
+   * @param {string} [options.window.subtitle] - The window subtitle.
+   */
   constructor(config = {}, message = {}, options = {}) {
     options.rollType = options.rollType || CONFIG.Dice.D20Roll;
     super(config, message, options);
@@ -29,7 +44,10 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * @inheritDoc
+   * Default rendering options for the GM roll configuration dialog.
+   * Extends the parent's default options to add custom CSS classes.
+   * @returns {object} The default options object.
+   * @override
    */
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -38,20 +56,30 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * Override title to use our stored title
+   * Get the window title for the dialog.
+   * Uses the window title from options if provided, otherwise falls back to parent implementation.
+   * The parent class constructs the title from options.window.title or uses a default localized string.
+   * @returns {string} The localized window title
+   * @override
    */
   get title() {
     return this.windowTitle || super.title;
   }
   
   /**
-   * Prepare configuration data for a roll.
-   * Extends parent to add DC and send request options
-   * @param {D20Roll} roll    The roll being configured.
-   * @param {object} [config] Configuration for the roll.
-   * @param {object} [dialog] Configuration for the dialog.
-   * @param {object} [message] Configuration for the chat message.
-   * @returns {object}
+   * Prepare the configuration data for rendering the dialog.
+   * This method is called internally by the parent class during rendering.
+   * Extends parent to add DC and send request options. The parent method prepares
+   * advantage/disadvantage toggles, roll mode selector, and situational bonus field.
+   * @param {BasicRoll} roll - The roll being configured
+   * @param {BasicRollProcessConfiguration} config - Roll process configuration containing rolls array
+   * @param {BasicRollDialogConfiguration} dialog - Dialog configuration with rendering options
+   * @param {BasicRollMessageConfiguration} message - Message configuration for chat output
+   * @returns {Object} The prepared configuration data for rendering with added fields:
+   *   - showDC: Whether to display the DC input field
+   *   - dcValue: The current DC value if set
+   *   - sendRequest: Whether rolls should be sent to players
+   *   - actorCount: Number of actors this roll applies to
    * @protected
    * @override
    */
@@ -69,10 +97,17 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * Prepare context that is provided to all rendered parts.
-   * Extends parent to add DC field context
-   * @param {ApplicationRenderOptions} options  Render options provided to the render method.
-   * @returns {object}
+   * Prepare the rendering context for a specific dialog part.
+   * Adds GM-specific data like DC value and send request option to the configuration part.
+   * The parent method builds the base context for each part ("configuration", "formulas", "buttons").
+   * @param {string} partId - The ID of the part being prepared ("configuration", "formulas", "buttons")
+   * @param {ApplicationRenderContext} context - The rendering context to modify
+   * @param {HandlebarsRenderOptions} options - Options which configure application rendering behavior
+   * @returns {Promise<ApplicationRenderContext>} The modified context with GM-specific data added to configuration part:
+   *   - showDC: Whether to display the DC input field
+   *   - dcValue: The current DC value if set
+   *   - sendRequest: Whether rolls should be sent to players
+   *   - actorCount: Number of actors this roll applies to
    * @protected
    * @override
    */
@@ -92,7 +127,14 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * @inheritDoc
+   * Handle post-render actions for the dialog.
+   * Injects custom GM fields (DC input, send request checkbox) into the dialog after rendering.
+   * Also attaches event listeners and triggers initial formula rebuild if needed.
+   * @param {ApplicationRenderContext} context - The render context.
+   * @param {HandlebarsRenderOptions} options - Rendering options.
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
   async _onRender(context, options) {
     LogUtil.log('_onRender', [context, options]);
@@ -144,7 +186,9 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * Attach listeners to advantage/disadvantage buttons
+   * Attach listeners to advantage/disadvantage buttons.
+   * Sets up click handlers for the advantage mode toggle buttons.
+   * Currently logs the action but does not implement custom behavior.
    * @private
    */
   _attachButtonListeners() {
@@ -158,10 +202,16 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * @inheritDoc
+   * Handle form changes in the dialog.
+   * Captures the state of custom fields (send request, DC) before the parent re-renders.
+   * The parent method rebuilds the rolls array and re-renders the formulas section.
+   * This override ensures custom field values persist across re-renders.
+   * @param {Object} formConfig - The form configuration object
+   * @param {Event} event - The change event that triggered this handler
+   * @protected
+   * @override
    */
   _onChangeForm(formConfig, event) {
-    LogUtil.log('_onChangeForm', [formConfig, event]);
     super._onChangeForm(formConfig, event);
     
     // Capture the current state of our custom fields before re-render
@@ -175,14 +225,26 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       this.dcValue = parseInt(dcInput.value) || null;
     }
     
+    LogUtil.log('_onChangeForm', [formConfig, event, this.config]);
   }
   
   /**
-   * Override _buildConfig to log what's happening
+   * Build a roll configuration from form data.
+   * Handles situational bonuses, ability selection, and DC values.
+   * The parent method builds the base configuration and calls preConfigureRoll hook.
+   * This override adds situational bonus handling matching D&D5e's implementation.
+   * @param {BasicRollConfiguration} config - Individual roll configuration from the rolls array
+   * @param {FormDataExtended} formData - Data from the dialog form
+   * @param {number} index - Index of this roll in the rolls array
+   * @returns {BasicRollConfiguration} The modified individual roll configuration with:
+   *   - parts: Array including "@situational" if bonus provided
+   *   - data.situational: The situational bonus formula
+   *   - ability: Selected ability for skill/tool rolls
+   *   - options.target: DC value if provided
    * @protected
+   * @override
    */
   _buildConfig(config, formData, index) {
-    LogUtil.log('_buildConfig', [config, formData, index]);
     // Extract ability from form data if present (for skill/tool dialogs)
     const abilityFromForm = formData?.get("ability");
     const dcFromForm = formData?.get("dc");
@@ -221,15 +283,18 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       result.options.target = this.dcValue;
     }
     
-    
+    LogUtil.log('_buildConfig', [this.config, formData, result]);
     return result;
   }
   
   /**
-   * Process form submission.
-   * @param {SubmitEvent} event             The originating form submission event.
-   * @param {HTMLFormElement} form          The form element that was submitted.
-   * @param {FormDataExtended} formData     Processed data for the submitted form.
+   * Process form submission data.
+   * Extracts and stores DC value and send request preference from the form.
+   * The parent method validates the form and prepares basic submission data.
+   * This override captures GM-specific fields before dialog closes.
+   * @param {SubmitEvent} event - The originating form submission event
+   * @param {HTMLFormElement} form - The form element that was submitted
+   * @param {FormDataExtended} formData - Processed data for the submitted form
    * @returns {Promise<void>}
    * @protected
    * @override
@@ -260,9 +325,16 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
   }
   
   /**
-   * Finalize the rolls and handle the results.
-   * @param {string} action     The action button that was clicked
-   * @returns {D20Roll[]}
+   * Finalize rolls based on the action button clicked.
+   * Applies advantage/disadvantage mode and DC values to all rolls.
+   * The parent method sets the advantage mode on D20 rolls based on the action.
+   * This override ensures DC values are applied to all finalized rolls.
+   * @param {string} action - The action button that was clicked:
+   *   - "advantage": Roll with advantage
+   *   - "normal": Normal roll
+   *   - "disadvantage": Roll with disadvantage
+   *   - "roll": Default roll button (uses normal mode)
+   * @returns {D20Roll[]} Array of finalized rolls ready for execution with DC values applied
    * @protected
    * @override
    */
@@ -271,7 +343,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Let parent handle advantage/disadvantage mode
     const finalizedRolls = super._finalizeRolls(action);
-    LogUtil.log('_finalizeRolls #2', [finalizedRolls]);
     
     // Apply DC if we have one stored
     if (this.dcValue !== undefined && this.dcValue !== null) {
@@ -282,36 +353,39 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     
     // Store our custom properties
     this.config.sendRequest = this.sendRequest;
+    LogUtil.log('_finalizeRolls #2', [finalizedRolls]);
     
     return finalizedRolls;
   }
   
   /**
-   * Static method to create and display the dialog
-   * @param {Actor[]} actors - The actors to roll for
-   * @param {string} rollType - The type of roll
-   * @param {string} rollKey - The specific roll key
-   * @param {object} options - Additional options
-   * @returns {Promise<object|null>} The configured roll data or null if cancelled
+   * Static method to create and display the GM roll configuration dialog.
+   * Handles dialog creation for various roll types with appropriate configuration.
+   * Creates a BasicRollProcessConfiguration and shows dialog for user configuration.
+   * @param {Actor[]|string[]} actors - Array of Actor documents or actor IDs to roll for
+   * @param {string} rollType - The type of roll (e.g., "save", "ability", "skill", "tool")
+   * @param {string} rollKey - The specific roll key (e.g., "str" for strength, "athletics" for skill)
+   * @param {Object} options - Additional options for dialog configuration
+   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {number} [options.dcValue] - Initial DC value
+   * @param {boolean} [options.advantage] - Whether to roll with advantage
+   * @param {boolean} [options.disadvantage] - Whether to roll with disadvantage
+   * @param {string} [options.rollMode] - Roll visibility mode
+   * @param {string} [options.situational] - Situational bonus formula
+   * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration with rolls array, or null if cancelled
+   * @static
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
-    // Ensure we have valid actors (in case IDs were passed)
+    // Ensure valid actors
     if (actors.length > 0 && typeof actors[0] === 'string') {
       actors = actors.map(actorId => game.actors.get(actorId)).filter(a => a);
     }
-    // Log detailed information about what we're receiving
     LogUtil.log('GMRollConfigDialog.getConfiguration', [{
       actors,
       actorNames: actors.map(a => a.name),
       rollType,
       rollKey,
-      options,
-      firstActorData: actors[0] ? {
-        name: actors[0].name,
-        abilities: actors[0].system?.abilities ? Object.keys(actors[0].system.abilities) : [],
-        skills: actors[0].system?.skills ? Object.keys(actors[0].system.skills) : [],
-        initAbility: actors[0].system?.attributes?.init?.ability
-      } : null
+      options
     }]);
     
     // Normalize rollType to lowercase for consistent comparisons
@@ -337,12 +411,6 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
     } else if ([ROLL_TYPES.FORMULA, ROLL_TYPES.CUSTOM, ROLL_TYPES.HIT_DIE].includes(normalizedRollType)) {
       rollClass = CONFIG.Dice.BasicRoll;
     }
-    
-    // Fallback to D20Roll if class not found
-    if (!rollClass) {
-      rollClass = CONFIG.Dice.D20Roll;
-    }
-    
     
     // Build roll configuration
     const rollConfig = {
@@ -433,49 +501,33 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       disadvantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE;
     }
     
-    // Build return configuration with only modified properties
-    const finalConfig = {
-      chatMessage: true,
-      isRollRequest: result.sendRequest,  // Only true when sending to players
+    // Extract roll configuration from the first roll
+    let situational = firstRoll?.data?.situational || "";
+    let parts = firstRoll?.parts || [];
+    let target = firstRoll?.options?.target;
+    
+    // Build a proper BasicRollProcessConfiguration
+    const rollProcessConfig = {
+      rolls: [{
+        parts: [], // Don't add @situational here - D&D5e will add it when it sees data.situational
+        data: situational ? { situational } : {},
+        options: target ? { target } : {}
+      }],
+      subject: actor,
+      advantage,
+      disadvantage,
+      target,
+      // Custom flags for our module
+      sendRequest: result.sendRequest,
+      isRollRequest: result.sendRequest,
       skipDialog: options.skipDialogs || false,
-      sendRequest: result.sendRequest
+      chatMessage: true
     };
     
-    // Only add properties that were actually changed from defaults
-    if (advantage) finalConfig.advantage = true;
-    if (disadvantage) finalConfig.disadvantage = true;
-    
-    // Check if rollMode differs from default
+    // Add roll mode if different from default
     const defaultRollMode = game.settings.get("core", "rollMode");
     if (result.message.rollMode && result.message.rollMode !== defaultRollMode) {
-      finalConfig.rollMode = result.message.rollMode;
-    }
-    
-    // Add situational bonus if provided
-    // The situational bonus might be in different places depending on roll type
-    
-    // Check various possible locations for situational bonus
-    let situational = firstRoll?.options?.situational || 
-                      firstRoll?.data?.situational || 
-                      result.config?.data?.situational || "";
-    
-    // Also check if it's in the roll parts
-    if (!situational && firstRoll?.parts?.length > 0) {
-      // Look for parts that contain @situational
-      const situationalPart = firstRoll.parts.find(part => part.includes('@situational'));
-      if (situationalPart && firstRoll.data?.situational) {
-        situational = firstRoll.data.situational;
-      }
-    }
-    
-    if (situational) {
-      finalConfig.situational = situational;
-      finalConfig.parts = ["@situational"];  // Use @situational placeholder, not the actual value
-    }
-    
-    // Add DC if provided
-    if (firstRoll?.options?.target) {
-      finalConfig.target = firstRoll.options.target;
+      rollProcessConfig.rollMode = result.message.rollMode;
     }
     
     // Add ability for skills/tools if it was selected and differs from default
@@ -483,15 +535,16 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
       // Check if this differs from the default ability for this skill/tool
       const defaultAbility = actor.system.skills?.[rollKey]?.ability || CONFIG.DND5E.skills?.[rollKey]?.ability;
       if (result.config.ability !== defaultAbility) {
-        finalConfig.ability = result.config.ability;
+        rollProcessConfig.ability = result.config.ability;
       }
     }
     
-    // Add the roll title from the dialog window
-    finalConfig.rollTitle = dialogConfig.options.window.title;
+    // Store additional metadata that handlers might need
+    rollProcessConfig.rollTitle = dialogConfig.options.window.title;
+    rollProcessConfig.rollType = normalizedRollType;
+    rollProcessConfig.rollKey = rollKey;
     
-    
-    return finalConfig;
+    return rollProcessConfig;
   }
   
   /**
@@ -602,8 +655,19 @@ export class GMRollConfigDialog extends dnd5e.applications.dice.D20RollConfigura
 /**
  * GM Hit Die Configuration Dialog
  * Extends base RollConfigurationDialog for hit die rolls
+ * @extends {dnd5e.applications.dice.RollConfigurationDialog}
  */
 export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurationDialog {
+  /**
+   * Creates an instance of GMHitDieConfigDialog.
+   * Configures the dialog for hit die rolls with GM-specific options.
+   * @param {BasicRollProcessConfiguration} config - Roll configuration
+   * @param {BasicRollMessageConfiguration} message - Chat message configuration
+   * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
+   *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
+   *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
+   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   */
   constructor(config = {}, message = {}, options = {}) {
     // Ensure rollType is set to BasicRoll for hit die
     options.rollType = CONFIG.Dice.BasicRoll || Roll;
@@ -619,7 +683,11 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * @inheritDoc
+   * Get default options for the hit die dialog.
+   * Extends parent options to add hit die specific CSS classes.
+   * @returns {Object} Default dialog options with "hit-die-config" class added
+   * @static
+   * @override
    */
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -628,7 +696,16 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * @inheritDoc
+   * Prepare configuration data for rendering.
+   * Overrides the formula display to show "Hit Die (varies by actor)" since
+   * different actors may have different hit die sizes.
+   * @param {BasicRoll} roll - The roll being configured
+   * @param {BasicRollProcessConfiguration} config - Roll process configuration
+   * @param {BasicRollDialogConfiguration} dialog - Dialog configuration
+   * @param {BasicRollMessageConfiguration} message - Message configuration
+   * @returns {Object} Configuration data with custom formula display
+   * @protected
+   * @override
    */
   _prepareConfigurationData(roll, config, dialog, message) {
     LogUtil.log('_prepareConfigurationData', [roll, config, dialog, message]);
@@ -643,7 +720,14 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * @inheritDoc
+   * Prepare context for rendering specific dialog parts.
+   * Adds send request toggle and actor count to the configuration part.
+   * @param {string} partId - The part ID being rendered
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<ApplicationRenderContext>} Modified context
+   * @protected
+   * @override
    */
   async _preparePartContext(partId, context, options) {
     context = await super._preparePartContext(partId, context, options);
@@ -659,7 +743,13 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * @inheritDoc
+   * Handle post-render tasks for the dialog.
+   * Injects the send request toggle field for GM control.
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
   async _onRender(context, options) {
     super._onRender(context, options);
@@ -690,7 +780,12 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * @inheritDoc
+   * Handle form changes in the dialog.
+   * Captures the send request toggle state before re-render.
+   * @param {Object} formConfig - The form configuration object
+   * @param {Event} event - The change event
+   * @protected
+   * @override
    */
   _onChangeForm(formConfig, event) {
     super._onChangeForm(formConfig, event);
@@ -700,26 +795,38 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
     if (sendRequestCheckbox) {
       this.sendRequest = sendRequestCheckbox.checked;
     }
+    LogUtil.log('_onChangeForm', [formConfig, event, this.config]);
   }
   
   /**
-   * @inheritDoc
+   * Process form submission data.
+   * Extracts and stores send request preference from the form.
+   * @param {SubmitEvent} event - The submission event
+   * @param {HTMLFormElement} form - The form element
+   * @param {FormDataExtended} formData - Processed form data
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
   async _processSubmitData(event, form, formData) {
     await super._processSubmitData(event, form, formData);
-    
-    LogUtil.log('_processSubmitData', [formData.get("crlngn-send-request")]);
     // Store send request preference
     this.sendRequest = formData.get("crlngn-send-request") !== "false";
+    
+    LogUtil.log('_processSubmitData', [formData, this.config]);
   }
   
   /**
-   * @inheritDoc
+   * Finalize rolls based on the action button clicked.
+   * Stores the send request flag in the configuration.
+   * @param {string} action - The action button clicked
+   * @returns {BasicRoll[]} Array of finalized rolls
+   * @protected
+   * @override
    */
   _finalizeRolls(action) {
     const finalizedRolls = super._finalizeRolls(action);
     
-    LogUtil.log('_finalizeRolls', [this.sendRequest]);
     // Store our custom properties
     this.config.sendRequest = this.sendRequest;
     
@@ -727,7 +834,15 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
   }
   
   /**
-   * Static method to create and display the dialog
+   * Static method to create and display the hit die configuration dialog.
+   * Creates appropriate hit die formulas based on each actor's available hit dice.
+   * @param {Actor[]} actors - Array of actors to roll hit dice for
+   * @param {string} rollType - The roll type (should be "hitdie")
+   * @param {string} rollKey - Not used for hit die rolls
+   * @param {Object} options - Additional options
+   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
+   * @static
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
     LogUtil.log('GMRollConfigDialog.getConfiguration', [actors, rollType, rollKey, options]);
@@ -786,37 +901,73 @@ export class GMHitDieConfigDialog extends dnd5e.applications.dice.RollConfigurat
     
     if (!result.rolls || result.rolls.length === 0) return null;
     
-    // Build return configuration
-    const finalConfig = {
-      chatMessage: true,
+    // Extract advantage mode from the finalized rolls
+    const firstRoll = result.rolls[0];
+    let advantage = false;
+    let disadvantage = false;
+    
+    if (firstRoll?.options?.advantageMode !== undefined) {
+      advantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.ADVANTAGE;
+      disadvantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE;
+    }
+    
+    // Extract roll configuration from the first roll
+    const situational = firstRoll?.data?.situational || "";
+    const target = firstRoll?.options?.target;
+    
+    // Build a proper BasicRollProcessConfiguration (matching GMRollConfigDialog)
+    const rollProcessConfig = {
+      rolls: [{
+        parts: [], // Don't add @situational here - D&D5e will add it
+        data: situational ? { situational } : {},
+        options: target ? { target } : {}
+      }],
+      subject: actors[0], // Use first actor as subject
+      advantage,
+      disadvantage,
+      target,
+      // Custom flags for our module
+      sendRequest: result.sendRequest,
       isRollRequest: result.sendRequest,
       skipDialog: options.skipDialogs || false,
-      sendRequest: result.sendRequest
+      chatMessage: true
     };
     
-    // Check if rollMode differs from default
+    // Add roll mode if different from default
     const defaultRollMode = game.settings.get("core", "rollMode");
     if (result.message.rollMode && result.message.rollMode !== defaultRollMode) {
-      finalConfig.rollMode = result.message.rollMode;
+      rollProcessConfig.rollMode = result.message.rollMode;
     }
     
-    // Add situational bonus if provided
-    const firstRoll = result.rolls[0];
-    const situational = firstRoll?.options?.situational || firstRoll?.data?.situational || "";
-    if (situational) {
-      finalConfig.situational = situational;
-      finalConfig.parts = ["@situational"];
+    // Add ability if it was selected
+    if (result.config.ability) {
+      rollProcessConfig.ability = result.config.ability;
     }
     
-    return finalConfig;
+    return rollProcessConfig;
   }
 }
 
 /**
  * GM Skill/Tool Configuration Dialog
  * Extends SkillToolRollConfigurationDialog for ability selection
+ * @extends {dnd5e.applications.dice.SkillToolRollConfigurationDialog}
  */
 export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRollConfigurationDialog {
+  /**
+   * Creates an instance of GMSkillToolConfigDialog.
+   * Forces ability selection and adds GM-specific options.
+   * @param {BasicRollProcessConfiguration} config - Roll configuration
+   * @param {BasicRollMessageConfiguration} message - Chat message configuration  
+   * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
+   *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
+   *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
+   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   *   @param {boolean} [options.showDC=false] - Whether to show DC field
+   *   @param {number} [options.dcValue] - Initial DC value
+   *   @param {string} [options.rollKey] - The skill/tool key being rolled
+   *   @param {string} [options.rollTypeString] - Display name for the roll type
+   */
   constructor(config = {}, message = {}, options = {}) {
     // Force ability selection
     const skillConfig = foundry.utils.mergeObject(config, {
@@ -851,7 +1002,16 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Prepare configuration data for rendering.
+   * Extends parent to add DC and send request options.
+   * The parent handles ability selection UI for skills and tools.
+   * @param {D20Roll} roll - The roll being configured
+   * @param {BasicRollProcessConfiguration} config - Roll process configuration
+   * @param {BasicRollDialogConfiguration} dialog - Dialog configuration
+   * @param {BasicRollMessageConfiguration} message - Message configuration
+   * @returns {Object} Configuration data with GM-specific fields added
+   * @protected
+   * @override
    */
   _prepareConfigurationData(roll, config, dialog, message) {
     LogUtil.log('_prepareConfigurationData', [roll, config, dialog, message]);
@@ -867,7 +1027,14 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Prepare context for rendering specific dialog parts.
+   * Adds GM-specific context data to the configuration part.
+   * @param {string} partId - The part ID being rendered
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<ApplicationRenderContext>} Modified context
+   * @protected
+   * @override
    */
   async _preparePartContext(partId, context, options) {
     LogUtil.log('_preparePartContext', [partId, context, options]);
@@ -885,7 +1052,13 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Handle post-render tasks for the dialog.
+   * Injects GM-specific form fields (DC and send request toggle).
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
   async _onRender(context, options) {
     LogUtil.log('_onRender', [context, options]);
@@ -941,7 +1114,9 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * Attach listeners to advantage/disadvantage buttons
+   * Attach listeners to advantage/disadvantage buttons.
+   * Sets up click handlers for the advantage mode toggle buttons.
+   * Currently logs the action but does not implement custom behavior.
    * @private
    */
   _attachButtonListeners() {
@@ -956,10 +1131,14 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Handle form changes in the dialog.
+   * Captures custom field states and ability selection before re-render.
+   * @param {Object} formConfig - The form configuration object
+   * @param {Event} event - The change event
+   * @protected
+   * @override
    */
   _onChangeForm(formConfig, event) {
-    LogUtil.log('_onChangeForm', [formConfig, event]);
     super._onChangeForm(formConfig, event);
     
     // Capture the current state of our custom fields before re-render
@@ -978,11 +1157,18 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
       this.config.ability = event.target.value;
     }
     
+    LogUtil.log('_onChangeForm', [formConfig, event, this.config]);
   }
   
   /**
-   * Override _buildConfig to log what's happening
+   * Build a roll configuration from form data.
+   * Handles ability selection, situational bonuses, and DC values.
+   * @param {BasicRollConfiguration} config - The base roll configuration
+   * @param {FormDataExtended} formData - Form data
+   * @param {number} index - Roll index
+   * @returns {BasicRollConfiguration} Modified configuration
    * @protected
+   * @override
    */
   _buildConfig(config, formData, index) {
     LogUtil.log('_buildConfig', [config, formData, index]);
@@ -1017,7 +1203,14 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Process form submission data.
+   * Extracts and stores DC value and send request preference.
+   * @param {SubmitEvent} event - The submission event
+   * @param {HTMLFormElement} form - The form element
+   * @param {FormDataExtended} formData - Processed form data
+   * @returns {Promise<void>}
+   * @protected
+   * @override
    */
   async _processSubmitData(event, form, formData) {
     LogUtil.log('_processSubmitData', [event, form, formData]);
@@ -1045,7 +1238,12 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * @inheritDoc
+   * Finalize rolls based on the action button clicked.
+   * Applies DC values to all rolls and stores send request preference.
+   * @param {string} action - The action button clicked
+   * @returns {D20Roll[]} Array of finalized rolls
+   * @protected
+   * @override
    */
   _finalizeRolls(action) {
     LogUtil.log('_finalizeRolls', [action]);
@@ -1067,12 +1265,17 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
   }
   
   /**
-   * Static method to create and display the dialog
-   * @param {Actor[]} actors - The actors to roll for
-   * @param {string} rollType - The type of roll
-   * @param {string} rollKey - The specific roll key
-   * @param {object} options - Additional options
-   * @returns {Promise<object|null>} The configured roll data or null if cancelled
+   * Static method to create and display the skill/tool configuration dialog.
+   * Handles ability selection for skills and tools with GM-specific options.
+   * @param {Actor[]} actors - Array of actors to roll for
+   * @param {string} rollType - The roll type ("skill" or "tool")
+   * @param {string} rollKey - The specific skill/tool key (e.g., "athletics", "thieves")
+   * @param {Object} options - Additional options
+   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {number} [options.dcValue] - Initial DC value
+   * @param {string} [options.ability] - Override ability selection
+   * @returns {Promise<Object|null>} Configuration with rolls array, ability selection, and sendRequest flag, or null if cancelled
+   * @static
    */
   static async getConfiguration(actors, rollType, rollKey, options = {}) {
     LogUtil.log('getConfiguration', [actors, rollType, rollKey, options]);
@@ -1176,46 +1379,274 @@ export class GMSkillToolConfigDialog extends dnd5e.applications.dice.SkillToolRo
       disadvantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE;
     }
     
-    // Build return configuration with only modified properties
-    const finalConfig = {
-      chatMessage: true,
-      isRollRequest: result.sendRequest,  // Only true when sending to players
+    // Extract roll configuration from the first roll
+    const situational = firstRoll?.data?.situational || "";
+    const target = firstRoll?.options?.target;
+    
+    // Build a proper BasicRollProcessConfiguration (matching GMRollConfigDialog)
+    const rollProcessConfig = {
+      rolls: [{
+        parts: [], // Don't add @situational here - D&D5e will add it
+        data: situational ? { situational } : {},
+        options: target ? { target } : {}
+      }],
+      subject: actors[0], // Use first actor as subject
+      advantage,
+      disadvantage,
+      target,
+      // Custom flags for our module
+      sendRequest: result.sendRequest,
+      isRollRequest: result.sendRequest,
       skipDialog: options.skipDialogs || false,
-      sendRequest: result.sendRequest
+      chatMessage: true
     };
     
-    // Only add properties that were actually changed
-    if (advantage) finalConfig.advantage = true;
-    if (disadvantage) finalConfig.disadvantage = true;
-    
-    // Check if rollMode differs from default
+    // Add roll mode if different from default
     const defaultRollMode = game.settings.get("core", "rollMode");
     if (result.message.rollMode && result.message.rollMode !== defaultRollMode) {
-      finalConfig.rollMode = result.message.rollMode;
+      rollProcessConfig.rollMode = result.message.rollMode;
     }
     
-    // Add situational bonus if provided
-    // Check both options.situational and data.situational
-    const situational = firstRoll?.options?.situational || firstRoll?.data?.situational || "";
-    if (situational) {
-      finalConfig.situational = situational;
-      finalConfig.parts = [situational];
-    }
-    
-    // Add DC if provided
-    if (firstRoll?.options?.target) {
-      finalConfig.target = firstRoll.options.target;
-    }
-    
-    // Add ability if it was selected (always include for skills/tools to ensure proper dialog display)
+    // Add ability if it was selected
     if (result.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
-      finalConfig.ability = result.config.ability;
+      rollProcessConfig.ability = result.config.ability;
     }
     
-    // Add the roll title from the dialog window
-    finalConfig.rollTitle = dialogConfig.options.window.title;
+    // Store additional metadata that handlers might need
+    rollProcessConfig.rollTitle = dialogConfig.options.window.title;
+    rollProcessConfig.rollType = normalizedRollType;
+    rollProcessConfig.rollKey = rollKey;
     
+    return rollProcessConfig;
+  }
+}
+
+/**
+ * GM Attack Roll Configuration Dialog
+ * Extends AttackRollConfigurationDialog to add send request toggle
+ * @extends {dnd5e.applications.dice.AttackRollConfigurationDialog}
+ */
+export class GMAttackConfigDialog extends dnd5e.applications.dice.AttackRollConfigurationDialog {
+  /**
+   * Creates an instance of GMAttackConfigDialog.
+   * @param {BasicRollProcessConfiguration} config - Roll configuration
+   * @param {BasicRollMessageConfiguration} message - Chat message configuration  
+   * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
+   *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
+   *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
+   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   */
+  constructor(config = {}, message = {}, options = {}) {
+    super(config, message, options);
     
-    return finalConfig;
+    LogUtil.log('GMAttackConfigDialog.constructor', [config, message, options]);
+    
+    // Store GM-specific options
+    this.actors = options.actors || [];
+    this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
+  }
+  
+  /**
+   * @inheritDoc
+   */
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      classes: ["dnd5e2", "roll-configuration", "gm-roll-config"]
+    });
+  }
+  
+  /**
+   * Prepare configuration data for rendering.
+   * @param {D20Roll} roll - The roll being configured
+   * @param {BasicRollProcessConfiguration} config - Roll process configuration
+   * @param {BasicRollDialogConfiguration} dialog - Dialog configuration
+   * @param {BasicRollMessageConfiguration} message - Message configuration
+   * @returns {Object} Configuration data with GM-specific fields added
+   * @protected
+   * @override
+   */
+  _prepareConfigurationData(roll, config, dialog, message) {
+    LogUtil.log('GMAttackConfigDialog._prepareConfigurationData', [roll, config, dialog, message]);
+    const data = super._prepareConfigurationData(roll, config, dialog, message);
+    
+    // Add GM-specific data
+    data.sendRequest = this.sendRequest;
+    data.actorCount = this.actors.length;
+    
+    return data;
+  }
+  
+  /**
+   * Prepare context for rendering specific dialog parts.
+   * @param {string} partId - The part ID being rendered
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<ApplicationRenderContext>} Modified context
+   * @protected
+   * @override
+   */
+  async _preparePartContext(partId, context, options) {
+    context = await super._preparePartContext(partId, context, options);
+    
+    if (partId === "configuration") {
+      context.sendRequest = this.sendRequest;
+      context.actorCount = this.actors.length;
+    }
+    
+    return context;
+  }
+  
+  /**
+   * Handle post-render tasks for the dialog.
+   * @param {ApplicationRenderContext} context - The render context
+   * @param {HandlebarsRenderOptions} options - Rendering options
+   * @returns {Promise<void>}
+   * @protected
+   * @override
+   */
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    
+    // Check if we've already injected our fields
+    if (this.element.querySelector('.gm-roll-config-fields')) {
+      return;
+    }
+    
+    // Find the configuration section
+    let configSection = this.element.querySelector('.rolls .formulas');
+    
+    if (configSection && this.actors.length > 0) {
+      const templateData = {
+        showDC: false, // Attack rolls don't use DC
+        showSendRequest: this.actors.length > 0,
+        sendRequest: this.sendRequest
+      };
+      
+      const template = await renderTemplate(`modules/${MODULE_ID}/templates/gm-roll-config-fields.hbs`, templateData);
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'gm-roll-config-fields';
+      wrapper.innerHTML = template;
+      
+      configSection.parentNode.insertBefore(wrapper, configSection);
+    }
+  }
+  
+  /**
+   * Handle form changes in the dialog.
+   * @param {Object} formConfig - The form configuration object
+   * @param {Event} event - The change event
+   * @protected
+   * @override
+   */
+  _onChangeForm(formConfig, event) {
+    super._onChangeForm(formConfig, event);
+    
+    // Capture send request state
+    const sendRequestCheckbox = this.element.querySelector('input[name="crlngn-send-request"]');
+    if (sendRequestCheckbox) {
+      this.sendRequest = sendRequestCheckbox.checked;
+    }
+  }
+  
+  /**
+   * Process form submission data.
+   * @param {SubmitEvent} event - The submission event
+   * @param {HTMLFormElement} form - The form element
+   * @param {FormDataExtended} formData - Processed form data
+   * @returns {Promise<void>}
+   * @protected
+   * @override
+   */
+  async _processSubmitData(event, form, formData) {
+    await super._processSubmitData(event, form, formData);
+    
+    // Store send request preference
+    this.sendRequest = formData.get("crlngn-send-request") !== "false";
+  }
+  
+  /**
+   * Finalize rolls based on the action button clicked.
+   * @param {string} action - The action button clicked
+   * @returns {D20Roll[]} Array of finalized rolls
+   * @protected
+   * @override
+   */
+  _finalizeRolls(action) {
+    const finalizedRolls = super._finalizeRolls(action);
+    
+    // Store our custom properties
+    this.config.sendRequest = this.sendRequest;
+    
+    return finalizedRolls;
+  }
+  
+  /**
+   * Static method to create and display the attack configuration dialog.
+   * @param {Actor[]} actors - Array of actors to roll for
+   * @param {string} rollType - The roll type ("attack")
+   * @param {string} rollKey - The item ID for the attack
+   * @param {Object} options - Additional options
+   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {Object} originalConfig - The original roll configuration from the intercepted roll
+   * @param {Object} originalDialog - The original dialog configuration from the intercepted roll
+   * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
+   * @static
+   */
+  static async getConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
+    LogUtil.log('GMAttackConfigDialog.getConfiguration', [actors, rollType, rollKey, options, originalConfig, originalDialog]);
+    
+    // Get first actor for reference
+    const actor = actors[0];
+    if (!actor) return null;
+    
+    // For attack rolls, the originalConfig already has everything we need
+    // config.subject is the AttackActivity
+    // The dialog options contain ammunitionOptions, attackModeOptions, masteryOptions, and buildConfig
+    const rollConfig = originalConfig;
+    
+    // Use the original message config if provided
+    const messageConfig = originalConfig.message || {
+      create: false,  // Don't create message yet
+      data: {
+        speaker: ChatMessage.getSpeaker({ actor })
+      }
+    };
+    
+    // Merge our GM-specific options with the original dialog options
+    // This preserves ammunitionOptions, attackModeOptions, masteryOptions, and buildConfig
+    const dialogOptions = foundry.utils.mergeObject(originalDialog.options || {}, {
+      actors,
+      sendRequest: actors.some(a => GMRollConfigDialog._isPlayerOwned(a)),
+      defaultSendRequest: options.defaultSendRequest,
+      ...options
+    });
+    
+    // Create and show the dialog
+    const app = new this(rollConfig, messageConfig, dialogOptions);
+    
+    const result = await new Promise(resolve => {
+      app.addEventListener("close", () => {
+        resolve({
+          rolls: app.rolls,
+          config: app.config,
+          message: app.message,
+          sendRequest: app.sendRequest
+        });
+      }, { once: true });
+      app.render({ force: true });
+    });
+    
+    // If no rolls or user cancelled
+    if (!result.rolls || result.rolls.length === 0) return null;
+    
+    // Build the result configuration
+    return {
+      ...result.config,
+      sendRequest: result.sendRequest,
+      isRollRequest: result.sendRequest,
+      skipDialog: options.skipDialogs || false,
+      chatMessage: true
+    };
   }
 }

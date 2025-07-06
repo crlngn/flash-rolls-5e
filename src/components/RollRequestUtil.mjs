@@ -4,13 +4,26 @@ import { RollHandlers } from "./helpers/RollHandlers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 
 /**
+ * @typedef {Object} RollRequestData
+ * @property {string} type - Always "rollRequest"
+ * @property {string} requestId - Unique identifier for this request
+ * @property {string} actorId - ID of the actor to roll for
+ * @property {string} rollType - Type of roll (ability, save, skill, etc.) from ROLL_TYPES
+ * @property {string} rollKey - Specific roll key (e.g., "str", "acr", "perception")
+ * @property {string|null} activityId - Activity ID for item-based rolls
+ * @property {BasicRollProcessConfiguration} rollProcessConfig - D&D5e roll process configuration
+ * @property {boolean} skipDialog - Whether to skip the roll configuration dialog
+ * @property {string[]} targetTokenIds - Array of targeted token IDs
+ * @property {boolean} preserveTargets - Whether to apply GM's targets to the player
+ */
+
+/**
  * Utility class for handling roll requests from GM to players
  */
 export class RollRequestUtil {
-  
   /**
    * Handle roll request from GM on player side
-   * @param {Object} requestData - The roll request data
+   * @param {RollRequestData} requestData - The roll request data
    */
   static async handleRequest(requestData) {
     LogUtil.log('handleRequest', [requestData]);
@@ -33,7 +46,7 @@ export class RollRequestUtil {
         actor: actor.name,
         rollType: requestData.rollType,
         rollKey: requestData.rollKey,
-        gm: requestData.config.requestedBy || 'GM'
+        gm: requestData.rollProcessConfig._requestedBy || 'GM'
       }
     });
     
@@ -42,8 +55,8 @@ export class RollRequestUtil {
   
   /**
    * Execute a roll based on the request data
-   * @param {Actor} actor 
-   * @param {Object} requestData 
+   * @param {Actor} actor - The actor performing the roll
+   * @param {RollRequestData} requestData - The roll request data from GM
    */
   static async executeRequest(actor, requestData) {
     LogUtil.log('executeRequest', [actor, requestData]);
@@ -60,19 +73,12 @@ export class RollRequestUtil {
       // Normalize rollType to lowercase for consistent comparisons
       const normalizedRollType = requestData.rollType?.toLowerCase();
       
-      const rollConfig = {
-        advantage: requestData.config.advantage || false,
-        disadvantage: requestData.config.disadvantage || false,
-        isRollRequest: true, // Custom flag to prevent re-interception
-        target: requestData.config.target, // DC value
-        _showRequestedBy: true, // Flag to show who requested the roll in chat
-        _requestedBy: requestData.config.requestedBy || 'GM'
+      // Extract the individual roll configuration from the process config
+      const rollConfig = requestData.rollProcessConfig.rolls?.[0] || {
+        parts: [],
+        data: {},
+        options: {}
       };
-      
-      // Add ability for skills/tools if provided
-      if (requestData.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
-        rollConfig.ability = requestData.config.ability;
-      }
       
       // Dialog configuration (second parameter)
       const shouldSkipDialog = game.user.isGM ? requestData.skipDialog : false;
@@ -81,11 +87,11 @@ export class RollRequestUtil {
       const dialogConfig = {
         configure: !shouldSkipDialog,
         options: {
-          defaultButton: requestData.config.advantage ? 'advantage' : 
-                         requestData.config.disadvantage ? 'disadvantage' : 'normal',
+          defaultButton: requestData.rollProcessConfig.advantage ? 'advantage' : 
+                         requestData.rollProcessConfig.disadvantage ? 'disadvantage' : 'normal',
           // Add dialog window configuration
           window: {
-            title: requestData.config.rollTitle || getRollTypeDisplay(normalizedRollType, requestData.rollKey),
+            title: getRollTypeDisplay(normalizedRollType, requestData.rollKey),
             subtitle: actor.name
           }
         }
@@ -93,8 +99,8 @@ export class RollRequestUtil {
       
       // Message configuration (third parameter)
       const messageConfig = {
-        rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
-        create: requestData.config.chatMessage !== false
+        rollMode: requestData.rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
+        create: requestData.rollProcessConfig.chatMessage !== false
       };
       
       // Debug logging for hit die
@@ -107,10 +113,24 @@ export class RollRequestUtil {
         }]);
       }
       
+      // Build requestData structure expected by handlers with config from rollProcessConfig
+      const handlerRequestData = {
+        rollKey: requestData.rollKey,
+        config: {
+          advantage: requestData.rollProcessConfig.advantage,
+          disadvantage: requestData.rollProcessConfig.disadvantage,
+          situational: rollConfig.data?.situational || "",
+          rollMode: requestData.rollProcessConfig.rollMode,
+          target: requestData.rollProcessConfig.target,
+          ability: requestData.rollProcessConfig.ability,
+          requestedBy: requestData.rollProcessConfig._requestedBy
+        }
+      };
+      
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedRollType];
       if (handler) {
-        await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
+        await handler(actor, handlerRequestData, rollConfig, dialogConfig, messageConfig);
       } else {
         LogUtil.warn(`No handler found for roll type: ${normalizedRollType}`);
         NotificationManager.notify('warn', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
