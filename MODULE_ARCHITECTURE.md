@@ -11,11 +11,13 @@ The module follows a modular architecture with clear separation of concerns:
 - **RollRequestUtil.mjs**: Handles incoming roll requests from GM to players
 - **RollInterceptor.mjs**: Intercepts rolls from character sheets
 - **HooksUtil.mjs**: Centralized hook management
+- **RollHandlers.mjs**: Roll type handlers for all roll types
 
 ### Helper Components
 - **helpers/Helpers.mjs**: General utility functions, presentation utilities
-- **helpers/RollHandlers.mjs**: Roll type handlers and configuration helpers (used for both player and local rolls)
+- **helpers/RollHelpers.mjs**: Roll configuration helpers (buildRollConfig, addSituationalBonus, ensureRollFlags)
 - **helpers/RollValidationHelpers.mjs**: Roll validation utilities (combat, initiative, death saves)
+- **helpers/ModuleHelpers.mjs**: Module detection and compatibility helpers
 
 ### Utility Components
 - **DiceConfigUtil.mjs**: Dice configuration management
@@ -27,8 +29,8 @@ The module follows a modular architecture with clear separation of concerns:
 
 ### UI Components
 - **RollRequestsMenu.mjs**: GM interface for roll requests
-- **GMRollConfigDialog.mjs**: Extended roll configuration dialogs
-- **CustomRollDialog.mjs**: Custom roll formula dialog
+- **dialogs/GMRollConfigDialog.mjs**: Extended roll configuration dialogs with mixin pattern
+- **dialogs/CustomRollDialog.mjs**: Custom roll formula dialog (Note: CustomRollDialog is still in components/)
 
 ## Core Components
 
@@ -104,13 +106,14 @@ The module follows a modular architecture with clear separation of concerns:
   - Validates actor ownership
   - Applies GM targets if configured
   - Uses NotificationManager for batched notifications
-  - Calls executeRequest()
+  - Calls executePlayerRollRequest()
 
-- **`executeRequest(actor, requestData)`**: Executes the actual roll
-  - Builds rollConfig with flags:
-    - `isRollRequest`: Prevents re-interception
-    - `_showRequestedBy`: Shows requester in chat
-    - `_requestedBy`: Requester name
+- **`executePlayerRollRequest(actor, requestData)`**: Executes the actual roll (renamed from executeRequest)
+  - Extracts roll configuration from requestData.rollProcessConfig
+  - Builds handlerRequestData with all necessary fields including attack-specific options:
+    - Basic fields: rollKey, activityId
+    - Config fields: advantage, disadvantage, situational, rollMode, target, ability
+    - Attack options: attackMode, ammunition, mastery, elvenAccuracy, halflingLucky, criticalSuccess
   - Sets up dialogConfig and messageConfig
   - Uses RollHandlers to execute the appropriate roll type
   - Uses NotificationManager for error notifications
@@ -170,7 +173,112 @@ Centralized notification system with batching support:
 
 - **`clearPending()`**: Clears any pending batched notifications
 
-### 5. DiceConfigUtil.mjs
+### 4a. helpers/ModuleHelpers.mjs
+**Purpose**: Helper functions for module detection and compatibility
+
+#### Methods
+- **`isModuleActive(moduleId)`**: Checks if a module is installed and active
+  - Validates module existence and active state
+  - Returns boolean
+
+- **`isMidiQOLActive()`**: Checks if MidiQOL module is active
+  - Uses isModuleActive internally
+  - Returns boolean
+
+- **`getMidiQOL()`**: Gets MidiQOL global if available
+  - Checks module active status and global availability
+  - Returns MidiQOL object or null
+
+### 5. RollHandlers.mjs
+**Location**: `src/components/RollHandlers.mjs`
+
+**Purpose**: Contains all roll type handlers for processing roll requests
+
+#### RollHandlers Export
+Object containing handler functions for each roll type:
+
+- **`ability(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles ability check rolls
+  - Uses RollHelpers.buildRollConfig to create proper configuration
+  - Calls actor.rollAbilityCheck
+
+- **`save(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles saving throw rolls
+  - Uses RollHelpers.buildRollConfig
+  - Calls actor.rollSavingThrow
+
+- **`skill(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles skill check rolls
+  - Includes ability selection support
+  - Calls actor.rollSkill
+
+- **`tool(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles tool check rolls
+  - Includes ability selection support
+  - Calls actor.rollToolCheck
+
+- **`concentration(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles concentration rolls
+  - Calls actor.rollConcentration
+
+- **`attack(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles attack rolls
+  - Delegates to RollHandlers.handleActivityRoll
+
+- **`damage(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles damage rolls
+  - Delegates to RollHandlers.handleActivityRoll
+
+- **`itemsave(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles item-based saves
+  - Delegates to RollHandlers.handleActivityRoll
+
+- **`initiative(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles initiative rolls
+  - Validates combat existence
+  - Handles situational bonus via temporary storage
+  - Calls actor.rollInitiativeDialog or actor.rollInitiative
+
+- **`deathsave(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles death saving throws
+  - Calls actor.rollDeathSave
+
+- **`hitdie(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles hit die rolls
+  - Forces dialog for players
+  - Includes denomination in config
+  - Calls actor.rollHitDie
+
+- **`custom(actor, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles custom formula rolls
+  - Delegates to RollHandlers.handleCustomRoll
+
+#### Static Methods:
+- **`handleActivityRoll(actor, rollType, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles activity-based rolls
+  - Extracts attack-specific options from requestData.config
+  - Builds activity configuration with proper options
+  - Adds situational bonus if present
+  - Delegates to ActivityUtil.executeActivityRoll
+
+- **`handleCustomRoll(actor, requestData)`**: Shows custom roll dialog and executes roll
+  - Creates CustomRollDialog with readonly formula
+  - Executes roll with proper flags on confirmation
+  - Posts to chat with requester attribution
+
+- **`handleHitDieRecovery(actor)`**: Handles hit dice recovery for long rest
+  - Used when refilling hit dice before sending request
+  - Updates actor and item data
+  - Returns recovery result object
+
+### 5a. helpers/RollHelpers.mjs
+**Location**: `src/components/helpers/RollHelpers.mjs`
+
+**Purpose**: Helper functions for roll handling, separated from handlers
+
+#### Methods
+- **`buildRollConfig(requestData, rollConfig, additionalConfig)`**: Builds BasicRollProcessConfiguration
+  - Creates proper rolls array structure
+  - Applies situational bonus if present
+  - Merges additional configuration
+  - Ensures roll flags via ensureRollFlags
+
+- **`addSituationalBonus(config, situational)`**: Adds situational bonus to roll configuration
+  - Sets rolls[0].data.situational (D&D5e adds @situational automatically)
+  - Ensures proper roll structure
+
+- **`ensureRollFlags(config, requestData)`**: Adds required flags to prevent re-interception
+  - Sets isRollRequest (false for GM, true for players)
+  - Adds _showRequestedBy and _requestedBy flags
+
+### 6. DiceConfigUtil.mjs
 **Purpose**: Centralized management of dice configurations for all users
 
 #### Static Properties
@@ -234,7 +342,7 @@ Centralized notification system with batching support:
 
 - **`_updateAllActorsCheckbox()`**: Updates "select all" checkbox state
 
-- **`_executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey)`**: Orchestrates roll execution
+- **`_orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey)`**: Orchestrates roll execution (renamed from _executeRollRequests)
   - Separates online/offline players
   - Routes PC rolls to players via _sendRollRequestToPlayer
   - Routes NPC and offline player rolls to _handleGMRolls
@@ -263,6 +371,9 @@ Centralized notification system with batching support:
 
 ### 7. RollInterceptor.mjs
 **Purpose**: Intercepts rolls initiated from character sheets and redirects to players
+
+#### Imports
+- Dialog classes from `dialogs/GMRollConfigDialog.mjs`: GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog
 
 #### Properties
 - `registeredHooks`: Set of registered hook IDs for cleanup
@@ -316,37 +427,70 @@ Centralized notification system with batching support:
   - Shows dialog if some actors have initiative
   - Returns filtered array of actors to roll for
 
-### 9. GMRollConfigDialog.mjs
-**Purpose**: Extended D&D5e roll configuration dialogs for GM use
+### 9. dialogs/GMRollConfigDialog.mjs
+**Purpose**: Extended D&D5e roll configuration dialogs for GM use with mixin pattern
 
-#### GMRollConfigDialog Class
-Extends D&D5e's D20RollConfigurationDialog
+#### GMRollConfigMixin Function
+Creates a mixin that adds GM-specific functionality to any D&D5e dialog class
 
-#### Properties
+#### Properties Added by Mixin
 - `actors`: Array of actors being rolled for
 - `sendRequest`: Whether to send to players (default true)
 - `showDC`: Whether to show DC field
 - `dcValue`: DC value if set
+- `rollKey`: The specific roll key (skill, ability, etc.)
+- `rollTypeString`: The roll type string
 
-#### Methods
+#### Methods Added by Mixin
+- **`_buildConfig(config, formData, index)`**: Builds roll configuration from form data
+  - Handles situational bonuses with proper D&D5e structure
+  - Extracts ability selection for skills/tools
+  - Applies DC values
+
+- **`_onChangeForm(formConfig, event)`**: Handles form changes
+  - Captures send request toggle state
+  - Updates DC value
+  - Manages form state across re-renders
+
+- **`_processSubmission(event, form, formData)`**: Processes form submission
+  - Handles send request flow
+  - Returns dialog result for roll requests
+  - Continues normal flow for local rolls
+
 - **`_prepareConfigurationData(roll, config, dialog, message)`**: Adds GM-specific data
   
 - **`_preparePartContext(partId, context, options)`**: Adds GM fields to dialog context
 
 - **`_onRender(context, options)`**: Injects GM-specific form fields
   - Adds DC field and send request toggle
+  - Handles formula rebuild triggers
 
-- **`_onChangeForm(formConfig, event)`**: Handles form changes
-  - Updates situational bonus
-  - Updates DC value
-  - Updates send request toggle
+#### Dialog Classes
 
-- **`_buildConfig(config, formData, index)`**: Captures form data into config
-  - Extracts ability selection for skills/tools
-  - Preserves GM-specific settings
+##### GMRollConfigDialog
+Extends D20RollConfigurationDialog with GMRollConfigMixin
+- Used for ability checks, saves, concentration, initiative, death saves
 
-#### GMSkillToolConfigDialog Class
-Extends GMRollConfigDialog for skill/tool specific handling
+##### GMSkillToolConfigDialog  
+Extends SkillRollConfigurationDialog with GMRollConfigMixin
+- Used for skill and tool checks
+- Includes ability selection support
+
+##### GMHitDieConfigDialog
+Extends RollConfigurationDialog with GMRollConfigMixin
+- Used for hit die rolls
+- No DC field support
+
+##### GMDamageConfigDialog
+Extends DamageRollConfigurationDialog with GMRollConfigMixin
+- Used for damage rolls
+- Includes critical hit toggle
+- Custom send request checkbox injection
+
+##### GMAttackConfigDialog
+Extends AttackRollConfigurationDialog with GMRollConfigMixin
+- Used for attack rolls
+- Includes attack mode, ammunition, and mastery options
 
 ### 10. SocketUtil.mjs
 **Purpose**: Wrapper around socketlib for socket communication
@@ -402,48 +546,20 @@ Extends GMRollConfigDialog for skill/tool specific handling
 
 - **`executeActivityRoll(actor, rollType, itemId, activityId, config)`**: Executes activity-based roll
 
-### 14. helpers/RollHandlers.mjs
-**Purpose**: Centralized roll handling logic with reusable helpers
+### 14. ActivityUtil.mjs
+**Purpose**: Handles D&D5e activity-based rolls (attacks, damage, etc.)
 
-#### RollHelpers Object
-Static helper functions for roll handling:
+#### Methods
+- **`findActivityForRoll(item, rollType)`**: Finds appropriate activity on an item
+  - Uses ROLL_TYPES constants
+  - Returns activity matching roll type
 
-- **`addSituationalBonus(config, situational)`**: Adds situational bonus to BasicRollProcessConfiguration
-  - Adds "@situational" to rolls[0].parts array
-  - Sets situational value in rolls[0].data
-  - Ensures proper D&D5e roll structure
-
-- **`buildAbilityConfig(requestData, rollConfig)`**: Builds BasicRollProcessConfiguration for ability-based rolls
-  - Takes BasicRollConfiguration and returns BasicRollProcessConfiguration
-  - Creates proper rolls array with parts[], data{}, options{} structure
-  - Sets up advantage, disadvantage, target, and request flags
-
-- **`ensureRollFlags(config, requestData)`**: Adds module-specific flags to prevent re-interception
-  - Sets isRollRequest, _showRequestedBy, _requestedBy flags
-  - Preserves BasicRollProcessConfiguration structure
-
-- **`executeActivityRoll(actor, rollType, requestData, rollConfig, dialogConfig, messageConfig)`**: Handles activity-based rolls
-  - Used by attack, damage, and item save rolls
-  - Delegates to ActivityUtil.executeActivityRoll
-
-- **`handleCustomRoll(actor, requestData)`**: Handles custom formula rolls
-  - Shows dialog with readonly formula
-  - Executes roll when confirmed
-
-#### RollHandlers Object
-Map of roll type handlers, each as an async function:
-- `[ROLL_TYPES.ABILITY]`: Ability check handler
-- `[ROLL_TYPES.SAVE]`: Saving throw handler
-- `[ROLL_TYPES.SKILL]`: Skill check handler
-- `[ROLL_TYPES.TOOL]`: Tool check handler
-- `[ROLL_TYPES.CONCENTRATION]`: Concentration handler
-- `[ROLL_TYPES.ATTACK]`: Attack roll handler
-- `[ROLL_TYPES.DAMAGE]`: Damage roll handler
-- `[ROLL_TYPES.ITEM_SAVE]`: Item save handler
-- `[ROLL_TYPES.INITIATIVE]`: Initiative handler
-- `[ROLL_TYPES.DEATH_SAVE]`: Death save handler
-- `[ROLL_TYPES.HIT_DIE]`: Hit die handler
-- `[ROLL_TYPES.CUSTOM]`: Custom roll handler
+- **`executeActivityRoll(actor, rollType, itemId, activityId, config)`**: Executes activity-based roll
+  - Finds item on actor
+  - Gets specific activity or uses findActivityForRoll
+  - Handles different roll types (attack, damage, item save)
+  - Special MidiQOL handling for attacks
+  - Calls activity.use() with proper configuration
 
 ### 15. CustomRollDialog.mjs
 **Purpose**: ApplicationV2 dialog for custom roll formulas

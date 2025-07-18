@@ -77,21 +77,21 @@ export const BUTTON_ACTION_TYPES = {
 export const ROLL_TYPES = {
   ABILITY: "ability",
   ABILITY_CHECK: "abilitycheck",
+  ATTACK: "attack",
+  CONCENTRATION: "concentration",
+  CUSTOM: "custom",
+  DEATH_SAVE: "deathsave",
+  FORMULA: "formula",
+  DAMAGE: "damage",
+  HEALING: "healing",
+  HIT_DIE: "hitdie",
+  INITIATIVE: "initiative",
+  INITIATIVE_DIALOG: "initiativedialog",
+  ITEM_SAVE: "itemsave",
   SAVE: "save",
   SAVING_THROW: "savingthrow",
   SKILL: "skill",
-  TOOL: "tool",
-  CONCENTRATION: "concentration",
-  ATTACK: "attack",
-  DAMAGE: "damage",
-  INITIATIVE: "initiative",
-  INITIATIVE_DIALOG: "initiativedialog",
-  DEATH_SAVE: "deathsave",
-  HIT_DIE: "hitdie",
-  ITEM_SAVE: "itemsave",
-  CUSTOM: "custom",
-  HEALING: "healing",
-  FORMULA: "formula"
+  TOOL: "tool"
 }
 
 export const ROLL_REQUEST_OPTIONS = {

@@ -6,6 +6,7 @@ import { RollInterceptor } from "./RollInterceptor.mjs";
 import { updateSidebarClass, isSidebarExpanded } from "./helpers/Helpers.mjs";
 import { SidebarUtil } from "./SidebarUtil.mjs";
 import { LogUtil } from "./LogUtil.mjs";
+import { MODULE_ID } from "../constants/General.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -69,6 +70,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
   }
   
   /**
@@ -87,6 +89,8 @@ export class HooksUtil {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._onPreRollInitiativeDialogV2.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderHitDieDialog.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
+    // this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
   }
   
   /**
@@ -306,6 +310,84 @@ export class HooksUtil {
         // Clean up the temporary storage
         delete actor._initiativeSituationalBonus;
       }
+    }
+  }
+  
+  /**
+   * Handle pre-roll attack hook to restore GM-configured options
+   */
+  static _onPreRollAttackV2(config, dialogOptions, messageOptions) {
+    LogUtil.log("_onPreRollAttackV2 triggered", [config, dialogOptions, messageOptions]);
+    
+    // Check if this is from a roll request with stored configuration
+    // The activity stores the flag on its parent item
+    const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig');
+    if (stored) {
+      LogUtil.log("_onPreRollAttackV2 - Found stored request config from flag", [stored]);
+      
+      if(stored.isRollRequest === false || stored.skipDialog === true || stored.sendRequest === false) {
+        LogUtil.log("_onPreRollAttackV2 - Not a roll request, skipping", [stored]);
+        return;
+      }
+
+      // Merge attack options
+      if (stored.attackMode) config.attackMode = stored.attackMode;
+      if (stored.ammunition) config.ammunition = stored.ammunition;
+      if (stored.mastery !== undefined) config.mastery = stored.mastery;
+      
+      // Set advantage/disadvantage
+      if (stored.advantage) config.advantage = true;
+      if (stored.disadvantage) config.disadvantage = true;
+      
+      // Set situational bonus
+      if (stored.situational) {
+        // Ensure rolls array exists
+        if (!config.rolls || config.rolls.length === 0) {
+          config.rolls = [{
+            parts: [],
+            data: {},
+            options: {}
+          }];
+        }
+        
+        // Add situational bonus to first roll
+        if (!config.rolls[0].data) {
+          config.rolls[0].data = {};
+        }
+        config.rolls[0].data.situational = stored.situational;
+      }
+      LogUtil.log("_onPreRollAttackV2 - Applied stored configuration to attack roll", [config]);
+    }
+  }
+  
+  /**
+   * Handle pre-use activity hook to prevent usage messages when GM intercepts rolls
+   */
+  static _onPreUseActivity(activity, config, dialog, message) {
+    LogUtil.log("_onPreUseActivity triggered", [activity, config, dialog, message]);
+    
+    // Only proceed if user is GM
+    if (!game.user.isGM) return;
+    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
+    
+    // Check if roll requests are enabled
+    const SETTINGS = getSettings();
+    const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    if (!requestsEnabled) return;
+    
+    // Check if the actor has player ownership
+    const actor = activity.actor;
+    if (!actor) return;
+    
+    const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
+      const user = game.users.get(userId);
+      return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+    });
+    
+    if (hasPlayerOwner) {
+      // Prevent the usage message from being created
+      LogUtil.log("Preventing usage message for player-owned actor", [actor.name]);
+      message.create = false;
     }
   }
   

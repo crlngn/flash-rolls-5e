@@ -11,7 +11,7 @@ export class LogUtil {
   /**
    * Logs information to the console, adding module name and reference
    * @param {string} ref - Reference information to log after module name
-   * @param {any[]} data - data to log on console
+   * @param {*[]} data - array of items to log on console
    * @param {boolean} [bypassSettings=false] - Whether to bypass debug settings check
    */
   static log(ref="", data=[], bypassSettings=false) {
@@ -31,7 +31,7 @@ export class LogUtil {
   /**
    * Outputs warning on console, adding module name and reference
    * @param {string} ref - Reference information to log after module name
-   * @param {any[]} data - data to log on console
+   * @param {*[]} data - data to log on console
    */
   static warn(ref="", data=[]) {
     console.warn(...DEBUG_TAG, ref, ...data);

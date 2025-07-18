@@ -4,11 +4,12 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './dialogs/GMRollConfigDialog.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
 import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership } from './helpers/Helpers.mjs';
-import { RollHandlers, RollHelpers } from './helpers/RollHandlers.mjs';
-import { CustomRollDialog } from './CustomRollDialog.mjs';
+import { RollHandlers } from './RollHandlers.mjs';
+import { RollHelpers } from './helpers/RollHelpers.mjs';
+import { CustomRollDialog } from './dialogs/CustomRollDialog.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 
 /**
@@ -186,7 +187,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Passive Perception
     if (system.skills?.prc?.passive) {
       stats.push({
-        abbrev: 'PP',
+        abbrev: 'PRC',
         value: system.skills.prc.passive
       });
     }
@@ -656,24 +657,24 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   }
 
   /**
-   * Execute roll requests for PC and NPC actors
+   * Orchestrate and distribute rolls for PC and NPC actors
    * @param {Object} config - Roll configuration
    * @param {Array} pcActors - PC actors with owners
    * @param {Actor[]} npcActors - NPC actors
    * @param {string} rollMethodName - The roll method name
    * @param {string} rollKey - The roll key
    */
-  async _executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey) {
+  async _orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey) {
     const SETTINGS = getSettings();
     
     // Handle PC actors - send roll requests (if sendRequest is true)
     const successfulRequests = []; // Track successful requests for consolidated notification
     const offlinePlayerActors = []; // Track offline player actors separately
-    LogUtil.log('_executeRollRequests', {
+    LogUtil.log('_orchestrateRollsForActors', [{
       config,
       rollMethodName,
       rollKey
-    });
+    }]);
     if (config.sendRequest) {
       for (const { actor, owner } of pcActors) {
         if (!owner.active) {
@@ -751,6 +752,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         if (!combatReady) return;
         if (game.combat) {
           const filteredActorIds = await filterActorsForInitiative(validActorIds, game);
+
+          LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds]);
           if (!filteredActorIds.length) return;
           // Convert IDs back to actors
           actors = filteredActorIds
@@ -781,10 +784,11 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       skipDialogs, 
       pcActors
     );
+    LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
     
     // Execute rolls
-    await this._executeRollRequests(config, pcActors, npcActors, rollMethodName, rollKey);
+    await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
     
     // Close menu
     setTimeout(() => this.close(), 500);
@@ -820,16 +824,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       if (hdData.value > 0) {
         rollKey = hdData.largestAvailable;
-        /*
-        const denominations = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
-        for (const denom of denominations) {
-          const available = hdData[denom]?.value || 0;
-          if (available > 0) {
-            rollKey = denom;
-            break;
-          }
-        }
-        */
       } else {
         // No hit dice available - show dialog to GM
         const dialogResult = await foundry.applications.api.DialogV2.confirm({
@@ -870,11 +864,11 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
           // }
           
           try {
-            LogUtil.log('About to call regainHitDice for', [actor.name]);
-            const hitDieResult = await RollHelpers.regainHitDice(actor);
-            LogUtil.log('regainHitDice completed', [hitDieResult]);
+            LogUtil.log('About to call handleHitDieRecovery for', [actor.name]);
+            const hitDieResult = await RollHandlers.handleHitDieRecovery(actor);
+            LogUtil.log('handleHitDieRecovery completed', [hitDieResult]);
           } catch (error) {
-            LogUtil.error('Error calling regainHitDice:', [error]);
+            LogUtil.error('Error calling handleHitDieRecovery:', [error]);
           }
           
           // Get the largest available hit die after refill
@@ -1035,6 +1029,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         }
         if (!actualRollKey) {
           // No hit dice available
+          LogUtil.log('_executeActorRoll - No hit dice available', [actor.name]);
           NotificationManager.notify('warn', game.i18n.format("DND5E.HitDiceWarn", { name: actor.name }));
           return;
         }
@@ -1069,10 +1064,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       // Pass the proper roll configuration structure
       const rollConfig = rollProcessConfig.rolls?.[0] || {};
+      LogUtil.log('_executeActorRoll - rollConfig', [rollConfig, requestData]);
       
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];
       if (handler) {
+        LogUtil.log('_executeActorRoll - handler', [handler]);
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
         NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);

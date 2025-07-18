@@ -1,5 +1,32 @@
 import { LogUtil } from './LogUtil.mjs';
-import { ROLL_TYPES } from '../constants/General.mjs';
+import { ROLL_TYPES, MODULE_ID } from '../constants/General.mjs';
+import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
+
+/**
+ * @typedef {Object} ActivityUseConfiguration
+ * @property {object|false} create
+ * @property {boolean} create.measuredTemplate - Should this item create a template?
+ * @property {object} concentration
+ * @property {boolean} concentration.begin - Should this usage initiate concentration?
+ * @property {string|null} concentration.end - ID of an active effect to end concentration on.
+ * @property {object|false} consume
+ * @property {boolean} consume.action - Should action economy be tracked? Currently only handles legendary actions.
+ * @property {boolean|number[]} consume.resources - Set to `true` or `false` to enable or disable all resource
+ *                                                   consumption or provide a list of consumption target indexes
+ *                                                   to only enable those targets.
+ * @property {boolean} consume.spellSlot - Should this spell consume a spell slot?
+ * @property {Event} event - The browser event which triggered the item usage, if any.
+ * @property {boolean|number} scaling - Number of steps above baseline to scale this usage, or `false` if
+ *                                      scaling is not allowed.
+ * @property {object} spell
+ * @property {number} spell.slot - The spell slot to consume.
+ * @property {boolean} [subsequentActions=true] - Trigger subsequent actions defined by this activity.
+ * @property {object} [cause]
+ * @property {string} [cause.activity] - Relative UUID to the activity that caused this one to be used.
+ *                                       Activity must be on the same actor as this one.
+ * @property {boolean|number[]} [cause.resources] - Control resource consumption on linked item.
+ * @property {BasicRollConfiguration[]} [rolls] - Roll configurations for this activity
+ */
 
 /**
  * Utility class for handling D&D5e 4.x activities
@@ -16,8 +43,6 @@ export class ActivityUtil {
     if (!item?.system?.activities) return null;
     
     const activities = item.system.activities;
-    
-    // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
     
     switch (normalizedRollType) {
@@ -26,7 +51,6 @@ export class ActivityUtil {
         return attackActivities?.[0] || null;
         
       case ROLL_TYPES.DAMAGE:
-        // For damage rolls, check attack activities first, then damage, then save
         const damageAttackActivities = activities.getByType("attack");
         if (damageAttackActivities?.length > 0) return damageAttackActivities[0];
         
@@ -76,6 +100,9 @@ export class ActivityUtil {
    * @param {string} itemId - The item ID
    * @param {string} activityId - The activity ID (optional)
    * @param {Object} config - Roll configuration
+   * @param {ActivityUseConfiguration} config.usage - Activity usage configuration
+   * @param {BasicRollDialogConfiguration} config.dialog - Dialog configuration
+   * @param {BasicRollMessageConfiguration} config.message - Message configuration
    */
   static async executeActivityRoll(actor, rollType, itemId, activityId, config) {
     LogUtil.log('executeActivityRoll', [actor, rollType, itemId, activityId, config]);
@@ -89,14 +116,13 @@ export class ActivityUtil {
     // If activity ID provided, use it directly
     if (activityId) {
       activity = item.system.activities?.get(activityId);
-      if (!activity) {
-      }
     }
-    
-    // If no activity found yet, search by roll type
+    activity = activity || this.findActivityForRoll(item, rollType);
+
     if (!activity) {
-      activity = this.findActivityForRoll(item, rollType);
+      throw new Error(`Activity not found on item ${item.name}`);
     }
+    LogUtil.log('executeActivityRoll - activity', [activity, rollType]);
     
     // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
@@ -105,62 +131,85 @@ export class ActivityUtil {
     if (activity) {
       switch (normalizedRollType) {
         case ROLL_TYPES.ATTACK:
-          const dialogConfig = {
-            configure: true  // Always true for players receiving roll requests
+          LogUtil.log('executeActivityRoll - is attack activity', [config]);
+          
+          // Workaround for _triggerSubsequentActions stripping off usage config
+          // Store request configuration in flags and retrieve in the preRollAttackV2 hook
+          const rollRequestConfig = {
+            attackMode: config.usage.attackMode,
+            ammunition: config.usage.ammunition,
+            mastery: config.usage.mastery,
+            situational: config.usage.rolls?.[0]?.data?.situational,
+            advantage: config.usage.advantage,
+            disadvantage: config.usage.disadvantage
+            // isRollRequest: config.usage.isRollRequest
           };
- 
-          if(MidiQOL) {
-            const workflow = await ActivityUtil.syntheticItemRoll(item, {
-              ...config
-            });
-            return;
-          }else{
-            return await activity.use(usageConfig, dialogConfig);
+          await activity.item.setFlag(MODULE_ID, 'tempAttackConfig', rollRequestConfig);
+          
+          LogUtil.log('executeActivityRoll - stored temp config as flag', [rollRequestConfig]);
+          
+          try {
+            if(ModuleHelpers.isModuleActive('midi-qol')) {
+              const MidiQOL = ModuleHelpers.getMidiQOL();
+              if (MidiQOL) {
+                const workflow = await ActivityUtil.syntheticItemRoll(item, {
+                  ...config
+                });
+                return
+              }
+            }
+            await activity.use(config.usage, config.dialog, config.message);
+          } finally {
+            // Only clean up the flag if we set it
+            await activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
           }
+          return;
         case ROLL_TYPES.DAMAGE:
-          if(MidiQOL) {
-            const workflow = MidiQOL?.Workflow?.getWorkflow(activity.uuid);
-            const damageRoll = await workflow.activity.rollDamage({
-              ...config,
-              workflow: workflow
-            });
-            return;
-          }else{
-            return await activity.rollDamage(config);
-            // return await activity.use(usageConfig, dialogConfig);
+          if(ModuleHelpers.isModuleActive('midi-qol')) {
+            const MidiQOL = ModuleHelpers.getMidiQOL();
+            if (MidiQOL) {
+              const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
+              const damageRoll = await workflow.activity.rollDamage({
+                ...config,
+                workflow: workflow
+              });
+              return;
+            }
+          }
+          // we need to check if the activity has a previous attack
+          // or if it is a damage only roll, like from a spell with save
+          LogUtil.log('executeActivityRoll - damage roll', [activity, config]);
+          
+          // Extract the roll configuration from the usage config
+          const damageConfig = {
+            critical: config.usage.critical || false,
+            event: config.usage.event,
+            rollMode: config.message?.rollMode,
+            create: config.message?.create !== false
+          };
+          
+          // Add situational bonus if present
+          if (config.usage.rolls?.[0]?.data?.situational) {
+            if (!damageConfig.data) damageConfig.data = {};
+            damageConfig.data.situational = config.usage.rolls[0].data.situational;
           }
           
+          LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
           
+          if(activity?.previousAttack || activity?.damageOnly) {
+            return await activity.rollDamage(damageConfig, config.dialog, config.message);
+          }
+          return await activity.rollDamage(damageConfig, config.dialog, config.message);
         case ROLL_TYPES.ITEM_SAVE:
           // For save activities, use the item's use() method to show the save card
           return await item.use({ activity: activity.id }, { skipDialog: config.fastForward });
-          
         default:
-          throw new Error(`Unknown roll type: ${normalizedRollType}`);
+          LogUtil.log('executeActivityRoll - unknown roll type', [normalizedRollType]);
+          return;
       }
-    } else {
-      // Fallback to legacy methods if no activity found
-      
-      switch (normalizedRollType) {
-        case ROLL_TYPES.ATTACK:
-          if (item.rollAttack) {
-            return await item.rollAttack(config);
-          }
-          break;
-          
-        case ROLL_TYPES.DAMAGE:
-          if (item.rollDamage) {
-            return await item.rollDamage(config);
-          }
-          break;
-          
-        case ROLL_TYPES.ITEM_SAVE:
-          // Try to use the item directly
-          return await item.use({}, { skipDialog: config.fastForward });
-      }
-      
-      throw new Error(`No suitable method found for ${normalizedRollType} on item ${item.name}`);
     }
+      
+    throw new Error(`No suitable method found for ${normalizedRollType} on item ${item.name}`);
   }
   
   /**
@@ -198,6 +247,12 @@ export class ActivityUtil {
 
   static async syntheticItemRoll(item, config = {}) {
     LogUtil.log('syntheticItemRoll', [item, config]);
+    const MidiQOL = ModuleHelpers.getMidiQOL();
+    if (!MidiQOL) {
+      LogUtil.warn('MidiQOL is not active');
+      return;
+    }
+    
     let defaultConfig = {
         consumeUsage: false,
         consumeSpellSlot: false

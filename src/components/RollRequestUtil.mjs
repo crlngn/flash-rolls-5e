@@ -1,6 +1,6 @@
 import { ROLL_TYPES } from "../constants/General.mjs";
 import { getRollTypeDisplay, applyTargetTokens, NotificationManager } from "./helpers/Helpers.mjs";
-import { RollHandlers } from "./helpers/RollHandlers.mjs";
+import { RollHandlers } from "./RollHandlers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 
 /**
@@ -50,24 +50,22 @@ export class RollRequestUtil {
       }
     });
     
-    RollRequestUtil.executeRequest(actor, requestData);
+    RollRequestUtil.executePlayerRollRequest(actor, requestData);
   }
   
   /**
-   * Execute a roll based on the request data
+   * Execute a roll request received by a player
    * @param {Actor} actor - The actor performing the roll
    * @param {RollRequestData} requestData - The roll request data from GM
    */
-  static async executeRequest(actor, requestData) {
-    LogUtil.log('executeRequest', [actor, requestData]);
-    
-    // Debug logging for hit die rolls
-    LogUtil.log('executeRequest - Debug', [{
-      rollType: requestData.rollType,
-      rollKey: requestData.rollKey,
-      actorName: actor.name,
-      handlers: Object.keys(RollHandlers)
-    }]);
+  static async executePlayerRollRequest(actor, requestData) {
+    LogUtil.log('executePlayerRollRequest', [actor, requestData]);
+    LogUtil.log('executePlayerRollRequest - checking rolls', [
+      'rollProcessConfig:', requestData.rollProcessConfig,
+      'rollProcessConfig.rolls:', requestData.rollProcessConfig.rolls,
+      'rollProcessConfig.rolls[0]:', requestData.rollProcessConfig.rolls?.[0],
+      'rollProcessConfig.rolls[0].data:', requestData.rollProcessConfig.rolls?.[0]?.data
+    ]);
     
     try {
       // Normalize rollType to lowercase for consistent comparisons
@@ -80,53 +78,36 @@ export class RollRequestUtil {
         options: {}
       };
       
-      // Dialog configuration (second parameter)
+      // Dialog configuration
       const shouldSkipDialog = game.user.isGM ? requestData.skipDialog : false;
-      // requestData.skipDialog || normalizedRollType === ROLL_TYPES.CUSTOM;
       
       const dialogConfig = {
-        configure: !shouldSkipDialog,
-        options: {
-          defaultButton: requestData.rollProcessConfig.advantage ? 'advantage' : 
-                         requestData.rollProcessConfig.disadvantage ? 'disadvantage' : 'normal',
-          // Add dialog window configuration
-          window: {
-            title: getRollTypeDisplay(normalizedRollType, requestData.rollKey),
-            subtitle: actor.name
-          }
-        }
+        configure: !shouldSkipDialog
       };
       
-      // Message configuration (third parameter)
+      // Message configuration
       const messageConfig = {
         rollMode: requestData.rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
-        create: requestData.rollProcessConfig.chatMessage !== false
+        create: true // requestData.rollProcessConfig.chatMessage !== false
       };
       
-      // Debug logging for hit die
-      if (normalizedRollType === 'hitdie') {
-        LogUtil.log('RollRequestUtil - Hit Die Debug', [{
-          normalizedRollType,
-          requestData,
-          rollConfig,
-          handlers: Object.keys(RollHandlers)
-        }]);
-      }
-      
-      // Build requestData structure expected by handlers with config from rollProcessConfig
+      // Build requestData structure expected by handlers
       const handlerRequestData = {
         rollKey: requestData.rollKey,
-        config: {
-          advantage: requestData.rollProcessConfig.advantage,
-          disadvantage: requestData.rollProcessConfig.disadvantage,
-          situational: rollConfig.data?.situational || "",
-          rollMode: requestData.rollProcessConfig.rollMode,
-          target: requestData.rollProcessConfig.target,
-          ability: requestData.rollProcessConfig.ability,
-          requestedBy: requestData.rollProcessConfig._requestedBy
-        }
+        activityId: requestData.activityId, // Include activityId for attack/damage rolls
+        config: requestData.rollProcessConfig
+        // config: {
+        //   advantage: requestData.rollProcessConfig.advantage,
+        //   disadvantage: requestData.rollProcessConfig.disadvantage,
+        //   situational: rollConfig.data?.situational || "",
+        //   rollMode: requestData.rollProcessConfig.rollMode,
+        //   target: requestData.rollProcessConfig.target,
+        //   requestedBy: requestData.rollProcessConfig._requestedBy
+        // }
       };
       
+      LogUtil.log('executePlayerRollRequest', [handlerRequestData, rollConfig]);
+
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedRollType];
       if (handler) {

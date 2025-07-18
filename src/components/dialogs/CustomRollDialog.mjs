@@ -1,5 +1,5 @@
-import { MODULE } from "../constants/General.mjs";
-import { LogUtil } from "./LogUtil.mjs";
+import { MODULE } from "../../constants/General.mjs";
+import { LogUtil } from "../LogUtil.mjs";
 
 /**
  * Custom Roll Dialog - ApplicationV2 component for custom roll formulas
@@ -29,7 +29,7 @@ export class CustomRollDialog extends foundry.applications.api.HandlebarsApplica
       frame: true
     },
     position: {
-      width: 400,
+      width: 420,
       height: "auto"
     }
   };
