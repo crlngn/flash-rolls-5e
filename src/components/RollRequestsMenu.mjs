@@ -628,6 +628,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         skipDialogs,
         defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
       });
+      LogUtil.log('_getRollConfiguration', [config]);
       
       return config; // Will be null if cancelled
     } else {
@@ -650,6 +651,24 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       // Death saves always have DC 10
       if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
         config.target = 10;
+      }
+      
+      // For skill/tool checks, add the default ability when skipping dialog
+      if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName) && actors.length > 0) {
+        const actor = actors[0];
+        let defaultAbility = null;
+        
+        if (rollMethodName === ROLL_TYPES.SKILL) {
+          const skill = actor.system.skills?.[rollKey];
+          defaultAbility = skill?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
+        } else if (rollMethodName === ROLL_TYPES.TOOL) {
+          const tool = actor.system.tools?.[rollKey];
+          defaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
+        }
+        
+        if (defaultAbility) {
+          config.ability = defaultAbility;
+        }
       }
       
       return config;

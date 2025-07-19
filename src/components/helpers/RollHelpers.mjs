@@ -11,7 +11,7 @@ export const RollHelpers = {
    * @returns {BasicRollProcessConfiguration} The modified config
    */
   addSituationalBonus(config, situational) {
-    LogUtil.log("Config before adding bonus:", [situational, !config.rolls, config]);
+    LogUtil.log("Config before adding bonus:", [situational, config.rolls?.[0]]);
     if (situational && config.rolls?.[0]) {
       // Ensure the roll has proper structure
       if (!config.rolls[0].parts) config.rolls[0].parts = [];
@@ -19,8 +19,9 @@ export const RollHelpers = {
       
       config.rolls[0].data.situational = situational;
       config.situational = true;
+      config.rolls[0].parts.push("@situational");
       
-      LogUtil.log("Config after adding bonus:", [config]);
+      LogUtil.log("Config after adding bonus:", [config.rolls?.[0]]);
     }
     return config;
   },
@@ -59,7 +60,7 @@ export const RollHelpers = {
     };
     
     // Add situational bonus if present
-    const situational = requestData.config.situational;
+    const situational = requestData.config.situational || rollConfig.data.situational || '';
     if (situational) {
       this.addSituationalBonus(config, situational);
     }
@@ -76,12 +77,11 @@ export const RollHelpers = {
    * @returns {BasicRollProcessConfiguration} The updated config with required flags
    */
   ensureRollFlags(config, requestData) {
-    return {
-      ...config,
-      isRollRequest: game.user.isGM ? false : true,
-      _showRequestedBy: true,
-      _requestedBy: requestData.config.requestedBy || 'GM'
-    };
+    config.isRollRequest = game.user.isGM ? false : true;
+    config._showRequestedBy = true;
+    config._requestedBy = requestData.config.requestedBy || 'GM';
+
+    return config;
   }
 };
 

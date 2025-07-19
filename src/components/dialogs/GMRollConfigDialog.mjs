@@ -50,12 +50,13 @@ export function GMRollConfigMixin(Base) {
       
       // Handle situational bonus
       const situational = formData?.get(`rolls.${index}.situational`);
+      LogUtil.log(`_buildConfig`, [situational, formData, config]);
       if (situational && (config.situational !== false)) {
         if (!config.parts) config.parts = [];
         config.parts.push("@situational");
         if (!config.data) config.data = {};
         config.data.situational = situational;
-      } else if (config.parts) {
+      }else if (config.parts) {
         // Remove @situational if no value provided
         const idx = config.parts.indexOf("@situational");
         if (idx !== -1) config.parts.splice(idx, 1);
@@ -117,6 +118,7 @@ export function GMRollConfigMixin(Base) {
      */
     _finalizeRolls(action) {
       const finalizedRolls = super._finalizeRolls(action);
+      LogUtil.log(`_finalizeRolls`, [finalizedRolls]);
       
       // Apply DC if we have one stored
       if (this.dcValue !== undefined && this.dcValue !== null) {

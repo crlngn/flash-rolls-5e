@@ -37,7 +37,6 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SAVING_THROW, this._handlePreRoll.bind(this, ROLL_TYPES.SAVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_SKILL_V2, this._handlePreRoll.bind(this, ROLL_TYPES.SKILL));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_TOOL_V2, this._handlePreRoll.bind(this, ROLL_TYPES.TOOL));
-    // Note: Concentration rolls are Constitution saving throws, handled by PRE_ROLL_SAVING_THROW
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._handlePreRoll.bind(this, ROLL_TYPES.ATTACK));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DAMAGE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
@@ -123,19 +122,20 @@ export class RollInterceptor {
     } else {
       actor = config.subject?.actor || config.subject || config.actor;
     }
-    
     // Check if roll interception and requests are enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    if(!rollInterceptionEnabled || !rollRequestsEnabled ||
-        !actor || actor.documentName !== 'Actor') {
+    // const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+
+    if(!rollInterceptionEnabled || //!rollRequestsEnabled ||
+      !actor || actor.documentName !== 'Actor') {
       return;
     }
+    
 
     LogUtil.log('_handlePreRoll', [config, message]);
     const owner = this._getActorOwner(actor);   
-    if (!owner || owner.id === game.user.id || !owner.active || // player owner inexistent or not active
+    if (!owner || owner.id === game.user.id || //!owner.active || // player owner inexistent or not active
         dialog.configure===false || config.isRollRequest===false || config.skipDialog===true || config.fastForward===true) { // config skips the dialog
       return; // undefined - don't intercept, let the roll proceed
     }
@@ -168,6 +168,14 @@ export class RollInterceptor {
    */
   static async _showGMConfigDialog(actor, owner, rollType, config, dialog, message) {
     LogUtil.log('_showGMConfigDialog - config', [rollType, config]);
+    const SETTINGS = getSettings();
+    const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+
+    // if(!rollInterceptionEnabled || //!rollRequestsEnabled ||
+    //   !actor || actor.documentName !== 'Actor') {
+    //   return;
+    // }
 
     try {
       // Normalize rollType to lowercase for consistent comparisons
@@ -193,15 +201,6 @@ export class RollInterceptor {
       } else {
         DialogClass = GMRollConfigDialog;
       }
-      
-      LogUtil.log('_showGMConfigDialog - DialogClass selected', [
-        'rollType:', normalizedRollType,
-        'DialogClass:', DialogClass,
-        'DialogClass.name:', DialogClass?.name,
-        'DialogClass.getConfiguration:', DialogClass?.getConfiguration,
-        'typeof getConfiguration:', typeof DialogClass?.getConfiguration,
-        'DamageRollConfigurationDialog exists:', !!dnd5e.applications?.dice?.DamageRollConfigurationDialog
-      ]);
       
       // Create base roll config based on roll type
       let rollConfig = {
@@ -328,15 +327,15 @@ export class RollInterceptor {
         };
       }
       
-      
       // If dialog was cancelled, do nothing (user cancelled the action)
       if (!result) {
-        LogUtil.log('RollInterceptor._showGMConfigDialog - Dialog cancelled');
+        LogUtil.log('_showGMConfigDialog - Dialog cancelled');
         return;
       }
       
       // If sendRequest is false, execute local roll
-      if (!result.sendRequest) {
+      LogUtil.log('_showGMConfigDialog - sending _executeLocalRoll', [rollType, config, result]);
+      if (!result.sendRequest || !rollRequestsEnabled) {
         await this._executeLocalRoll(actor, rollType, config, result);
         return;
       }
@@ -350,7 +349,7 @@ export class RollInterceptor {
         ...result,
         rolls: result.rolls, // Explicitly ensure rolls from dialog takes precedence
         requestedBy: game.user.name,
-        // For attack rolls, prevent the usage message from being created
+        // For attack activity rolls, prevent the usage message from being created
         ...(rollType === ROLL_TYPES.ATTACK && { chatMessage: false })
       };
       
@@ -396,10 +395,11 @@ export class RollInterceptor {
         disadvantage: dialogResult.disadvantage || originalConfig.disadvantage,
         target: dialogResult.target || dialogResult.dc || originalConfig.target,
         rollMode: dialogResult.rollMode || originalConfig.rollMode,
-        situational: situational,  // This is what buildRollConfig expects
+        situational: situational,
         isRollRequest: false // Ensure we don't intercept this roll
       }
     };
+    LogUtil.log('RollInterceptor._executeLocalRoll - requestData', [requestData, originalConfig, dialogResult]);
     
     const dialogConfig = {
       configure: false, // Skip dialog since we already configured
@@ -414,29 +414,32 @@ export class RollInterceptor {
     
     try {
       // Map roll types to handler names
-      const handlerMap = {
-        [ROLL_TYPES.SAVE]: 'save',
-        [ROLL_TYPES.SAVING_THROW]: 'savingthrow',
-        [ROLL_TYPES.ABILITY]: 'ability',
-        [ROLL_TYPES.ABILITY_CHECK]: 'abilitycheck',
-        [ROLL_TYPES.SKILL]: 'skill',
-        [ROLL_TYPES.TOOL]: 'tool',
-        [ROLL_TYPES.CONCENTRATION]: 'concentration',
-        [ROLL_TYPES.INITIATIVE]: 'initiative',
-        [ROLL_TYPES.DEATH_SAVE]: 'deathsave',
-        [ROLL_TYPES.HIT_DIE]: 'hitdie'
-      };
+      const handlerMap = ROLL_TYPES;
+      // {
+      //   [ROLL_TYPES.SAVE]: 'save',
+      //   [ROLL_TYPES.SAVING_THROW]: 'savingthrow',
+      //   [ROLL_TYPES.ABILITY]: 'ability',
+      //   [ROLL_TYPES.ABILITY_CHECK]: 'abilitycheck',
+      //   [ROLL_TYPES.SKILL]: 'skill',
+      //   [ROLL_TYPES.TOOL]: 'tool',
+      //   [ROLL_TYPES.CONCENTRATION]: 'concentration',
+      //   [ROLL_TYPES.INITIATIVE]: 'initiative',
+      //   [ROLL_TYPES.DEATH_SAVE]: 'deathsave',
+      //   [ROLL_TYPES.HIT_DIE]: 'hitdie'
+      // };
       
-      const handlerName = handlerMap[normalizedRollType];
-      const handler = RollHandlers[handlerName];
+      // const handlerName = handlerMap[normalizedRollType];
+      const handler = RollHandlers[normalizedRollType];
+      LogUtil.log('RollInterceptor._executeLocalRoll - handler 1', [handler, normalizedRollType, RollHandlers[normalizedRollType]]);
       
       if (handler) {
         // Special handling for attack and damage rolls
-        if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE) {
+        if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE || normalizedRollType === ROLL_TYPES.SAVE) {
           requestData.rollKey = originalConfig.subject?.item?.id;
           requestData.activityId = originalConfig.subject?.id;
         }
         
+        LogUtil.log('RollInterceptor._executeLocalRoll - handler 2', [requestData, rollConfig, dialogConfig, messageConfig]);
         // Call the handler with the properly formatted data
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {

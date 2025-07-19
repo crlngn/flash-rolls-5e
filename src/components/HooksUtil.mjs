@@ -88,8 +88,9 @@ export class HooksUtil {
   static _registerPlayerHooks() {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._onPreRollInitiativeDialogV2.bind(this));
-    this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderHitDieDialog.bind(this));
+    
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
+    // this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     // this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
   }
   
@@ -142,12 +143,19 @@ export class HooksUtil {
   static _onRenderRollConfigDialog(app, html, data) {
     LogUtil.log("_onRenderRollConfigDialog triggered", [ app, data ]);
     
+    // Check if this is a hit die dialog first
+    const title = html.querySelector('.window-title')?.textContent;
+    if (title && title.includes('Hit Die')) {
+      this._onRenderHitDieDialog(app, html, data);
+      return;
+    }
+    
     // Do not continue if we've already triggered
     if (app._situationalTriggered) return;
     
     // Does the dialog have a situational input field?
     const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    LogUtil.log("Found situational inputs:", [situationalInputs.length]);
+    LogUtil.log("Situational inputs:", [situationalInputs.length]);
     
     let hasTriggered = false;
     situationalInputs.forEach((input, index) => {      
@@ -266,18 +274,21 @@ export class HooksUtil {
   static _onPreRollHitDieV2(config, dialogOptions, messageOptions) {
     LogUtil.log("_onPreRollHitDieV2 triggered", [config, dialogOptions, messageOptions]);
     
-    // Check if we have multiple rolls with situational bonus
+    // Check if we have multiple rolls
     if (config.rolls && config.rolls.length > 1) {
+      // Check if second roll has situational bonus to consolidate
       const secondRoll = config.rolls[1];
       if (secondRoll && secondRoll.data && secondRoll.data.situational) {
         if (!config.rolls[0].data) {
           config.rolls[0].data = {};
         }
         config.rolls[0].data.situational = secondRoll.data.situational;
-        config.rolls.splice(1, 1);
-        
-        LogUtil.log("Consolidated hit die rolls with situational bonus", config.rolls);
       }
+      
+      // Remove any empty or invalid rolls (keep only the first valid roll)
+      config.rolls = config.rolls.slice(0, 1);
+      
+      LogUtil.log("Cleaned up hit die rolls", config.rolls);
     }
   }
   
@@ -400,6 +411,9 @@ export class HooksUtil {
     // Only process if this is from a roll request and has a pre-selected ability
     if (!app.config?.isRollRequest || !app.config?.ability) return;
     
+    // Check if we've already processed this dialog to avoid infinite loops
+    if (app._abilityFlavorFixed) return;
+    
     // Find the ability selector
     const abilitySelect = html.querySelector('select[name="ability"]');
     if (!abilitySelect) return;
@@ -407,8 +421,11 @@ export class HooksUtil {
     const selectedAbility = abilitySelect.value;
     const configAbility = app.config.ability;
 
-    // Is the selected ability different from the default?
+    // Is the selected ability the same as the config ability?
     if (selectedAbility === configAbility) {
+      // Mark that we've fixed this dialog
+      app._abilityFlavorFixed = true;
+      
       // Trigger a change event to force message flavor to update
       setTimeout(() => {
         const changeEvent = new Event('change', {

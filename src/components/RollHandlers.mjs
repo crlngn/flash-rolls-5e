@@ -6,9 +6,11 @@ import { CustomRollDialog } from "./dialogs/CustomRollDialog.mjs";
 
 export const RollHandlers = {
   ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    LogUtil.log('RollHandlers.ability #1', [rollConfig]);
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       ability: requestData.rollKey
     });
+    LogUtil.log('RollHandlers.ability #2', [config.rolls?.[0]]);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -70,9 +72,9 @@ export const RollHandlers = {
     }
     
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
-    
+    LogUtil.log("initiative #1", [requestData, rollConfig, config])
     // Store situational bonus temporarily on actor for the hook to pick up
-    const situational = requestData.config.situational;
+    const situational = requestData.config.situational || rollConfig.data.situational || '';
     if (situational && dialogConfig.configure && !game.user.isGM) {
       actor._initiativeSituationalBonus = situational;
     }
