@@ -626,7 +626,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       }
       const config = await DialogClass.initConfiguration(actors, rollMethodName, rollKey, { 
         skipDialogs,
-        defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
+        sendRequest: rollRequestsEnabled || false 
       });
       LogUtil.log('_getRollConfiguration', [config]);
       
@@ -643,9 +643,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         disadvantage: false,
         rollMode: game.settings.get("core", "rollMode"),
         chatMessage: true,
-        isRollRequest: false,  // Don't intercept when rolling locally
-        skipDialog: true,  // Pass skipDialog as true when skipping
-        sendRequest: rollRequestsEnabled && pcActors.length > 0  // Only send if enabled AND there are PC actors
+        isRollRequest: false,
+        skipDialog: true,
+        sendRequest: rollRequestsEnabled && pcActors.length > 0
       };
       
       // Death saves always have DC 10
@@ -728,8 +728,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     // Validate and filter actors
     const validActorIds = this._getValidActorIds(selectedActorIds);
     let actors = validActorIds
-      .map(id => game.actors.get(id))
-      .filter(actor => actor);
+      .map(id => game.actors.get(id));
+      // .filter(actor => actor);
     
     // Get roll method name
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
@@ -745,14 +745,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         const combatReady = await ensureCombatForInitiative();
         if (!combatReady) return;
         if (game.combat) {
+          LogUtil.log("_triggerRoll", []);
           const filteredActorIds = await filterActorsForInitiative(validActorIds, game);
 
-          LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds]);
+          LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
           if (!filteredActorIds.length) return;
-          // Convert IDs back to actors
+
           actors = filteredActorIds
-            .map(id => game.actors.get(id))
-            .filter(actor => actor);
+            .map(id => game.actors.get(id));
+            // .filter(actor => actor);
         }
         break;
       case ROLL_TYPES.DEATH_SAVE:
@@ -771,13 +772,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const { pcActors, npcActors } = categorizeActorsByOwnership(actors);
     
     // Get roll configuration
-    const config = await this._getRollConfiguration(
-      actors, 
-      rollMethodName, 
-      rollKey, 
-      skipDialogs, 
-      pcActors
-    );
+    const config = await this._getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors);
+    
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
     
@@ -1082,7 +1078,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       // Pass the proper roll configuration structure
       const rollConfig = rollProcessConfig.rolls?.[0] || {};
-      LogUtil.log('_initiateRollRequest - rollConfig', [rollConfig, requestData]);
       
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];

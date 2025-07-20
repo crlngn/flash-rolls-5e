@@ -20,7 +20,7 @@ export const RollHandlers = {
 
   save: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
-      ability: requestData.rollKey
+      ability: requestData.config?.ability || requestData.rollKey
     });
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
   },
@@ -30,12 +30,18 @@ export const RollHandlers = {
   },
 
   skill: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    LogUtil.log('RollHandlers.skill #1', [requestData, rollConfig, dialogConfig]);
+
+    // Get the default ability for this skill from the actor
+    const defaultAbility = actor.system.skills?.[requestData.rollKey]?.ability || 
+                          CONFIG.DND5E.skills?.[requestData.rollKey]?.ability || 
+                          undefined;
+
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
-      skill: requestData.rollKey,
-      chooseAbility: true,
-      ability: requestData.config.ability || undefined
+      skill: requestData.rollKey, 
+      chooseAbility: dialogConfig.configure !== false, 
+      ability: requestData.config.ability || defaultAbility 
     });
-    LogUtil.log('RollHandlers.skill #1', [requestData,rollConfig, config]);
     
     // If we have a custom ability, set the flavor in the message config
     if (requestData.config.ability && dialogConfig.configure === false) {
@@ -48,17 +54,26 @@ export const RollHandlers = {
       messageConfig.data = messageConfig.data || {};
       messageConfig.data.flavor = flavor;
     }
+    LogUtil.log('RollHandlers.skill #2', [config, dialogConfig, messageConfig]);
     
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
   tool: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    LogUtil.log('RollHandlers.tool #1', [requestData, rollConfig]);
+
+    // Get the default ability for this tool from the actor
+    // Tools can have custom abilities set per actor, or use the system default
+    const toolConfig = actor.system.tools?.[requestData.rollKey];
+    const defaultAbility = toolConfig?.ability || 
+                          CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey]?.ability ||
+                          'int';
+
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       tool: requestData.rollKey,
-      chooseAbility: true,
-      ability: requestData.config.ability || undefined
+      chooseAbility: dialogConfig.configure !== false, 
+      ability: requestData.config.ability || defaultAbility
     });
-    LogUtil.log('RollHandlers.tool #1', [requestData, rollConfig, config]);
     
     // If we have a custom ability, set the flavor in the message config
     if (requestData.config.ability && dialogConfig.configure === false) {
@@ -76,6 +91,7 @@ export const RollHandlers = {
       messageConfig.data = messageConfig.data || {};
       messageConfig.data.flavor = flavor;
     }
+    LogUtil.log('RollHandlers.tool #2', [config, dialogConfig, messageConfig]);
     
     await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
@@ -105,7 +121,6 @@ export const RollHandlers = {
     }
     
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
-    LogUtil.log("initiative #1", [requestData, rollConfig, config])
     // Store situational bonus temporarily on actor for the hook to pick up
     const situational = requestData.config.situational || rollConfig.data.situational || '';
     if (situational && dialogConfig.configure && !game.user.isGM) {
@@ -147,7 +162,7 @@ export const RollHandlers = {
   },
 
   custom: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    await RollHandlers.handleCustomRoll(actor, requestData);
+    await RollHandlers.handleCustomRoll(actor, requestData, dialogConfig, messageConfig);
   },
 
 
@@ -207,10 +222,37 @@ export const RollHandlers = {
    * @param {Object} requestData.config - Configuration object
    * @param {string} [requestData.config.rollMode] - Roll visibility mode
    * @param {string} [requestData.config.requestedBy] - Name of the requester
+   * @param {BasicRollDialogConfiguration} dialogConfig - Dialog configuration
+   * @param {BasicRollMessageConfiguration} messageConfig - Message configuration
    * @returns {Promise<void>}
    */
-  async handleCustomRoll(actor, requestData) {
+  async handleCustomRoll(actor, requestData, dialogConfig, messageConfig) {
     const formula = requestData.rollKey; // Formula is stored in rollKey
+    
+    // If dialog should be skipped, execute the roll directly
+    if (dialogConfig?.configure === false) {
+      try {
+        const roll = new Roll(formula, actor.getRollData());
+        
+        // Mark the roll to bypass any interceptors
+        roll.options = roll.options || {};
+        roll.options.isRollRequest = requestData.config?.isRollRequest !== false;
+        
+        await roll.evaluate({async: true});
+        
+        // Post to chat with message configuration
+        await roll.toMessage({
+          speaker: ChatMessage.getSpeaker({actor}),
+          flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
+          rollMode: messageConfig?.rollMode || requestData.config?.rollMode || game.settings.get("core", "rollMode"),
+          isRollRequest: requestData.config?.isRollRequest !== false,
+          create: messageConfig?.create !== false
+        });
+      } catch (error) {
+        ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: formula}));
+      }
+      return;
+    }
     
     // Show the dialog with the formula in readonly mode
     const dialog = new CustomRollDialog({

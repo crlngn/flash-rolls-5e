@@ -2,6 +2,7 @@
  * Helper functions for roll validation and preparation
  */
 
+import { LogUtil } from '../LogUtil.mjs';
 import { NotificationManager } from './Helpers.mjs';
 
 /**
@@ -59,7 +60,8 @@ export async function filterActorsForInitiative(actorIds, game) {
       actorsWithInitiative.push(actor.name);
       actorIdsWithInitiative.add(actor.id);
     }
-  }
+  };
+  LogUtil.log('filterActorsForInitiative', [actorsWithInitiative]);
   
   // If any actors already have initiative, confirm re-roll
   if (actorsWithInitiative.length > 0) {

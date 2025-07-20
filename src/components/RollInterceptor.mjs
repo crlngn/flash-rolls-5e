@@ -7,6 +7,7 @@ import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from './dialogs/GMRollConfigDialog.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
+import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
  */
@@ -37,11 +38,10 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_TOOL_V2, this._handlePreRoll.bind(this, ROLL_TYPES.TOOL));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._handlePreRoll.bind(this, ROLL_TYPES.ATTACK));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DAMAGE));
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DEATH_SAVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.HIT_DIE));
-    
   }
   
   /**
@@ -66,6 +66,26 @@ export class RollInterceptor {
     this.registeredHooks.clear();
   }
 
+   /**
+   * Handle pre-roll initiative to intercept rolls
+   * @param {string} rollType - Type of roll being intercepted
+   * @param {Actor5e} actor - Actor for initiative
+   * @param {D20Roll} roll - Roll configuration object
+   * @returns {boolean|void} - Return false to prevent the roll
+   */
+  static _handlePreRollInitiative(rollType, actor, roll) {
+    LogUtil.log('_handlePreRollInitiative', [rollType, actor, roll]);
+    // const SETTINGS = getSettings();
+    // const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+    // const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    // if(!rollInterceptionEnabled || !rollRequestsEnabled){
+    //   return;
+    // }
+
+    return;
+    // return RollHandlers.initiative(actor, roll);
+  }
+
   /**
    * Handle pre-roll hooks to intercept rolls
    * @param {string} rollType - Type of roll being intercepted
@@ -75,6 +95,7 @@ export class RollInterceptor {
    * @returns {boolean|void} - Return false to prevent the roll
    */
   static _handlePreRoll(rollType, config, dialog, message) {
+    LogUtil.log('_handlePreRoll #0', [rollType, config, dialog, message]);
     // Only intercept on GM side
     if (!game.user.isGM || config.isRollRequest === false) return;
 
@@ -82,10 +103,10 @@ export class RollInterceptor {
     const isInitiativeRoll = hookNames.includes('initiativeDialog') || hookNames.includes('initiative');
     
     if(rollType === ROLL_TYPES.ATTACK){
-      LogUtil.log('RollInterceptor._handlePreRoll - is Attack roll', [config.subject?.item]);
+      LogUtil.log('_handlePreRoll - is Attack roll', [config.subject?.item]);
       const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig');
       if(moduleFlags){
-        LogUtil.log('RollInterceptor._handlePreRoll - found module flags, skipping interception', [moduleFlags]);
+        LogUtil.log('_handlePreRoll - found module flags, skipping interception', [moduleFlags]);
         return;
       }
     }
@@ -105,15 +126,22 @@ export class RollInterceptor {
       rollType = ROLL_TYPES.INITIATIVE;
     }
     
-    // Check if this is a roll request to prevent loops
-    if (config?.isRollRequest || dialog?.isRollRequest || message?.isRollRequest) {
+    if ( config?.isRollRequest || config.sendRequest===false || 
+         dialog?.isRollRequest || message?.isRollRequest) {
       return;
     }
 
     let actor;
-    if (rollType === ROLL_TYPES.INITIATIVE && config instanceof Actor) {
-      actor = config;
-    } else if (rollType === ROLL_TYPES.HIT_DIE) {
+    // if (rollType === ROLL_TYPES.INITIATIVE && config instanceof Actor) {
+    //   // 
+    //   actor = config;
+    //   // For initiative, check if this is from our own dialog execution
+    //   LogUtil.log('_handlePreRoll - Initiative', [config, dialog, message]);
+    //   if (dialog?.isRollRequest === false || message?.isRollRequest === false) {
+    //     return;
+    //   }
+    // } else 
+    if (rollType === ROLL_TYPES.HIT_DIE) {
       actor = dialog?.subject?.actor || dialog?.subject || dialog?.actor;
     } else if(rollType === ROLL_TYPES.ATTACK || rollType === ROLL_TYPES.DAMAGE){
       actor = config.subject?.actor;
@@ -170,6 +198,18 @@ export class RollInterceptor {
 
     try {
       const normalizedRollType = rollType?.toLowerCase();
+      
+      // For initiative, check if combat exists and handle re-rolls
+      if (normalizedRollType === ROLL_TYPES.INITIATIVE) {
+        if (!game.combat) {
+          const combatReady = await ensureCombatForInitiative();
+          if (!combatReady) { return; } // User chose not to create combat, cancel the roll
+        }
+        
+        // Check if actor already has initiative
+        const filteredActorIds = await filterActorsForInitiative([actor.id], game);
+        if (filteredActorIds.length === 0) { return; } // User chose not to re-roll
+      }
       
       let DialogClass;
       if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
@@ -245,7 +285,7 @@ export class RollInterceptor {
         actors: [actor],
         rollType: normalizedRollType,
         showDC: true,
-        defaultSendRequest: true,
+        sendRequest: true,
         skipDialogs: skipDialogs
       };
       
@@ -289,12 +329,12 @@ export class RollInterceptor {
         if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE) {
           result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
             skipDialogs: false,
-            defaultSendRequest: true
+            sendRequest: rollRequestsEnabled
           }, config, dialog);
         } else {
           result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
             skipDialogs: false,
-            defaultSendRequest: true
+            sendRequest: rollRequestsEnabled
           });
         }
       } else {
@@ -360,20 +400,62 @@ export class RollInterceptor {
   static async _executeInterceptedRoll(actor, rollType, originalConfig, dialogResult) {
     LogUtil.log('RollInterceptor._executeInterceptedRoll', [actor, rollType, originalConfig, dialogResult]);
     const normalizedRollType = rollType?.toLowerCase();
-    const rollConfig = dialogResult.rolls?.[0] || {};
-    const situational = rollConfig.data?.situational || "";
+    
+    // Ensure we have a proper roll configuration structure
+    const rollConfig = dialogResult.rolls?.[0] || {
+      parts: [],
+      data: {},
+      options: {}
+    };
+    const situational = rollConfig.data?.situational || dialogResult.situational || "";
+    
+    // Determine the correct rollKey based on the roll type
+    let rollKey;
+    switch (normalizedRollType) {
+      case ROLL_TYPES.SKILL:
+        rollKey = originalConfig.skill;
+        break;
+      case ROLL_TYPES.TOOL:
+        rollKey = originalConfig.tool;
+        break;
+      case ROLL_TYPES.ABILITY:
+      case ROLL_TYPES.SAVE:
+        rollKey = originalConfig.ability || originalConfig.subject?.ability;
+        break;
+      case ROLL_TYPES.HIT_DIE:
+        rollKey = originalConfig.denomination;
+        break;
+      default:
+        rollKey = originalConfig.ability || originalConfig.skill || originalConfig.tool || originalConfig.denomination;
+    }
     
     const requestData = {
-      rollKey: originalConfig.ability || originalConfig.skill || originalConfig.tool || originalConfig.denomination,
+      rollKey: rollKey,
       config: {
         advantage: dialogResult.advantage || originalConfig.advantage,
         disadvantage: dialogResult.disadvantage || originalConfig.disadvantage,
         target: dialogResult.target || dialogResult.dc || originalConfig.target,
         rollMode: dialogResult.rollMode || originalConfig.rollMode,
         situational: situational,
-        isRollRequest: false
+        isRollRequest: false,
+        ability: originalConfig.ability // Pass the ability from original config
       }
     };
+    
+    // For skills and tools, ensure we have the ability if not choosing
+    if (normalizedRollType === ROLL_TYPES.SKILL && !requestData.config.ability) {
+      requestData.config.ability = actor.system.skills?.[requestData.rollKey]?.ability || 
+                                   CONFIG.DND5E.skills?.[requestData.rollKey]?.ability;
+    } else if (normalizedRollType === ROLL_TYPES.TOOL && !requestData.config.ability) {
+      const toolConfig = actor.system.tools?.[requestData.rollKey];
+      requestData.config.ability = toolConfig?.ability || 
+                                   CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey]?.ability ||
+                                   'int';
+    } else if ((normalizedRollType === ROLL_TYPES.ABILITY || normalizedRollType === ROLL_TYPES.SAVE) && !requestData.config.ability) {
+      // For ability checks and saves, the rollKey IS the ability
+      requestData.config.ability = requestData.rollKey;
+    }
+    
     LogUtil.log('RollInterceptor._executeInterceptedRoll - requestData', [requestData, originalConfig, dialogResult]);
     
     const dialogConfig = {

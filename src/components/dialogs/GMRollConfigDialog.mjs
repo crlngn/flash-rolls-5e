@@ -20,7 +20,7 @@ export function GMRollConfigMixin(Base) {
       
       // Store GM-specific options
       this.actors = options.actors || [];
-      this.sendRequest = options.defaultSendRequest ?? options.sendRequest ?? true;
+      this.sendRequest = options.sendRequest ?? options.sendRequest ?? true;
       this.showDC = options.showDC || false;
       this.dcValue = options.dcValue || null;
       
@@ -116,7 +116,7 @@ export function GMRollConfigMixin(Base) {
      */
     _finalizeRolls(action) {
       const finalizedRolls = super._finalizeRolls(action);
-      LogUtil.log(`_finalizeRolls`, [finalizedRolls]);
+      LogUtil.log(`_finalizeRolls #1`, [finalizedRolls, this.sendRequest]);
       
       // Apply DC if we have one stored
       if (this.dcValue !== undefined && this.dcValue !== null) {
@@ -339,7 +339,7 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
    * @param {string} rollType - The type of roll (e.g., "save", "ability", "skill", "tool")
    * @param {string} rollKey - The specific roll key (e.g., "str" for strength, "athletics" for skill)
    * @param {Object} options - Additional options for dialog configuration
-   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {boolean} [options.sendRequest=true] - Default state for send request toggle
    * @param {number} [options.dcValue] - Initial DC value
    * @param {boolean} [options.advantage] - Whether to roll with advantage
    * @param {boolean} [options.disadvantage] - Whether to roll with disadvantage
@@ -669,7 +669,7 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
    *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
    *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
-   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   *   @param {boolean} [options.sendRequest] - Override for sendRequest default
    */
   constructor(config = {}, message = {}, options = {}) {
     // Ensure rollType is set to BasicRoll for hit die
@@ -861,7 +861,7 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {string} rollType - The roll type (should be "hitdie")
    * @param {string} rollKey - Not used for hit die rolls
    * @param {Object} options - Additional options
-   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {boolean} [options.sendRequest=true] - Default state for send request toggle
    * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
    * @static
    */
@@ -986,7 +986,7 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
    * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
    *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
    *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
-   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   *   @param {boolean} [options.sendRequest] - Override for sendRequest default
    *   @param {boolean} [options.showDC=false] - Whether to show DC field
    *   @param {number} [options.dcValue] - Initial DC value
    *   @param {string} [options.rollKey] - The skill/tool key being rolled
@@ -1141,7 +1141,7 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
    * @param {string} rollType - The roll type ("skill" or "tool")
    * @param {string} rollKey - The specific skill/tool key (e.g., "athletics", "thieves")
    * @param {Object} options - Additional options
-   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {boolean} [options.sendRequest=true] - Default state for send request toggle
    * @param {number} [options.dcValue] - Initial DC value
    * @param {string} [options.ability] - Override ability selection
    * @returns {Promise<Object|null>} Configuration with rolls array, ability selection, and sendRequest flag, or null if cancelled
@@ -1304,7 +1304,7 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
    *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
    *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
-   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   *   @param {boolean} [options.sendRequest] - Override for sendRequest default
    */
   constructor(config = {}, message = {}, options = {}) {
     // Ensure the dialog is configured to show
@@ -1500,7 +1500,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {BasicRollConfigurationDialogOptions} options - Dialog options including:
    *   @param {Actor[]} [options.actors=[]] - Array of actors being rolled for
    *   @param {boolean} [options.sendRequest=true] - Whether to send roll to players by default
-   *   @param {boolean} [options.defaultSendRequest] - Override for sendRequest default
+   *   @param {boolean} [options.sendRequest] - Override for sendRequest default
    */
   constructor(config = {}, message = {}, options = {}) {
     super(config, message, options);
@@ -1622,7 +1622,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {string} rollType - The roll type ("attack")
    * @param {string} rollKey - The item ID for the attack
    * @param {Object} options - Additional options
-   * @param {boolean} [options.defaultSendRequest=true] - Default state for send request toggle
+   * @param {boolean} [options.sendRequest=true] - Default state for send request toggle
    * @param {Object} originalConfig - The original roll configuration from the intercepted roll
    * @param {Object} originalDialog - The original dialog configuration from the intercepted roll
    * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
