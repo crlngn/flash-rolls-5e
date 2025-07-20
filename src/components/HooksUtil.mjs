@@ -71,6 +71,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
   }
   
   /**
@@ -86,7 +87,6 @@ export class HooksUtil {
   }
 
   static _registerPlayerHooks() {
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._onPreRollInitiativeDialogV2.bind(this));
     
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
@@ -143,12 +143,12 @@ export class HooksUtil {
   static _onRenderRollConfigDialog(app, html, data) {
     LogUtil.log("_onRenderRollConfigDialog triggered", [ app, data ]);
     
-    // Check if this is a hit die dialog first
-    const title = html.querySelector('.window-title')?.textContent;
-    if (title && title.includes('Hit Die')) {
-      this._onRenderHitDieDialog(app, html, data);
-      return;
-    }
+    // // Check if this is a hit die dialog first
+    // const title = html.querySelector('.window-title')?.textContent;
+    // if (title && title.includes('Hit Die')) {
+    //   this._onRenderHitDieDialog(app, html, data);
+    //   return;
+    // }
     
     // Do not continue if we've already triggered
     if (app._situationalTriggered) return;
@@ -269,23 +269,52 @@ export class HooksUtil {
   }
   
   /**
-   * Handle pre-roll hit die hook to consolidate situational bonus
+   * Actor5e.rollHitDie concatenates our roll data with its own roll data, creating two rolls.
+   * We fix this behavior here so situational bonus is added correctly without duplicating rolls
    */
   static _onPreRollHitDieV2(config, dialogOptions, messageOptions) {
     LogUtil.log("_onPreRollHitDieV2 triggered", [config, dialogOptions, messageOptions]);
     
-    // Check if we have multiple rolls
     if (config.rolls && config.rolls.length > 1) {
-      // Check if second roll has situational bonus to consolidate
-      const secondRoll = config.rolls[1];
-      if (secondRoll && secondRoll.data && secondRoll.data.situational) {
+      // Collect all situational bonuses from ALL rolls
+      const allSituationalBonuses = [];
+      
+      // Check all rolls for situational bonuses
+      for(let i = 0; i < config.rolls.length; i++){
+        const roll = config.rolls[i];
+        if (roll && roll.data && roll.data.situational) {
+          allSituationalBonuses.push(roll.data.situational);
+        }
+      }
+      
+      // If we have situational bonuses to consolidate
+      if (allSituationalBonuses.length > 0) {
         if (!config.rolls[0].data) {
           config.rolls[0].data = {};
         }
-        config.rolls[0].data.situational = secondRoll.data.situational;
+        
+        // Combine all unique situational bonuses
+        const uniqueBonuses = [...new Set(allSituationalBonuses)];
+        
+        // Format and combine the bonuses
+        config.rolls[0].data.situational = uniqueBonuses.map(bonus => {
+          const trimmedBonus = bonus.toString().trim();
+          if (trimmedBonus.startsWith('-')) {
+            return `(${trimmedBonus})`;
+          } else if (trimmedBonus.startsWith('+')) {
+            return `${trimmedBonus.substring(1)}`;
+          } else {
+            return `${trimmedBonus}`;
+          }
+        }).join(' + ');
+        
+        // Ensure @situational is in parts array only once
+        if(game.user.isGM && !config.rolls[0].parts.find(p => p.includes("@situational"))){
+          config.rolls[0].parts.push("@situational");
+        }
       }
       
-      // Remove any empty or invalid rolls (keep only the first valid roll)
+      // Keep only the first valid roll
       config.rolls = config.rolls.slice(0, 1);
       
       LogUtil.log("Cleaned up hit die rolls", config.rolls);
@@ -330,8 +359,6 @@ export class HooksUtil {
   static _onPreRollAttackV2(config, dialogOptions, messageOptions) {
     LogUtil.log("_onPreRollAttackV2 triggered", [config, dialogOptions, messageOptions]);
     
-    // Check if this is from a roll request with stored configuration
-    // The activity stores the flag on its parent item
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig');
     if (stored) {
       LogUtil.log("_onPreRollAttackV2 - Found stored request config from flag", [stored]);
@@ -345,14 +372,11 @@ export class HooksUtil {
       if (stored.attackMode) config.attackMode = stored.attackMode;
       if (stored.ammunition) config.ammunition = stored.ammunition;
       if (stored.mastery !== undefined) config.mastery = stored.mastery;
-      
-      // Set advantage/disadvantage
       if (stored.advantage) config.advantage = true;
       if (stored.disadvantage) config.disadvantage = true;
       
       // Set situational bonus
       if (stored.situational) {
-        // Ensure rolls array exists
         if (!config.rolls || config.rolls.length === 0) {
           config.rolls = [{
             parts: [],
@@ -361,7 +385,6 @@ export class HooksUtil {
           }];
         }
         
-        // Add situational bonus to first roll
         if (!config.rolls[0].data) {
           config.rolls[0].data = {};
         }
@@ -376,15 +399,11 @@ export class HooksUtil {
    */
   static _onPreUseActivity(activity, config, dialog, message) {
     LogUtil.log("_onPreUseActivity triggered", [activity, config, dialog, message]);
-    
-    // Only proceed if user is GM
-    if (!game.user.isGM) return;
-    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
-    
-    // Check if roll requests are enabled
     const SETTINGS = getSettings();
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    if (!requestsEnabled) return;
+
+    if (!game.user.isGM || !requestsEnabled) return;
+    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
     
     // Check if the actor has player ownership
     const actor = activity.actor;
@@ -396,7 +415,6 @@ export class HooksUtil {
     });
     
     if (hasPlayerOwner) {
-      // Prevent the usage message from being created
       LogUtil.log("Preventing usage message for player-owned actor", [actor.name]);
       message.create = false;
     }
@@ -408,141 +426,30 @@ export class HooksUtil {
   static _onRenderSkillToolDialog(app, html, data) {
     LogUtil.log("_onRenderSkillToolDialog triggered", [app]);
     
-    // Only process if this is from a roll request and has a pre-selected ability
-    if (!app.config?.isRollRequest || !app.config?.ability) return;
-    
-    // Check if we've already processed this dialog to avoid infinite loops
+    // Prevent infinite loops
     if (app._abilityFlavorFixed) return;
     
     // Find the ability selector
     const abilitySelect = html.querySelector('select[name="ability"]');
     if (!abilitySelect) return;
     
-    const selectedAbility = abilitySelect.value;
-    const configAbility = app.config.ability;
+    if (app.config?.isRollRequest && app.config?.ability) {
+      const selectedAbility = abilitySelect.value;
+      const configAbility = app.config.ability;
 
-    // Is the selected ability the same as the config ability?
-    if (selectedAbility === configAbility) {
-      // Mark that we've fixed this dialog
-      app._abilityFlavorFixed = true;
-      
-      // Trigger a change event to force message flavor to update
-      setTimeout(() => {
-        const changeEvent = new Event('change', {
-          bubbles: true,
-          cancelable: true
-        });
-        abilitySelect.dispatchEvent(changeEvent);
-      }, 50);
+      if (selectedAbility === configAbility) {
+        app._abilityFlavorFixed = true;
+        
+        // Force flavor to update
+        setTimeout(() => {
+          const changeEvent = new Event('change', {
+            bubbles: true,
+            cancelable: true
+          });
+          abilitySelect.dispatchEvent(changeEvent);
+        }, 50);
+      }
     }
   }
   
-  /**
-   * Handle rendering of hit die dialog to add denomination selector for multiclass
-   */
-  static _onRenderHitDieDialog(app, html, data) {
-    // Only process hit die dialogs - check window title
-    const title = html.querySelector('.window-title')?.textContent;
-    if (!title || !title.includes('Hit Die')) return;
-    
-    const actor = app.config?.subject;
-    if (!actor) return;
-    
-    LogUtil.log("_onRenderHitDieDialog triggered", [{
-      app,
-      actor: actor.name,
-      hd: actor.system.attributes.hd
-    }]);
-    
-    // Get available hit dice from the actor's classes
-    const hdData = actor.system.attributes.hd;
-    const availableDice = [];
-    
-    // Get hit dice from actor's classes
-    for (const cls of Object.values(actor.classes || {})) {
-      const denom = cls.system.hitDice;
-      const classHD = cls.system.levels;
-      const usedHD = cls.system.hitDiceUsed || 0;
-      const availableHD = classHD - usedHD;
-      
-      if (availableHD > 0) {
-        // Check if we already have this denomination
-        const existing = availableDice.find(d => d.denomination === denom);
-        if (existing) {
-          existing.available += availableHD;
-          existing.classes.push(cls.name);
-        } else {
-          availableDice.push({
-            denomination: denom,
-            available: availableHD,
-            max: classHD,
-            classes: [cls.name]
-          });
-        }
-      }
-    }
-    
-    // Only add selector if multiple dice types are available
-    if (availableDice.length > 1) {
-      // Find the formula section
-      const formulaSection = html.querySelector('.formulas');
-      if (!formulaSection) return;
-      
-      // Get current denomination from the roll
-      const currentDenom = app.config.rolls?.[0]?.options?.denomination || hdData.largestAvailable;
-      
-      // Create hit die selector
-      const selectorHtml = `
-        <div class="form-group">
-          <label>${game.i18n.localize("DND5E.HitDice")}</label>
-          <select name="hitDieSelector" class="hit-die-selector">
-            ${availableDice.map(die => `
-              <option value="${die.denomination}" ${die.denomination === currentDenom ? 'selected' : ''}>
-                ${die.denomination} (${die.available} ${game.i18n.localize("DND5E.available")}) - ${die.classes.join(', ')}
-              </option>
-            `).join('')}
-          </select>
-        </div>
-      `;
-      
-      // Insert before the first form group
-      const firstFormGroup = formulaSection.querySelector('.form-group');
-      if (firstFormGroup) {
-        firstFormGroup.insertAdjacentHTML('beforebegin', selectorHtml);
-        
-        // Add change handler
-        const selector = html.querySelector('.hit-die-selector');
-        selector?.addEventListener('change', async (event) => {
-          const newDenom = event.target.value;
-          
-          // Update the roll configuration
-          if (app.config.rolls?.[0]?.options) {
-            app.config.rolls[0].options.denomination = newDenom;
-          }
-          
-          // Recalculate the formula
-          const conMod = actor.system.abilities.con.mod;
-          const newFormula = `max(0, 1${newDenom} + ${conMod})`;
-          
-          if (app.config.rolls?.[0]) {
-            app.config.rolls[0].formula = newFormula;
-            
-            // Re-evaluate the roll to update the preview
-            const roll = new CONFIG.Dice.D20Roll(newFormula, actor.getRollData());
-            await roll.evaluate({async: false});
-            app.config.rolls[0] = roll;
-          }
-          
-          // Force re-render of the dialog
-          app.render(true);
-          
-          LogUtil.log("Updated hit die denomination", [{
-            newDenom,
-            newFormula,
-            conMod
-          }]);
-        });
-      }
-    }
-  }
 }

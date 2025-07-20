@@ -44,28 +44,23 @@ export function GMRollConfigMixin(Base) {
      * @override
      */
     _buildConfig(config, formData, index) {
-      // Extract ability from form data if present (for skill/tool dialogs)
       const abilityFromForm = formData?.get("ability");
       const dcFromForm = formData?.get("dc");
       
-      // Handle situational bonus
       const situational = formData?.get(`rolls.${index}.situational`);
       LogUtil.log(`_buildConfig`, [situational, formData, config]);
-      if (situational && (config.situational !== false)) {
+      if (situational) {
         if (!config.parts) config.parts = [];
         config.parts.push("@situational");
         if (!config.data) config.data = {};
         config.data.situational = situational;
       }else if (config.parts) {
-        // Remove @situational if no value provided
         const idx = config.parts.indexOf("@situational");
         if (idx !== -1) config.parts.splice(idx, 1);
       }
       
-      // If ability is in form data, update the config
       if (abilityFromForm) {
         config.ability = abilityFromForm;
-        // Also update this.config.ability to persist the selection
         this.config.ability = abilityFromForm;
       }
       
@@ -95,7 +90,9 @@ export function GMRollConfigMixin(Base) {
      * @override
      */
     _onChangeForm(formConfig, event) {
+      LogUtil.log(`_onChangeForm`, [event.target.value]);
       super._onChangeForm(formConfig, event);
+
       
       // Capture the current state of our custom fields before re-render
       const sendRequestCheckbox = this.element.querySelector('input[name="crlngn-send-request"]');
@@ -107,6 +104,7 @@ export function GMRollConfigMixin(Base) {
       if (dcInput && dcInput.value) {
         this.dcValue = parseInt(dcInput.value) || null;
       }
+      
     }
     
     /**
@@ -336,7 +334,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
   
   /**
    * Static method to create and display the GM roll configuration dialog.
-   * Handles dialog creation for various roll types with appropriate configuration.
    * Creates a BasicRollProcessConfiguration and shows dialog for user configuration.
    * @param {Actor[]|string[]} actors - Array of Actor documents or actor IDs to roll for
    * @param {string} rollType - The type of roll (e.g., "save", "ability", "skill", "tool")
@@ -351,12 +348,12 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
    * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration with rolls array, or null if cancelled
    * @static
    */
-  static async getConfiguration(actors, rollType, rollKey, options = {}) {
+  static async initConfiguration(actors, rollType, rollKey, options = {}) {
     // Ensure valid actors
     if (actors.length > 0 && typeof actors[0] === 'string') {
       actors = actors.map(actorId => game.actors.get(actorId)).filter(a => a);
     }
-    LogUtil.log('GMRollConfigDialog.getConfiguration', [
+    LogUtil.log('GMRollConfigDialog.initConfiguration', [
       actors,
       actors.map(a => a.name),
       rollType,
@@ -404,6 +401,9 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
       case ROLL_TYPES.SKILL:
         rollConfig.skill = rollKey;
         break;
+      case ROLL_TYPES.TOOL:
+        rollConfig.tool = rollKey;
+        break;
       case ROLL_TYPES.SAVE:
       case ROLL_TYPES.SAVING_THROW:
         rollConfig.ability = rollKey;
@@ -443,16 +443,12 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
         ...options
       }
     };
-    
-    // Create and render the dialog
-    
     // Create the dialog instance to access its properties
     const app = new this(rollConfig, messageConfig, dialogConfig.options);
     
     // Use custom configure method that returns when dialog closes
     const result = await new Promise(resolve => {
       app.addEventListener("close", () => {
-        // Dialog was closed, resolve with the rolls and config
         resolve({
           rolls: app.rolls,
           config: app.config,
@@ -485,7 +481,7 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     // Build a proper BasicRollProcessConfiguration
     const rollProcessConfig = {
       rolls: [{
-        parts: [], // Don't add @situational here - D&D5e will add it when it sees data.situational
+        parts: parts.slice(),
         data: situational ? { situational } : {},
         options: target ? { target } : {}
       }],
@@ -516,7 +512,31 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     }
     
     // Store additional metadata that handlers might need
-    rollProcessConfig.rollTitle = dialogConfig.options.window.title;
+    // For skills/tools, regenerate the title with the selected ability
+    let finalTitle = dialogConfig.options.window.title;
+    if (result.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
+      const selectedAbilityLabel = CONFIG.DND5E.abilities[result.config.ability]?.label || result.config.ability;
+      if (normalizedRollType === ROLL_TYPES.SKILL) {
+        const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
+        finalTitle = game.i18n.format("DND5E.SkillPromptTitle", { 
+          skill: skillLabel,
+          ability: selectedAbilityLabel 
+        });
+      } else if (normalizedRollType === ROLL_TYPES.TOOL) {
+        const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
+        let toolLabel = rollKey;
+        if (toolData?.id) {
+          const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+          toolLabel = toolItem?.name || rollKey;
+        }
+        finalTitle = game.i18n.format("DND5E.ToolPromptTitle", { 
+          tool: toolLabel,
+          ability: selectedAbilityLabel 
+        });
+      }
+    }
+    
+    rollProcessConfig.rollTitle = finalTitle;
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;
     
@@ -600,7 +620,14 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
           const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
           toolLabel = toolItem?.name || rollKey;
         }
-        title = game.i18n.format("DND5E.ToolPromptTitle", { tool: toolLabel });
+        // Get the default ability for this tool
+        const tool = actor?.system.tools?.[rollKey];
+        const toolDefaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
+        const toolAbilityLabel = CONFIG.DND5E.abilities[toolDefaultAbility]?.label || toolDefaultAbility;
+        title = game.i18n.format("DND5E.ToolPromptTitle", { 
+          tool: toolLabel,
+          ability: toolAbilityLabel
+        });
         break;
       case ROLL_TYPES.DEATH_SAVE:
         title = game.i18n.localize("DND5E.DeathSave");
@@ -680,8 +707,8 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @override
    */
   _prepareConfigurationData(roll, config, dialog, message) {
-    LogUtil.log('_prepareConfigurationData', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
+    LogUtil.log('GMHitDieConfigDialog._prepareConfigurationData', [data]);
     
     // Override the formula display for hit die
     data.formula = "Hit Die (varies by actor)";
@@ -772,6 +799,7 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   /**
    * Finalize rolls based on the action button clicked.
    * Stores the send request flag in the configuration.
+   * For hit die rolls, merge situational bonuses into the main formula.
    * @param {string} action - The action button clicked
    * @returns {BasicRoll[]} Array of finalized rolls
    * @protected
@@ -779,9 +807,49 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    */
   _finalizeRolls(action) {
     const finalizedRolls = super._finalizeRolls(action);
-    
-    // Store our custom properties
     this.config.sendRequest = this.sendRequest;
+    
+    LogUtil.log('GMHitDieConfigDialog._finalizeRolls - before merge', [finalizedRolls]);
+    
+    // // Check if we have multiple rolls (main roll + situational bonus roll)
+    // if (finalizedRolls.length > 1) {
+    //   // Look for a roll that only contains @situational
+    //   const situationalRollIndex = finalizedRolls.findIndex(roll => {
+    //     const parts = roll.terms || roll._formula?.split(/[\+\-]/) || [];
+    //     return parts.length === 1 && parts[0]?.toString().trim() === '@situational';
+    //   });
+      
+    //   if (situationalRollIndex !== -1) {
+    //     // Extract the situational value
+    //     const situationalRoll = finalizedRolls[situationalRollIndex];
+    //     const situationalValue = situationalRoll.data?.situational;
+        
+    //     if (situationalValue && finalizedRolls[0]) {
+    //       // Get the base roll formula
+    //       const baseRoll = finalizedRolls[0];
+    //       let baseFormula = baseRoll._formula || baseRoll.formula;
+          
+    //       LogUtil.log('GMHitDieConfigDialog._finalizeRolls - merging', [baseFormula, situationalValue]);
+          
+    //       // Append the situational bonus to the end of the formula
+    //       // This will result in "max(0, 1d10 + 4) + 3" format
+    //       baseFormula = `${baseFormula} + ${situationalValue}`;
+          
+    //       // Update the base roll's formula
+    //       baseRoll._formula = baseFormula;
+    //       if (baseRoll.terms) {
+    //         // Re-parse the formula to update terms
+    //         const newRoll = new Roll(baseFormula, baseRoll.data);
+    //         baseRoll.terms = newRoll.terms;
+    //       }
+          
+    //       LogUtil.log('GMHitDieConfigDialog._finalizeRolls - merged formula', [baseFormula]);
+          
+    //       // Remove the separate situational roll
+    //       finalizedRolls.splice(situationalRollIndex, 1);
+    //     }
+    //   }
+    // }
     
     return finalizedRolls;
   }
@@ -797,8 +865,8 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
    * @static
    */
-  static async getConfiguration(actors, rollType, rollKey, options = {}) {
-    LogUtil.log('GMRollConfigDialog.getConfiguration', [actors, rollType, rollKey, options]);
+  static async initConfiguration(actors, rollType, rollKey, options = {}) {
+    LogUtil.log('GMHitDieConfigDialog.initConfiguration', [actors, rollType, rollKey, options]);
     
     const actor = actors[0];
     if (!actor) return null;
@@ -837,7 +905,6 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       }
     };
     
-    // Create and render the dialog
     const app = new this(rollConfig, messageConfig, dialogConfig.options);
     
     const result = await new Promise(resolve => {
@@ -854,7 +921,8 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     
     if (!result.rolls || result.rolls.length === 0) return null;
     
-    // Extract advantage mode from the finalized rolls
+    LogUtil.log('GMHitDieConfigDialog - dialog result', [result.rolls]);
+    
     const firstRoll = result.rolls[0];
     let advantage = false;
     let disadvantage = false;
@@ -864,14 +932,17 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       disadvantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE;
     }
     
-    // Extract roll configuration from the first roll
-    const situational = firstRoll?.data?.situational || "";
-    const target = firstRoll?.options?.target;
+    // Check if we have multiple rolls that need to be consolidated
+    let parts = firstRoll?.parts || [];
+    let data = firstRoll?.data || {};
+    let rollOptions = firstRoll?.options || {};
     
+    const target = rollOptions.target;
+    const situational = firstRoll?.data?.situational || "";
     // Build a proper BasicRollProcessConfiguration (matching GMRollConfigDialog)
     const rollProcessConfig = {
       rolls: [{
-        parts: [], // Don't add @situational here - D&D5e will add it
+        parts: [],
         data: situational ? { situational } : {},
         options: target ? { target } : {}
       }],
@@ -922,15 +993,10 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
    *   @param {string} [options.rollTypeString] - Display name for the roll type
    */
   constructor(config = {}, message = {}, options = {}) {
-    // Force ability selection
     const skillConfig = foundry.utils.mergeObject(config, {
       chooseAbility: true
     });
-    
-    // Ensure rollType is set in options
     options.rollType = options.rollType || CONFIG.Dice.D20Roll;
-    
-    // SkillToolRollConfigurationDialog expects (config, message, options)
     super(skillConfig, message, options);
     
     LogUtil.log('constructor', [config, message, options]);
@@ -961,7 +1027,7 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     LogUtil.log('_prepareConfigurationData', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     
-    // Add GM-specific data
+    // GM-specific data
     data.showDC = this.showDC;
     data.dcValue = this.dcValue;
     data.sendRequest = this.sendRequest;
@@ -1081,8 +1147,8 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
    * @returns {Promise<Object|null>} Configuration with rolls array, ability selection, and sendRequest flag, or null if cancelled
    * @static
    */
-  static async getConfiguration(actors, rollType, rollKey, options = {}) {
-    LogUtil.log('getConfiguration', [actors, rollType, rollKey, options]);
+  static async initConfiguration(actors, rollType, rollKey, options = {}) {
+    LogUtil.log('initConfiguration', [actors, rollType, rollKey, options]);
     
     // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
@@ -1190,7 +1256,7 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     // Build a proper BasicRollProcessConfiguration (matching GMRollConfigDialog)
     const rollProcessConfig = {
       rolls: [{
-        parts: [], // Don't add @situational here - D&D5e will add it
+        parts: [],
         data: situational ? { situational } : {},
         options: target ? { target } : {}
       }],
@@ -1322,8 +1388,8 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @param {BasicRollDialogConfiguration} originalDialog - Original dialog configuration
    * @returns {Promise<Object|null>} The dialog result or null if cancelled
    */
-  static async getConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
-    LogUtil.log('GMDamageConfigDialog.getConfiguration', [actors, rollType, rollKey, options, originalConfig, originalDialog]);
+  static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
+    LogUtil.log('GMDamageConfigDialog.initConfiguration', [actors, rollType, rollKey, options, originalConfig, originalDialog]);
     
     const actor = actors[0];
     if (!actor) return null;
@@ -1389,11 +1455,11 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     
     // If dialog was cancelled (no rolls), return null
     if (!result.rolls?.length) {
-      LogUtil.log('GMDamageConfigDialog.getConfiguration - cancelled');
+      LogUtil.log('GMDamageConfigDialog.initConfiguration - cancelled');
       return null;
     }
     
-    LogUtil.log('GMDamageConfigDialog.getConfiguration - result', [result]);
+    LogUtil.log('GMDamageConfigDialog.initConfiguration - result', [result]);
     
     // Build the roll process configuration to return
     const rollProcessConfig = {
@@ -1415,7 +1481,7 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;
     
-    LogUtil.log('GMDamageConfigDialog.getConfiguration - final result', [rollProcessConfig]);
+    LogUtil.log('GMDamageConfigDialog.initConfiguration - final result', [rollProcessConfig]);
     
     return rollProcessConfig;
   }
@@ -1562,8 +1628,8 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
    * @static
    */
-  static async getConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
-    LogUtil.log('GMAttackConfigDialog.getConfiguration', [actors, rollType, rollKey, options, originalConfig, originalDialog]);
+  static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
+    LogUtil.log('GMAttackConfigDialog.initConfiguration', [actors, rollType, rollKey, options, originalConfig, originalDialog]);
     
     // Get first actor for reference
     const actor = actors[0];
@@ -1631,7 +1697,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       }, { once: true });
       app.render({ force: true });
     });
-    LogUtil.log('GMAttackConfigDialog.getConfiguration', [app.sendRequest]);
+    LogUtil.log('GMAttackConfigDialog.initConfiguration', [app.sendRequest]);
     
     // If no rolls or user cancelled
     if (!result.rolls || result.rolls.length === 0) return null;
@@ -1653,7 +1719,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     // Build a proper BasicRollProcessConfiguration (matching ability check pattern)
     const rollProcessConfig = {
       rolls: [{
-        parts: [], // Don't add @situational here - D&D5e will add it
+        parts: [],
         data: situational ? { situational } : {},
         options: {
           ...(target && { target }),
@@ -1685,7 +1751,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;
     
-    LogUtil.log('GMAttackConfigDialog.getConfiguration - SIMPLIFIED result', [rollProcessConfig]);
+    LogUtil.log('GMAttackConfigDialog.initConfiguration - SIMPLIFIED result', [rollProcessConfig]);
     
     return rollProcessConfig;
   }

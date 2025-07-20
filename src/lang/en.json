@@ -87,8 +87,10 @@
         "rollLocally": "Roll Locally",
         "hitDie": {
           "refillTitle": "No Hit Dice Available",
-          "refillMessage": "{actor} has no hit dice available. Would you like to refill their hit dice and send the request?",
+          "refillMessage": "No hit dice available for {actors}. has no hit dice available. Would you like to refill their hit dice and send the request?",
+          "refillMessageLocal": "No hit dice available for {actors}. Would you like to refill their hit dice and roll?",
           "refillAndSend": "Refill & Send",
+          "refillAndRoll": "Refill & Roll",
           "refilled": "Hit dice refilled for {actor}"
         }
       },

@@ -21,8 +21,6 @@ export class RollInterceptor {
    */
   static initialize() {
     LogUtil.log('RollInterceptor.initialize');
-    
-    // Only initialize for GM users
     if (!game.user.isGM) return;
     
     this.registerHooks();
@@ -131,16 +129,16 @@ export class RollInterceptor {
       !actor || actor.documentName !== 'Actor') {
       return;
     }
-    
 
     LogUtil.log('_handlePreRoll', [config, message]);
     const owner = this._getActorOwner(actor);   
     if (!owner || owner.id === game.user.id || //!owner.active || // player owner inexistent or not active
         dialog.configure===false || config.isRollRequest===false || config.skipDialog===true || config.fastForward===true) { // config skips the dialog
-      return; // undefined - don't intercept, let the roll proceed
+      return;
     }
     
     LogUtil.log('_handlePreRoll - intercepting roll #1', [config, message]);
+    
     // For attack rolls, if a usage message is created, ensure it's public
     if (rollType === ROLL_TYPES.ATTACK) {
       message = {
@@ -149,8 +147,6 @@ export class RollInterceptor {
       };
     }
     LogUtil.log('_handlePreRoll - intercepting roll #2', [config, message]);
-    
-    // Show GM configuration dialog before sending to player
     this._showGMConfigDialog(actor, owner, rollType, config, dialog, message);
     
     // Prevent the normal roll
@@ -172,16 +168,9 @@ export class RollInterceptor {
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
 
-    // if(!rollInterceptionEnabled || //!rollRequestsEnabled ||
-    //   !actor || actor.documentName !== 'Actor') {
-    //   return;
-    // }
-
     try {
-      // Normalize rollType to lowercase for consistent comparisons
       const normalizedRollType = rollType?.toLowerCase();
       
-      // Determine appropriate dialog class based on roll type
       let DialogClass;
       if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
         DialogClass = GMSkillToolConfigDialog;
@@ -190,19 +179,15 @@ export class RollInterceptor {
       } else if (normalizedRollType === ROLL_TYPES.ATTACK) {
         DialogClass = GMAttackConfigDialog;
       } else if (normalizedRollType === ROLL_TYPES.DAMAGE) {
-        // Check if DamageRollConfigurationDialog exists in this D&D5e version
         if (dnd5e.applications?.dice?.DamageRollConfigurationDialog) {
           DialogClass = GMDamageConfigDialog;
         } else {
-          // Fallback to base dialog if damage dialog doesn't exist
-          LogUtil.log('DamageRollConfigurationDialog not found, using GMRollConfigDialog');
           DialogClass = GMRollConfigDialog;
         }
       } else {
         DialogClass = GMRollConfigDialog;
       }
       
-      // Create base roll config based on roll type
       let rollConfig = {
         rolls: [{
           parts: [],
@@ -211,16 +196,14 @@ export class RollInterceptor {
         }]
       };
       
-      // Add specific configuration based on roll type
       switch (normalizedRollType) {
         case ROLL_TYPES.ABILITY:
           rollConfig.ability = config.ability || config.subject?.ability;
           break;
         case ROLL_TYPES.SAVE:
           rollConfig.ability = config.ability || config.subject?.ability;
-          // Check if this is actually a concentration save
           if (config.ability === 'con' && config.targetValue !== undefined) {
-            rollType = ROLL_TYPES.CONCENTRATION; // Update rollType for proper handling
+            rollType = ROLL_TYPES.CONCENTRATION;
           }
           break;
         case ROLL_TYPES.SKILL:
@@ -235,10 +218,9 @@ export class RollInterceptor {
           rollConfig.ability = 'con';
           break;
         case ROLL_TYPES.INITIATIVE:
-          // Initiative rolls don't need special config
+          // No special config
           break;
         case ROLL_TYPES.HIT_DIE:
-          // For hit die the first parameter is the denomination string (e.g. "d8")
           rollConfig.denomination = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
           break;
         case ROLL_TYPES.ATTACK:
@@ -249,9 +231,8 @@ export class RollInterceptor {
           }
           break;
         case ROLL_TYPES.DAMAGE:
-          // Damage rolls need the item and activity reference
           rollConfig.item = config.subject?.item;
-          rollConfig.subject = config.subject; // Preserve the full subject (activity)
+          rollConfig.subject = config.subject;
           rollConfig.critical = config.critical || false;
           break;
       }
@@ -299,19 +280,19 @@ export class RollInterceptor {
             rollKey = config.subject?.item?.id;
             break;
         }
-        // Use the static getConfiguration method which properly waits for dialog result
-        if (!DialogClass.getConfiguration) {
-          LogUtil.error('DialogClass.getConfiguration not found', [DialogClass, DialogClass.name]);
-          throw new Error(`DialogClass ${DialogClass.name} does not have getConfiguration method`);
+        // Use the static initConfiguration method which properly waits for dialog result
+        if (!DialogClass.initConfiguration) {
+          LogUtil.error('DialogClass.initConfiguration not found', [DialogClass, DialogClass.name]);
+          throw new Error(`DialogClass ${DialogClass.name} does not have initConfiguration method`);
         }
         
         if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE) {
-          result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
+          result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
             skipDialogs: false,
             defaultSendRequest: true
           }, config, dialog);
         } else {
-          result = await DialogClass.getConfiguration([actor], normalizedRollType, rollKey, {
+          result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
             skipDialogs: false,
             defaultSendRequest: true
           });
@@ -334,20 +315,19 @@ export class RollInterceptor {
       }
       
       // If sendRequest is false, execute local roll
-      LogUtil.log('_showGMConfigDialog - sending _executeLocalRoll', [rollType, config, result]);
+      LogUtil.log('_showGMConfigDialog - sending _executeInterceptedRoll', [rollType, config, result]);
       if (!result.sendRequest || !rollRequestsEnabled) {
-        await this._executeLocalRoll(actor, rollType, config, result);
+        await this._executeInterceptedRoll(actor, rollType, config, result);
         return;
       }
       
       // Send the roll request to the player with the configured settings
-      // We need to include the rolls array to preserve situational bonuses and other roll data
       // Exclude the event object as it can't be serialized
       const { event, ...configWithoutEvent } = config;
       const finalConfig = {
         ...configWithoutEvent,
         ...result,
-        rolls: result.rolls, // Explicitly ensure rolls from dialog takes precedence
+        rolls: result.rolls,
         requestedBy: game.user.name,
         // For attack activity rolls, prevent the usage message from being created
         ...(rollType === ROLL_TYPES.ATTACK && { chatMessage: false })
@@ -370,24 +350,19 @@ export class RollInterceptor {
   }
   
   /**
-   * Execute a roll locally on the GM side
+   * Called when an intercepted roll should be executed 
+   * locally on the GM side instead of sent to player
    * @param {Actor} actor 
    * @param {string} rollType 
    * @param {Object} originalConfig
    * @param {Object} dialogResult
    */
-  static async _executeLocalRoll(actor, rollType, originalConfig, dialogResult) {
-    LogUtil.log('RollInterceptor._executeLocalRoll', [actor, rollType, originalConfig, dialogResult]);
-    // Normalize rollType to lowercase for consistent comparisons
+  static async _executeInterceptedRoll(actor, rollType, originalConfig, dialogResult) {
+    LogUtil.log('RollInterceptor._executeInterceptedRoll', [actor, rollType, originalConfig, dialogResult]);
     const normalizedRollType = rollType?.toLowerCase();
-    
-    // Get the roll config from dialog result (first roll)
     const rollConfig = dialogResult.rolls?.[0] || {};
-    
-    // Extract situational bonus from the roll config
     const situational = rollConfig.data?.situational || "";
     
-    // Build requestData structure expected by RollHandlers
     const requestData = {
       rollKey: originalConfig.ability || originalConfig.skill || originalConfig.tool || originalConfig.denomination,
       config: {
@@ -396,13 +371,13 @@ export class RollInterceptor {
         target: dialogResult.target || dialogResult.dc || originalConfig.target,
         rollMode: dialogResult.rollMode || originalConfig.rollMode,
         situational: situational,
-        isRollRequest: false // Ensure we don't intercept this roll
+        isRollRequest: false
       }
     };
-    LogUtil.log('RollInterceptor._executeLocalRoll - requestData', [requestData, originalConfig, dialogResult]);
+    LogUtil.log('RollInterceptor._executeInterceptedRoll - requestData', [requestData, originalConfig, dialogResult]);
     
     const dialogConfig = {
-      configure: false, // Skip dialog since we already configured
+      configure: false, // Skip dialog
       isRollRequest: false
     };
     
@@ -413,24 +388,10 @@ export class RollInterceptor {
     };
     
     try {
-      // Map roll types to handler names
       const handlerMap = ROLL_TYPES;
-      // {
-      //   [ROLL_TYPES.SAVE]: 'save',
-      //   [ROLL_TYPES.SAVING_THROW]: 'savingthrow',
-      //   [ROLL_TYPES.ABILITY]: 'ability',
-      //   [ROLL_TYPES.ABILITY_CHECK]: 'abilitycheck',
-      //   [ROLL_TYPES.SKILL]: 'skill',
-      //   [ROLL_TYPES.TOOL]: 'tool',
-      //   [ROLL_TYPES.CONCENTRATION]: 'concentration',
-      //   [ROLL_TYPES.INITIATIVE]: 'initiative',
-      //   [ROLL_TYPES.DEATH_SAVE]: 'deathsave',
-      //   [ROLL_TYPES.HIT_DIE]: 'hitdie'
-      // };
       
-      // const handlerName = handlerMap[normalizedRollType];
       const handler = RollHandlers[normalizedRollType];
-      LogUtil.log('RollInterceptor._executeLocalRoll - handler 1', [handler, normalizedRollType, RollHandlers[normalizedRollType]]);
+      LogUtil.log('RollInterceptor._executeInterceptedRoll - handler 1', [handler, normalizedRollType, RollHandlers[normalizedRollType]]);
       
       if (handler) {
         // Special handling for attack and damage rolls
@@ -439,14 +400,13 @@ export class RollInterceptor {
           requestData.activityId = originalConfig.subject?.id;
         }
         
-        LogUtil.log('RollInterceptor._executeLocalRoll - handler 2', [requestData, rollConfig, dialogConfig, messageConfig]);
-        // Call the handler with the properly formatted data
+        LogUtil.log('RollInterceptor._executeInterceptedRoll - handler 2', [requestData, rollConfig, dialogConfig, messageConfig]);
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
         LogUtil.warn(`No handler found for roll type: ${normalizedRollType}`);
       }
     } catch (error) {
-      LogUtil.error("RollInterceptor._executeLocalRoll", [error]);
+      LogUtil.error("RollInterceptor._executeInterceptedRoll", [error]);
     }
   }
   
@@ -463,11 +423,8 @@ export class RollInterceptor {
     LogUtil.log('RollInterceptor._showConfigurationDialog', [actor, owner, rollType, config, dialog, message]);
 
     try {
-      // Create a wrapper function that will be called instead of the normal roll
       const rollWrapper = async (finalConfig) => {
-        // Send the configured roll request to the player
         this._sendRollRequest(actor, owner, rollType, finalConfig);
-        // Return a fake roll to satisfy the dialog
         return new Roll("1d20").evaluate({async: false});
       };
       
@@ -475,18 +432,13 @@ export class RollInterceptor {
       const modifiedConfig = {
         ...config,
         _rollMethod: rollWrapper,
-        configured: false // Force dialog to show
+        configured: false
       };
       
-      // Create and render the dialog
       const DialogClass = dialog.cls;
       const rollDialog = new DialogClass(modifiedConfig, dialog.options);
-      
-      // Render the dialog
       const result = await rollDialog.render(true);
-      
     } catch (error) {
-      // Fallback: send request without configuration
       this._sendRollRequest(actor, owner, rollType, config);
     }
   }

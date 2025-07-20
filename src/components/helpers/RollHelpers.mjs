@@ -11,18 +11,22 @@ export const RollHelpers = {
    * @returns {BasicRollProcessConfiguration} The modified config
    */
   addSituationalBonus(config, situational) {
-    LogUtil.log("Config before adding bonus:", [situational, config.rolls?.[0]]);
+    LogUtil.log("Config before adding bonus:", [situational, config]);
     if (situational && config.rolls?.[0]) {
       // Ensure the roll has proper structure
       if (!config.rolls[0].parts) config.rolls[0].parts = [];
       if (!config.rolls[0].data) config.rolls[0].data = {};
       
       config.rolls[0].data.situational = situational;
-      config.situational = true;
-      config.rolls[0].parts.push("@situational");
+      // config.situational = true;
       
-      LogUtil.log("Config after adding bonus:", [config.rolls?.[0]]);
+      // Only add @situational if it's not already in parts
+      if (!config.rolls[0].parts.includes("@situational")) {
+        config.rolls[0].parts.push("@situational");
+      }
+      LogUtil.log("Config after adding bonus:", [config]);
     }
+    // config.situational = situational;
     return config;
   },
 
@@ -43,7 +47,7 @@ export const RollHelpers = {
    * @returns {BasicRollProcessConfiguration} The process configuration for D&D5e actor roll methods
    */
   buildRollConfig(requestData, rollConfig, additionalConfig = {}) {
-    // Build a proper BasicRollProcessConfiguration
+    // Build BasicRollProcessConfiguration
     const config = {
       rolls: [{
         parts: rollConfig.parts || [],
@@ -53,14 +57,13 @@ export const RollHelpers = {
       advantage: requestData.config.advantage || false,
       disadvantage: requestData.config.disadvantage || false,
       target: requestData.config.target,
-      subject: null, // Will be set by the actor
+      subject: null,
       chatMessage: true,
       legacy: false,
       ...additionalConfig
     };
     
-    // Add situational bonus if present
-    const situational = requestData.config.situational || rollConfig.data.situational || '';
+    const situational = requestData.config.situational;
     if (situational) {
       this.addSituationalBonus(config, situational);
     }

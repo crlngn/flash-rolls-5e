@@ -624,7 +624,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       } else {
         DialogClass = GMRollConfigDialog;
       }
-      const config = await DialogClass.getConfiguration(actors, rollMethodName, rollKey, { 
+      const config = await DialogClass.initConfiguration(actors, rollMethodName, rollKey, { 
         skipDialogs,
         defaultSendRequest: rollRequestsEnabled // Pass the setting as default 
       });
@@ -653,30 +653,13 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         config.target = 10;
       }
       
-      // For skill/tool checks, add the default ability when skipping dialog
-      if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName) && actors.length > 0) {
-        const actor = actors[0];
-        let defaultAbility = null;
-        
-        if (rollMethodName === ROLL_TYPES.SKILL) {
-          const skill = actor.system.skills?.[rollKey];
-          defaultAbility = skill?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
-        } else if (rollMethodName === ROLL_TYPES.TOOL) {
-          const tool = actor.system.tools?.[rollKey];
-          defaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
-        }
-        
-        if (defaultAbility) {
-          config.ability = defaultAbility;
-        }
-      }
-      
       return config;
     }
   }
 
   /**
-   * Orchestrate and distribute rolls for PC and NPC actors
+   * Defines who rolls for each selected actor (GM or player)
+   * Orchestrates the roll actions accordingly
    * @param {Object} config - Roll configuration
    * @param {Array} pcActors - PC actors with owners
    * @param {Actor[]} npcActors - NPC actors
@@ -687,13 +670,12 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const SETTINGS = getSettings();
     
     // Handle PC actors - send roll requests (if sendRequest is true)
-    const successfulRequests = []; // Track successful requests for consolidated notification
-    const offlinePlayerActors = []; // Track offline player actors separately
-    LogUtil.log('_orchestrateRollsForActors', [{
-      config,
-      rollMethodName,
-      rollKey
-    }]);
+    const successfulRequests = [];
+    const offlinePlayerActors = [];
+    const onlinePlayerActors = [];
+    
+    LogUtil.log('_orchestrateRollsForActors', [config]);
+
     if (config.sendRequest) {
       for (const { actor, owner } of pcActors) {
         if (!owner.active) {
@@ -702,40 +684,33 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
               player: owner.name 
             }));
           }
-
-          // Track offline player actors separately to ensure dialog is skipped
           offlinePlayerActors.push(actor);
-          continue;
+        }else{
+          onlinePlayerActors.push({actor, owner});
         }
-        
-        await this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true); // true = suppress individual notification
-        successfulRequests.push({ actor, owner });
-        
-        await delay(100); // to avoid lag
-      }
-      
-      // Unify notification for all successful requests
-      if (successfulRequests.length > 0) {
-        this._showConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
       }
     } else {
       // if requests are off, add to NPC list to roll locally
       npcActors.push(...pcActors.map(({ actor }) => actor));
     }
-    
-    // For actors owned by offline players, GM rolls locally
-    // No more dialog since the GM already configured the roll
-    if (offlinePlayerActors.length > 0) {
-      const offlineConfig = { ...config, skipDialog: true };
-      await this._handleGMRolls(offlinePlayerActors, rollMethodName, rollKey, offlineConfig);
+
+    /////////////////////////////////
+    // Player Rolls: Actors owned by active players
+    for (const { actor, owner } of onlinePlayerActors) {
+      await this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true);
+      successfulRequests.push({ actor, owner });
+      await delay(100); // to avoid lag
+    }
+    if (successfulRequests.length > 0) {
+      this._showConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
     }
     
-    // For NPC actors, GM rolls locally
-    if (npcActors.length > 0) {
-      const npcConfig = { ...config };
-      npcConfig.fastForward = true;
-      npcConfig.skipDialog = true;
-      await this._handleGMRolls(npcActors, rollMethodName, rollKey, npcConfig);
+    /////////////////////////////////
+    // GM Rolls: Actors owned by offline players or NPC actors
+    const gmRolledActors = [...offlinePlayerActors, ...npcActors];
+    if (gmRolledActors.length > 0) {
+      config.skipDialog = true;
+      await this._handleGMRolls(gmRolledActors, rollMethodName, rollKey, config);
     }
   }
 
@@ -854,7 +829,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
             width: 420
           },
           content: `<p>${game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refillMessage", { 
-            actor: actor.name 
+            actors: actor.name 
           }) || ""}</p>`,
           modal: true,
           rejectClose: false,
@@ -869,19 +844,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         });
         
         if (dialogResult) {
-          // const maxHitDice = actor.system.attributes.hd.max;
-          // const hitDieResult = {};
-          // actor._getRestHitDiceRecovery({ maxHitDice, type: "long" }, hitDieResult);
-
-          // const updates = hitDieResult.updateItems ?? [];
-          // const actorUpdates = hitDieResult.updateData;
-          // const hitDiceRecovered = hitDieResult.deltas?.hitDice ?? 0;
-          
-          // await actor.updateEmbeddedDocuments("Item", updates);
-          // if (actorUpdates) {
-          //   await actor.update(actorUpdates);
-          // }
-          
           try {
             LogUtil.log('About to call handleHitDieRecovery for', [actor.name]);
             const hitDieResult = await RollHandlers.handleHitDieRecovery(actor);
@@ -905,12 +867,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         }
       }
     }
-
-    LogUtil.log('_sendRollRequestToPlayer - Hit Die Debug', [{
-      rollType,
-      rollKey,
-      actor: actor.name
-    }]);
     
     // Build the request data with proper rollProcessConfig
     const requestData = {
@@ -1011,9 +967,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     LogUtil.log('_handleGMRolls', [actors, requestType, rollKey, rollProcessConfig]);
     
     for (const actor of actors) {
-      await this._executeActorRoll(actor, requestType, rollKey, rollProcessConfig);
-      // Delay between rolls to prevent lag and improve chat readability
-      await delay(100);
+      await this._initiateRollRequest(actor, requestType, rollKey, rollProcessConfig);
+      await delay(100);// To reduce lag and improve chat readability
     }
   }
   
@@ -1024,9 +979,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    * @param {string} rollKey 
    * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
-  async _executeActorRoll(actor, requestType, rollKey, rollProcessConfig) {
-    LogUtil.log('_executeActorRoll', [requestType, rollKey, rollProcessConfig]);
-    try {
+  async _initiateRollRequest(actor, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_initiateRollRequest', [requestType, rollKey, rollProcessConfig]);
+    // try {
       // Normalize the requestType to ensure case matching
       const normalizedType = requestType.toLowerCase();
       
@@ -1047,10 +1002,54 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
           }
         }
         if (!actualRollKey) {
-          // No hit dice available
-          LogUtil.log('_executeActorRoll - No hit dice available', [actor.name]);
-          NotificationManager.notify('warn', game.i18n.format("DND5E.HitDiceWarn", { name: actor.name }));
-          return;
+          // No hit dice available - show refill dialog
+          LogUtil.log('_initiateRollRequest - No hit dice available', [actor.name]);
+          
+          const dialogResult = await foundry.applications.api.DialogV2.confirm({
+            window: {
+              title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
+              classes: ["crlngn-hit-die-dialog"]
+            },
+            position: {
+              width: 420
+            },
+            content: `<p>${game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refillMessageLocal", { 
+              actors: actor.name 
+            }) || ""}</p>`,
+            modal: true,
+            rejectClose: false,
+            yes: {
+              label: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillAndRoll") || "Refill & Roll",
+              icon: ""
+            },
+            no: {
+              label: game.i18n.localize("Cancel") || "Cancel",
+              icon: ""
+            }
+          });
+          
+          if (dialogResult) {
+            // Refill hit dice and continue with the roll
+            const result = await RollHandlers.handleHitDieRecovery(actor);
+            LogUtil.log('Hit die recovery result', [result]);
+            
+            // Notify of refill
+            NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refilled", { 
+              actor: actor.name 
+            }));
+            
+            // Get the largest available hit die after refill
+            const hdDataAfterRefill = actor.system.attributes.hd;
+            actualRollKey = hdDataAfterRefill.largestAvailable;
+            
+            if (!actualRollKey) {
+              NotificationManager.notify('warn', game.i18n.format("DND5E.HitDiceWarn", { name: actor.name }));
+              return;
+            }
+          } else {
+            // User cancelled
+            return;
+          }
         }
       }
       
@@ -1083,22 +1082,21 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       
       // Pass the proper roll configuration structure
       const rollConfig = rollProcessConfig.rolls?.[0] || {};
-      LogUtil.log('_executeActorRoll - rollConfig', [rollConfig, requestData]);
+      LogUtil.log('_initiateRollRequest - rollConfig', [rollConfig, requestData]);
       
       // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];
       if (handler) {
-        LogUtil.log('_executeActorRoll - handler', [handler]);
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
         NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);
       }
-    } catch (error) {
-      LogUtil.error('executeActorRoll', [error]);
-      NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
-        actor: actor.name 
-      }));
-    }
+    // } catch (error) {
+    //   LogUtil.error('executeActorRoll', [error]);
+    //   NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
+    //     actor: actor.name 
+    //   }));
+    // }
   }
 
   /**

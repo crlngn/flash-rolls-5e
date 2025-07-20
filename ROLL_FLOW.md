@@ -42,10 +42,10 @@ There are two main paths:
 **Class: `RollRequestsMenu`**
 - `_getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors)`
   - Determines dialog class (GMRollConfigDialog, GMSkillToolConfigDialog, or GMHitDieConfigDialog)
-  - Calls → `DialogClass.getConfiguration()`
+  - Calls → `DialogClass.initConfiguration()`
 
 **Class: `GMRollConfigDialog` (or variants)**
-- `getConfiguration(actors, rollType, rollKey, options)` (static)
+- `initConfiguration(actors, rollType, rollKey, options)` (static)
   - Creates dialog instance
   - `render()` - Shows the configuration dialog
   - User configures options (advantage, disadvantage, situational, DC, Send as Request toggle)
@@ -85,10 +85,10 @@ There are two main paths:
 **Class: `RollRequestsMenu`**
 - `_handleGMRolls(actors, requestType, rollKey, dialogConfig)`
   - Builds config for local rolls
-  - For each actor, calls → `_executeActorRoll()`
+  - For each actor, calls → `_initiateRollRequest()`
 
 **Class: `RollRequestsMenu`**
-- `_executeActorRoll(actor, requestType, rollKey, config)`
+- `_initiateRollRequest(actor, requestType, rollKey, config)`
   - Builds requestData structure
   - Gets handler from `RollHandlers[rollType]`
   - Calls appropriate handler
@@ -145,7 +145,7 @@ Example for ability check:
 - If `sendRequest = true`:
   - `_sendRollRequest()` - Sends to player via socket
 - If `sendRequest = false`:
-  - `_executeLocalRoll()` - Executes locally
+  - `_executeInterceptedRoll()` - Executes locally
     - Applies dialog configuration
     - Sets `isRollRequest` flag to prevent re-interception
     - Calls appropriate actor method (e.g., `actor.rollAbilityCheck()`)

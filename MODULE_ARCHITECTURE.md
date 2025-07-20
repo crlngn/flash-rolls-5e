@@ -359,7 +359,7 @@ Object containing handler functions for each roll type:
   - Sends via SocketUtil to specific player
   - Shows notification unless suppressed
 
-- **`_executeActorRoll(actor, requestType, rollKey, config)`**: Executes single actor roll
+- **`_initiateRollRequest(actor, requestType, rollKey, config)`**: Executes single actor roll
   - Builds requestData structure for RollHandlers
   - Uses RollHandlers for all roll types (same as player rolls)
   - Delegates to appropriate handler based on requestType
@@ -398,7 +398,7 @@ Object containing handler functions for each roll type:
   - Handles dialog result
   - Either sends to player or executes locally based on sendRequest toggle
 
-- **`_executeLocalRoll(actor, rollType, originalConfig, dialogResult)`**: Executes roll locally when not sending to player
+- **`_executeInterceptedRoll(actor, rollType, originalConfig, dialogResult)`**: Executes roll locally when not sending to player
   - Applies configuration from dialog
   - Sets isRollRequest flags to prevent re-interception
   - Calls appropriate actor roll method
@@ -635,7 +635,7 @@ Extends AttackRollConfigurationDialog with GMRollConfigMixin
 
 ### Proper D&D5e Type Usage
 - Module now uses standard D&D5e roll configuration types throughout
-- GMRollConfigDialog.getConfiguration() returns proper BasicRollProcessConfiguration
+- GMRollConfigDialog.initConfiguration() returns proper BasicRollProcessConfiguration
 - All RollHandlers updated to build correct BasicRollProcessConfiguration structures
 - Situational bonuses properly stored in rolls[0].data.situational with "@situational" in parts[]
 - Eliminates custom flat configuration objects in favor of D&D5e's expected types
@@ -729,7 +729,7 @@ Process-level configuration passed to D&D5e actor roll methods:
 ```
 
 ### GM Dialog Result
-GMRollConfigDialog.getConfiguration() returns BasicRollProcessConfiguration with:
+GMRollConfigDialog.initConfiguration() returns BasicRollProcessConfiguration with:
 - Properly structured rolls array containing situational bonus
 - All standard D&D5e properties (advantage, disadvantage, target)
 - Custom module flags (sendRequest, isRollRequest, etc.)

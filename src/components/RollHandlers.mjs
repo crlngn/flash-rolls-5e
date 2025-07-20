@@ -35,6 +35,20 @@ export const RollHandlers = {
       chooseAbility: true,
       ability: requestData.config.ability || undefined
     });
+    LogUtil.log('RollHandlers.skill #1', [requestData,rollConfig, config]);
+    
+    // If we have a custom ability, set the flavor in the message config
+    if (requestData.config.ability && dialogConfig.configure === false) {
+      const skillLabel = CONFIG.DND5E.skills[requestData.rollKey]?.label || requestData.rollKey;
+      const abilityLabel = CONFIG.DND5E.abilities[requestData.config.ability]?.label || requestData.config.ability;
+      const flavor = game.i18n.format("DND5E.SkillPromptTitle", { 
+        skill: skillLabel, 
+        ability: abilityLabel 
+      });
+      messageConfig.data = messageConfig.data || {};
+      messageConfig.data.flavor = flavor;
+    }
+    
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
@@ -44,6 +58,25 @@ export const RollHandlers = {
       chooseAbility: true,
       ability: requestData.config.ability || undefined
     });
+    LogUtil.log('RollHandlers.tool #1', [requestData, rollConfig, config]);
+    
+    // If we have a custom ability, set the flavor in the message config
+    if (requestData.config.ability && dialogConfig.configure === false) {
+      const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey];
+      let toolLabel = requestData.rollKey;
+      if (toolData?.id) {
+        const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+        toolLabel = toolItem?.name || requestData.rollKey;
+      }
+      const abilityLabel = CONFIG.DND5E.abilities[requestData.config.ability]?.label || requestData.config.ability;
+      const flavor = game.i18n.format("DND5E.ToolPromptTitle", { 
+        tool: toolLabel, 
+        ability: abilityLabel 
+      });
+      messageConfig.data = messageConfig.data || {};
+      messageConfig.data.flavor = flavor;
+    }
+    
     await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
 
@@ -102,6 +135,14 @@ export const RollHandlers = {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       denomination: requestData.rollKey // The hit die denomination (d6, d8, etc.)
     });
+    
+    // // For hit die, D&D5e expects situational bonus only in roll data, not at config level
+    // // Remove top-level situational to prevent D&D5e from creating a second roll
+    // if (config.situational) {
+    //   delete config.situational;
+    // }
+    
+    LogUtil.log('RollHandlers.hitdie', [config, dialogConfig, messageConfig]);
     await actor.rollHitDie(config, dialogConfig, messageConfig);
   },
 
@@ -129,11 +170,9 @@ export const RollHandlers = {
     LogUtil.log('RollHandlers.handleActivityRoll', [rollType, requestData, rollConfig]);
     if (requestData.rollKey) {
       // Build a proper roll configuration using buildRollConfig
-      // This will properly structure the rolls array with situational bonus
       const processConfig = RollHelpers.buildRollConfig(requestData, rollConfig);
       
       // Build the activity configuration
-      // For attack rolls, extract attack options from rolls[0].options and put them at top level
       const rollOptions = processConfig.rolls?.[0]?.options || {};
       const activityConfig = {
         usage: {
@@ -148,16 +187,7 @@ export const RollHandlers = {
         message: messageConfig
       };
       
-      LogUtil.log('handleActivityRoll - final activity config', [
-        activityConfig,
-        'situational:', activityConfig.usage?.rolls?.[0]?.data?.situational,
-        'roll options:', activityConfig.usage?.rolls?.[0]?.options,
-        'top-level attack options:', {
-          attackMode: activityConfig.usage?.attackMode,
-          ammunition: activityConfig.usage?.ammunition,
-          mastery: activityConfig.usage?.mastery
-        }
-      ]);
+      LogUtil.log('handleActivityRoll - final activity config', [activityConfig]);
       
       await ActivityUtil.executeActivityRoll(
         actor, 
