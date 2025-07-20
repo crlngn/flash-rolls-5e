@@ -4,7 +4,6 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
-import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from './dialogs/GMRollConfigDialog.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';

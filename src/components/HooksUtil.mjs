@@ -401,9 +401,11 @@ export class HooksUtil {
     LogUtil.log("_onPreUseActivity triggered", [activity, config, dialog, message]);
     const SETTINGS = getSettings();
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
 
-    if (!game.user.isGM || !requestsEnabled) return;
-    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
+    LogUtil.log("_onPreUseActivity - Settings", [requestsEnabled, rollInterceptionEnabled]);
+    if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
+    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig'); 
     
     // Check if the actor has player ownership
     const actor = activity.actor;

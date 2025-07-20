@@ -247,6 +247,7 @@ export class ActivityUtil {
 
   static async syntheticItemRoll(item, config = {}) {
     LogUtil.log('syntheticItemRoll', [item, config]);
+    
     const MidiQOL = ModuleHelpers.getMidiQOL();
     if (!MidiQOL) {
       LogUtil.warn('MidiQOL is not active');
