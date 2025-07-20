@@ -1,22 +1,23 @@
 {
-  "id": "crlngn-roll-requests",
+  "id": "flash-rolls-5e",
   "title": "Flash Rolls 5e",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "A module for handling roll requests between users in Foundry VTT",
-  "url": "https://github.com/crlngn/crlngn-roll-requests",
-  "manifest": "https://github.com/crlngn/crlngn-roll-requests/releases/latest/download/module.json",
-  "download": "https://github.com/crlngn/crlngn-roll-requests/releases/download/v0.3.0/module.zip",
-  "bugs": "https://github.com/crlngn/crlngn-roll-requests/issues",
-  "readme": "https://github.com/crlngn/crlngn-roll-requests/main/README.md",
+  "url": "https://github.com/crlngn/flash-rolls-5e",
+  "manifest": "https://github.com/crlngn/flash-rolls-5e/releases/latest/download/module.json",
+  "download": "https://github.com/crlngn/flash-rolls-5e/releases/download/v1.0.0/module.zip",
+  "bugs": "https://github.com/crlngn/flash-rolls-5e/issues",
+  "readme": "https://github.com/crlngn/flash-rolls-5e/main/README.md",
   "license": "https://mit-license.org/",
   "compatibility": {
-    "minimum": "12.328",
-    "verified": "12.331"
+    "minimum": "13.339",
+    "verified": "13.346",
+    "maximum": "13.999"
   },
   "authors": [
     {
       "name": "Carolingian",
-      "url": "https://github.com/crlngn/crlngn-roll-requests",
+      "url": "https://github.com/crlngn/flash-rolls-5e",
       "discord": "carolxs",
       "reddit": "u/crlngn-dev"
     }
@@ -28,8 +29,8 @@
         "type": "system",
         "manifest": "https://raw.githubusercontent.com/foundryvtt/dnd5e/master/system.json",
         "compatibility": {
-          "minimum": "4.0.3",
-          "verified": "4.4.5"
+          "minimum": "5.0.0",
+          "verified": "5.0.4"
         }
       }
     ],
@@ -39,7 +40,8 @@
         "type": "module",
         "manifest": "https://github.com/farling42/foundryvtt-socketlib/releases/download/v1.1.2/module.json",
         "compatibility": {
-          "minimum": "1.0.0"
+          "minimum": "1.0.0",
+          "verified": "1.1.2"
         }
       }
     ],
@@ -47,21 +49,16 @@
   },
   "socket": true,
   "esmodules": [
-    "scripts/crlngn-roll-requests.js"
+    "scripts/flash-rolls-5e.js"
   ],
   "styles": [
-    "styles/crlngn-roll-requests.css"
+    "styles/flash-rolls-5e.css"
   ],
   "languages": [
     {
       "lang": "en",
       "name": "English",
       "path": "lang/en.json"
-    },
-    {
-      "lang": "pt-BR",
-      "name": "Português (BR)",
-      "path": "lang/pt-BR.json"
     }
   ]
 }

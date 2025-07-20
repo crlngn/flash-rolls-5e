@@ -12,7 +12,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
-  base: '/modules/crlngn-roll-requests/',
+  base: '/modules/flash-rolls-5e/',
   css: {
     devSourcemap: true,
   },
@@ -27,7 +27,7 @@ export default defineConfig({
       input: "src/module.mjs",
       output: {
         dir: "dist/",
-        entryFileNames:"scripts/crlngn-roll-requests.js",
+        entryFileNames:"scripts/flash-rolls-5e.js",
         assetFileNames: (assetInfo) => {
           const isImgType = /\.(gif|jpe?g|png|svg)$/.test(assetInfo.name);
           const isStyleType = /\.css$/.test(assetInfo.name);
@@ -36,10 +36,10 @@ export default defineConfig({
             return 'assets/[name][extname]';
           }
           if (isStyleType) {
-            return 'styles/crlngn-roll-requests.css';   
+            return 'styles/flash-rolls-5e.css';   
           }
           if (assetInfo.originalFileNames?.includes("src/module.mjs")) {
-            return "scripts/crlngn-roll-requests.js";
+            return "scripts/flash-rolls-5e.js";
           }
 
           return 'assets/[name][extname]';

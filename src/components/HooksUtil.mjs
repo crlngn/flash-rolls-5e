@@ -31,7 +31,7 @@ export class HooksUtil {
    */
   static _onInit() {
     const SETTINGS = getSettings();
-    document.body.classList.add("crlngn-rolls");
+    document.body.classList.add("flash-rolls-5e");
     SettingsUtil.registerSettings();
     DiceConfigUtil.initialize();
     

@@ -19,7 +19,7 @@ export class CustomRollDialog extends foundry.applications.api.HandlebarsApplica
    */
   static DEFAULT_OPTIONS = {
     id: "crlngn-custom-roll-dialog",
-    classes: ["crlngn-rolls-dialog", "crlngn-custom-roll-dialog"],
+    classes: ["flash-rolls-5e-dialog", "crlngn-custom-roll-dialog"],
     tag: "div",
     window: {
       title: "CRLNGN_ROLLS.ui.dialogs.customRollTitle",

@@ -40,8 +40,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   }
 
   static DEFAULT_OPTIONS = {
-    id: 'crlngn-requests-menu',
-    classes: ['roll-requests-menu'],
+    id: 'flash-rolls-menu',
+    classes: ['flash-rolls-menu'],
     tag: 'div',
     window: {
       frame: false,
@@ -259,9 +259,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     if (this.isLocked) return;
     const menu = this.element;
     if (!menu) return;
-    if (event.target.closest('.roll-requests-menu')) return;
+    if (event.target.closest('.flash-rolls-menu')) return;
     if (menu.contains(event.target)) return;
-    if (event.target.closest('#crlngn-requests-icon')) return;
+    if (event.target.closest('#flash-rolls-icon')) return;
     if (event.target.closest('.dialog, .app, .notification')) return;
     this.close();
   }
@@ -275,7 +275,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const html = this.element;
     
     // Settings toggles
-    html.querySelector('#crlngn-requests-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
+    html.querySelector('#flash-rolls-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
     html.querySelector('#crlngn-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
     html.querySelector('#crlngn-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
     

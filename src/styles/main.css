@@ -1,5 +1,5 @@
 /* Import additional stylesheets */
-@import url('./roll-requests-menu.css');
+@import url('./flash-rolls-menu.css');
 
 body{
   --current-sidebar-width: 5px;
@@ -10,7 +10,7 @@ body{
 }
 
 /* SWITCH */
-.crlngn-rolls {
+.flash-rolls-5e {
   .crlngn-switch {
     display: flex;
     position: relative;
@@ -106,7 +106,7 @@ body{
   }
 }
 
-#crlngn-requests-icon{
+#flash-rolls-icon{
   cursor: pointer;
   align-self: center;
   display: flex;
@@ -128,7 +128,7 @@ body{
   }
 }
 
-.crlngn-rolls-dialog {
+.flash-rolls-5e-dialog {
   min-height: 200px;
 
   .window-content{
@@ -218,13 +218,13 @@ body{
 }
 
 /* MidiQOL */
-.crlngn-rolls .midi-qol-attack-buttons,
-.crlngn-rolls .midi-qol-damage-buttons {
+.flash-rolls-5e .midi-qol-attack-buttons,
+.flash-rolls-5e .midi-qol-damage-buttons {
   display: flex !important;
 }
 
 /* GM Roll Configuration Dialog */
-.crlngn-rolls .gm-roll-config-fields {
+.flash-rolls-5e .gm-roll-config-fields {
   display: flex;
   gap: 0.5em;
   flex-direction: row;

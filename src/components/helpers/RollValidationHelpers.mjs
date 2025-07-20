@@ -18,7 +18,7 @@ export async function ensureCombatForInitiative() {
       no: () => false,
       defaultYes: true,
       options: {
-        classes: ["crlngn-rolls-dialog"]
+        classes: ["flash-rolls-5e-dialog"]
       }
     });
     
@@ -74,7 +74,7 @@ export async function filterActorsForInitiative(actorIds, game) {
       no: () => false,
       defaultYes: false,
       options: {
-        classes: ["crlngn-rolls-dialog"]
+        classes: ["flash-rolls-5e-dialog"]
       }
     });
     

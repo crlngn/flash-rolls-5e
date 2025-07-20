@@ -24,7 +24,7 @@ export const getSettings = () => {
       config: true
     },
     rollRequestsEnabled: {
-      tag: "roll-requests-enabled",
+      tag: "flash-rolls-enabled",
       label: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.label"),
       hint: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.hint"),
       propType: Boolean,

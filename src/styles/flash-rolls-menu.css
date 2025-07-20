@@ -1,4 +1,4 @@
-#crlngn-requests-menu {
+#flash-rolls-menu {
   box-sizing: border-box;
   border-radius: 0;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
@@ -19,12 +19,12 @@
 }
 
 /* Style for when the menu needs to grow upward */
-#crlngn-requests-menu.grow-up {
+#flash-rolls-menu.grow-up {
   bottom: 0px;
   top: auto; /* Let the JS handle the top position */
 }
 
-#crlngn-requests-menu > div > ul {
+#flash-rolls-menu > div > ul {
   pointer-events: all;
   list-style: none;
   width: 12.8rem;
@@ -42,7 +42,7 @@
   justify-content: flex-start;
 }
 
-#crlngn-requests-menu > div > ul.actors > li.options-toggle {
+#flash-rolls-menu > div > ul.actors > li.options-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +76,7 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.actors > li.options {
+#flash-rolls-menu > div > ul.actors > li.options {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -125,7 +125,7 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.actors > li.actor-list {
+#flash-rolls-menu > div > ul.actors > li.actor-list {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -140,8 +140,8 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.actors > li.actor-list > ul > li.actor,
-#crlngn-requests-menu > div > ul.actors > li.actor {
+#flash-rolls-menu > div > ul.actors > li.actor-list > ul > li.actor,
+#flash-rolls-menu > div > ul.actors > li.actor {
   align-items: flex-start;
   display: grid;
   grid-template-columns: 1.2rem minmax(0, 1fr) 2.75rem;
@@ -212,7 +212,7 @@
     }
   }
 }
-#crlngn-requests-menu > div > ul.actors > li.actors-tabs{
+#flash-rolls-menu > div > ul.actors > li.actors-tabs{
   display: flex;
   align-items: center;
   border-top: 1px solid #000;
@@ -243,7 +243,7 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.actors > li .actor-data {
+#flash-rolls-menu > div > ul.actors > li .actor-data {
   align-self: stretch;
   align-items: center;
   display: flex;
@@ -290,7 +290,7 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.actors > li .selection-row > input[type="checkbox"] {
+#flash-rolls-menu > div > ul.actors > li .selection-row > input[type="checkbox"] {
   margin: 0 0.7em 0 0;
   font-size: 1em;
   font-family: var(--font-sans);
@@ -307,11 +307,11 @@
   position: relative;
 }
 
-#crlngn-requests-menu > div > ul.actors > li .selection-row > input[type="checkbox"]:checked {
+#flash-rolls-menu > div > ul.actors > li .selection-row > input[type="checkbox"]:checked {
   background-color: var(--color-warm-2);
 }
 
-#crlngn-requests-menu > div > ul.actors > li .selection-row > input[type="checkbox"]:checked::after {
+#flash-rolls-menu > div > ul.actors > li .selection-row > input[type="checkbox"]:checked::after {
   content: '\f00c';
   font-family: var(--font-awesome);
   font-weight: bold;
@@ -324,14 +324,14 @@
   line-height: 1;
 }
 
-#crlngn-requests-menu > div > ul.actors > li:first-child {
+#flash-rolls-menu > div > ul.actors > li:first-child {
   font-weight: bold;
   margin-bottom: 0.5em;
   padding-bottom: 4px;
 }
 
 /* Request Types Menu */
-#crlngn-requests-menu > div > ul.request-types {
+#flash-rolls-menu > div > ul.request-types {
   left: calc(-12.8rem + 1px);
   top: 0;
   height: 100%;
@@ -342,12 +342,12 @@
   overflow-y: auto;
 }
 
-#crlngn-requests-menu:hover > div > ul.request-types.visible {
+#flash-rolls-menu:hover > div > ul.request-types.visible {
   display: block;
 }
 
-#crlngn-requests-menu > div > ul.request-types > li,
-#crlngn-requests-menu > div > ul.roll-types > li {
+#flash-rolls-menu > div > ul.request-types > li,
+#flash-rolls-menu > div > ul.roll-types > li {
   align-items: center;
   border-radius: 3px;
   cursor: pointer;
@@ -362,18 +362,18 @@
   }
 }
 
-#crlngn-requests-menu > div > ul.roll-types.visible,
-#crlngn-requests-menu > div > ul.request-types.visible {
+#flash-rolls-menu > div > ul.roll-types.visible,
+#flash-rolls-menu > div > ul.request-types.visible {
   display: none;
 }
 
-#crlngn-requests-menu > div > ul.request-types > li.selected {
+#flash-rolls-menu > div > ul.request-types > li.selected {
   background-color: var(--color-warm-3);
   color: white;
 }
 
 /* Roll Types Menu */
-#crlngn-requests-menu > div > ul.roll-types {
+#flash-rolls-menu > div > ul.roll-types {
   left: calc(-25.6rem + 2px);
   top: 0;
   height: 100%;
@@ -384,22 +384,22 @@
   overflow-y: auto;
 }
 
-#crlngn-requests-menu:hover > div > ul.roll-types.visible {
+#flash-rolls-menu:hover > div > ul.roll-types.visible {
   display: block;
 }
 
-#crlngn-requests-menu > div > ul.roll-types > li:hover {
+#flash-rolls-menu > div > ul.roll-types > li:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-#crlngn-requests-menu > div > ul.request-types > .icon,
-#crlngn-requests-menu > div > ul.roll-types > .icon{
+#flash-rolls-menu > div > ul.request-types > .icon,
+#flash-rolls-menu > div > ul.roll-types > .icon{
   width: 22px;
   font-size: var(--font-size-16);
   text-align: center;
 }
-#crlngn-requests-menu > div > ul.request-types > .icon.fa-dice-d20,
-#crlngn-requests-menu > div > ul.roll-types > .icon.fa-dice-d20{
+#flash-rolls-menu > div > ul.request-types > .icon.fa-dice-d20,
+#flash-rolls-menu > div > ul.roll-types > .icon.fa-dice-d20{
   font-size: var(--font-size-14);
 }
 

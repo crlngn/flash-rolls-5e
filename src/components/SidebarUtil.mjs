@@ -1,6 +1,7 @@
 import { getSettings } from "../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
+import { LogUtil } from "./LogUtil.mjs";
 
 /**
  * Utility class for managing sidebar controls
@@ -18,8 +19,9 @@ export class SidebarUtil {
     const htmlElement = html[0] || html;
     
     // Find the chat controls container
-    const chatControls = htmlElement.querySelector("#chat-controls");
-    if (!chatControls || chatControls.querySelector('.roll-requests-icon')) {
+    const chatControls = htmlElement.querySelector("#chat .chat-controls");
+    LogUtil.log("addSidebarControls",[chatControls]);
+    if (!chatControls || chatControls.querySelector('.flash-rolls-icon')) {
       return;
     }
     
@@ -29,9 +31,9 @@ export class SidebarUtil {
     
     // Create the roll request icon
     const rollRequestIcon = document.createElement('a');
-    rollRequestIcon.id = "crlngn-requests-icon";
+    rollRequestIcon.id = "flash-rolls-icon";
     rollRequestIcon.setAttribute("data-tooltip-direction", "RIGHT");
-    rollRequestIcon.className = `chat-control-icon roll-requests-icon${rollRequestsEnabled ? ' active' : ''}`;
+    rollRequestIcon.className = `chat-control-icon flash-rolls-icon${rollRequestsEnabled ? ' active' : ''}`;
     rollRequestIcon.title = game.i18n.localize('CRLNGN_ROLLS.ui.menus.rollRequestsTitle');
     rollRequestIcon.innerHTML = `<i class="fas fa-bolt${rollRequestsEnabled ? '' : '-slash'}"></i>`;
     
@@ -54,7 +56,7 @@ export class SidebarUtil {
    * @param {boolean} enabled - Whether roll requests are enabled
    */
   static updateRollRequestsIcon(enabled) {
-    const icon = document.querySelector('#crlngn-requests-icon i');
+    const icon = document.querySelector('#flash-rolls-icon i');
     if (icon) {
       icon.className = `fas fa-bolt${enabled ? '' : '-slash'}`;
     }

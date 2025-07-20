@@ -3,7 +3,7 @@
  * @constant
  * @type {string}
  */
-export const MODULE_ID = "crlngn-roll-requests";
+export const MODULE_ID = "flash-rolls-5e";
 
 /**
  * Debug tag for console logging

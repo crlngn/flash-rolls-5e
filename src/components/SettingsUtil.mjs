@@ -105,7 +105,7 @@ export class SettingsUtil {
   }
 
   static applyRollRequestsEnabled(newValue){
-    const requestsIcon = document.querySelector("#chat-controls .chat-control-icon.roll-requests-icon");
+    const requestsIcon = document.querySelector("#chat-controls .chat-control-icon.flash-rolls-icon");
     if(!requestsIcon){ return; }
     
     if(newValue){

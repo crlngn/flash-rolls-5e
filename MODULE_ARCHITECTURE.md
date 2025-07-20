@@ -1,7 +1,7 @@
 # Flash Rolls 5e Module Architecture
 
 ## Overview
-Flash Rolls 5e (crlngn-roll-requests) is a FoundryVTT module that enables GMs to request rolls from players through socket-based communication. The module intercepts D&D5e roll events and can redirect them to players with custom configuration.
+Flash Rolls 5e (flash-rolls-5e) is a FoundryVTT module that enables GMs to request rolls from players through socket-based communication. The module intercepts D&D5e roll events and can redirect them to players with custom configuration.
 
 ## Module Structure Overview
 The module follows a modular architecture with clear separation of concerns:

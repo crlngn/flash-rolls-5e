@@ -34,11 +34,11 @@ This is useful for:
 
 1. In the FoundryVTT setup screen, go to "Add-on Modules"
 2. Click "Install Module"
-3. Paste the following manifest URL: https://github.com/crlngn/crlngn-roll-requests/releases/latest/download/module.json
+3. Paste the following manifest URL: https://github.com/crlngn/flash-rolls-5e/releases/latest/download/module.json
 
 ### Method 2: Manual Installation
 
-1. Download the latest release from the [Releases page](https://github.com/crlngn/crlngn-roll-requests/releases)
+1. Download the latest release from the [Releases page](https://github.com/crlngn/flash-rolls-5e/releases)
 2. Extract the zip file to your FoundryVTT Data/modules directory
 3. Restart FoundryVTT
 
