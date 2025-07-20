@@ -1,0 +1,21 @@
+<div class="crlngn-custom-roll-dialog">
+  
+  <div class="formula-input">
+    <label for="custom-roll-formula">{{localize "CRLNGN_ROLLS.ui.dialogs.rollFormula"}}</label>
+    <input type="text" id="custom-roll-formula" name="formula" value="{{formula}}" placeholder="type formula or select below" {{#if readonly}}readonly{{/if}} />
+    <div class="validation-message" id="formula-validation-message"></div>
+  </div>
+  
+  {{#unless readonly}}
+  <div class="dice-buttons">
+    <button type="button" class="dice-button" data-die="d4" data-tooltip="d4" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d4"></i></button>
+    <button type="button" class="dice-button" data-die="d6" data-tooltip="d6" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d6"></i></button>
+    <button type="button" class="dice-button" data-die="d8" data-tooltip="d8" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d8"></i></button>
+    <button type="button" class="dice-button" data-die="d10" data-tooltip="d10" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d10"></i></button>
+    <button type="button" class="dice-button" data-die="d12" data-tooltip="d12" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d12"></i></button>
+    <button type="button" class="dice-button" data-die="d20" data-tooltip="d20" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d20"></i></button>
+    <button type="button" class="dice-button" data-die="d100" data-tooltip="d100" data-tooltip-direction="UP" data-action="addDie"><i class="fas fa-dice-d10"></i><i class="fas fa-dice-d10"></i></button>
+  </div>
+  {{/unless}}
+  
+</div>

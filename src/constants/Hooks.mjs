@@ -7,6 +7,7 @@ export const HOOKS_CORE = {
   INIT: "init",
   READY: "ready",
   RENDER_CHAT_MESSAGE: "renderChatMessage",
+  RENDER_SIDEBAR_TAB: "renderSidebarTab",
   UPDATE_SCENE: "updateScene",
   RENDER_SCENE_NAVIGATION: "renderSceneNavigation",
   RENDER_ROLL_RESOLVER: "renderRollResolver",
@@ -36,10 +37,10 @@ export const HOOKS_DND5E = {
   POST_USE_ACTIVITY: "dnd5e.postUseActivity",
   
   // Ability Checks & Saving Throws
-  PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheck",
-  PRE_ROLL_SAVING_THROW: "dnd5e.preRollSavingThrow",
-  ROLL_ABILITY_CHECK: "dnd5e.rollAbilityCheck",
-  ROLL_SAVING_THROW: "dnd5e.rollSavingThrow",
+  PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheckV2",
+  PRE_ROLL_SAVING_THROW: "dnd5e.preRollSavingThrowV2",
+  ROLL_ABILITY_CHECK: "dnd5e.rollAbilityCheckV2",
+  ROLL_SAVING_THROW: "dnd5e.rollSavingThrowV2",
   
   // Concentration
   PRE_BEGIN_CONCENTRATING: "dnd5e.preBeginConcentrating",
@@ -77,7 +78,9 @@ export const HOOKS_DND5E = {
   ROLL_NPC_HIT_POINTS: "dnd5e.rollNPChitPoints",
   
   // Initiative
+  PRE_CONFIGURE_INITIATIVE: "dnd5e.preConfigureInitiative",
   PRE_ROLL_INITIATIVE_DIALOG: "dnd5e.preRollInitiativeDialog",
+  PRE_ROLL_INITIATIVE_DIALOG_V2: "dnd5e.preRollInitiativeDialogV2",
   PRE_ROLL_INITIATIVE: "dnd5e.preRollInitiative",
   ROLL_INITIATIVE: "dnd5e.rollInitiative",
   
@@ -104,6 +107,7 @@ export const HOOKS_DND5E = {
 
   // Config
   BUILD_ROLL_CONFIG: "dnd5e.buildRollConfig",
+  POST_BUILD_ROLL_CONFIG: "dnd5e.postBuildRollConfig",
   POST_ROLL_CONFIG: "dnd5e.postRollConfiguration",
   RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
   RENDER_SKILL_TOOL_ROLL_DIALOG: "renderSkillToolRollConfigurationDialog",

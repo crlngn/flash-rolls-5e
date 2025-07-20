@@ -1,0 +1,17 @@
+{{#if showDC}}
+<div class="form-group dc">
+  <label>{{localize "DND5E.AbbreviationDC"}}</label>
+  <input type="number" name="dc" value="{{dcValue}}" />
+</div>
+{{/if}}
+
+{{#if showSendRequest}}
+<div class="form-group send-request">
+  <label for="crlngn-send-request" class="crlngn-switch">
+    <input type="checkbox" name="crlngn-send-request" id="crlngn-send-request" {{#if sendRequest}}checked{{/if}} />
+    <div class="track"></div>
+    <div class="handle"></div>
+    {{localize "CRLNGN_ROLLS.ui.dialogs.sendRequest"}}
+  </label>
+</div>
+{{/if}}

@@ -11,10 +11,16 @@ export const MODULE_ID = "crlngn-roll-requests";
  * @type {Array}
  */
 export const DEBUG_TAG = [
-  `%cRoll That For Me`,
+  `%cFlash Rolls 5e`,
   `color:rgb(47, 151, 161); font-weight: bold;`,
   `|`,
 ];
+
+export const SOCKET_CALLS = {
+  receiveDiceConfig: "receiveDiceConfig",
+  getDiceConfig: "getDiceConfig",
+  handleRollRequest: "handleRollRequest"
+};
 
 export const HOOK_NAMES = {
   // "" (empty string) - General roll
@@ -63,14 +69,50 @@ export const BUTTON_ACTION_TYPES = {
   ROLL_DAMAGE: "rollDamage"
 }
 
+/**
+ * Roll types used throughout the module
+ * @constant
+ * @type {Object}
+ */
+export const ROLL_TYPES = {
+  ABILITY: "ability",
+  ABILITY_CHECK: "abilitycheck",
+  ATTACK: "attack",
+  CONCENTRATION: "concentration",
+  CUSTOM: "custom",
+  DEATH_SAVE: "deathsave",
+  FORMULA: "formula",
+  DAMAGE: "damage",
+  HEALING: "healing",
+  HIT_DIE: "hitdie",
+  INITIATIVE: "initiative",
+  INITIATIVE_DIALOG: "initiativedialog",
+  ITEM_SAVE: "itemsave",
+  SAVE: "save",
+  SAVING_THROW: "savingthrow",
+  SKILL: "skill",
+  TOOL: "tool"
+}
+
 export const ROLL_REQUEST_OPTIONS = {
-  ABILITY_CHECK: { name: "abilityCheck", label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
-  SAVING_THROW: { name: "savingThrow", label: "Saving Throw", subList: "abilities", actorPath: 'system.savingThrows' },
-  SKILL: { name: "skill", label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
-  TOOL: { name: "tool", label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
-  CONCENTRATION: { name: "concentration", label: "Concentration Check", subList: null, actorPath: '' },
-  INITIATIVE: { name: "initiativeDialog", label: "Initiative Roll", subList: null, actorPath: '' },
-  DEATH_SAVE: { name: "deathSave", label: "Death Save", subList: null, actorPath: '' },
-  CUSTOM: { name: "custom", label: "Custom Roll", subList: null, actorPath: '' },
-  // HIT_DIE: { name: "hitDie", label: "Hit Die", subList: null, actorPath: '' }
+  ABILITY_CHECK: { name: ROLL_TYPES.ABILITY_CHECK, label: "Ability Check", subList: "abilities", actorPath: 'system.abilities' },
+  SAVING_THROW: { name: ROLL_TYPES.SAVING_THROW, label: "Saving Throw", subList: "abilities", actorPath: 'system.abilities' },
+  SKILL: { name: ROLL_TYPES.SKILL, label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
+  TOOL: { name: ROLL_TYPES.TOOL, label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
+  CONCENTRATION: { name: ROLL_TYPES.CONCENTRATION, label: "Concentration Check", subList: null, actorPath: '' },
+  INITIATIVE: { name: ROLL_TYPES.INITIATIVE_DIALOG, label: "Initiative Roll", subList: null, actorPath: '' },
+  DEATH_SAVE: { name: ROLL_TYPES.DEATH_SAVE, label: "Death Save", subList: null, actorPath: '' },
+  // ITEM_SAVE: { name: ROLL_TYPES.ITEM_SAVE, label: "Item Save", subList: null, actorPath: '' },
+  HIT_DIE: { name: ROLL_TYPES.HIT_DIE, label: "Hit Die", subList: null, actorPath: '' },
+  CUSTOM: { name: ROLL_TYPES.CUSTOM, label: "Custom Roll", subList: null, actorPath: '' },
+}
+
+/**
+ * Module configuration object
+ * @constant
+ * @type {Object}
+ */
+export const MODULE = {
+  ID: MODULE_ID,
+  ROLL_REQUEST_OPTIONS: ROLL_REQUEST_OPTIONS
 }

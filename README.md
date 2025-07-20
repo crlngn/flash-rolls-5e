@@ -27,8 +27,6 @@ This is useful for:
 
 <img width="900" alt="image" src="https://github.com/user-attachments/assets/dc674424-8c70-491c-899a-bfd361f0cf9b" />
 
-CURRENTLY NOT COMPATIBLE WITH MIDI-QOL
-
 
 ## Installation
 

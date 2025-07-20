@@ -16,9 +16,9 @@ export class SocketUtil {
    * @param {Function} callbackFunc - Optional callback to execute after registration.
    */
   static initialize = (callbackFunc) => {
-    Hooks.once(HOOKS_SOCKET.READY, () => { 
-      LogUtil.log(`Attempting to register module...`);
+    LogUtil.log('initialize', [callbackFunc]);
 
+    Hooks.once(HOOKS_SOCKET.READY, () => { 
       // Check if socketlib is available before registering the module
       if (typeof socketlib === "undefined") {
         LogUtil.error("SocketUtil Error: socketlib is not loaded. Ensure it is installed and enabled.");
@@ -35,9 +35,7 @@ export class SocketUtil {
           callbackFunc();
         }
 
-        LogUtil.log(`SocketUtil | Module registered`, [SocketUtil.socket]);
       } catch (e) {
-          LogUtil.log(`Problem registering module`, [e]);
       }
     });
   }
@@ -49,11 +47,10 @@ export class SocketUtil {
    * @param {Function} func - The function to be executed remotely.
    */
   static registerCall = (name, func) => {
+    LogUtil.log('registerCall', [name]);
     if (SocketUtil.socket) {
       SocketUtil.socket.register(name, func);
-      LogUtil.log(`SocketUtil - Registered callback`, [SocketUtil.socket, name]);
     } else {
-      LogUtil.log(`SocketUtil - Failed to register callback (socket not initialized)`, [SocketUtil.socket, name]);
     }
   }
 
@@ -64,7 +61,7 @@ export class SocketUtil {
    * @param {Function} callback - The callback function to execute after sending.
    */
   static sendMessage = (value, callback) => {
-    LogUtil.log(`SocketUtil - sendMessage`, [value]);
+    LogUtil.log('sendMessage', [value]);
     if (callback) {
         callback();
     }
@@ -78,8 +75,8 @@ export class SocketUtil {
    * @returns {Promise} A promise resolving when the function executes.
    */
   static execForGMs = async (handler, ...parameters) => {
+    LogUtil.log('execForGMs', [handler, ...parameters]);
     if (!SocketUtil.socket) {
-      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as GM.");
       return;
     }
     return await SocketUtil.socket.executeForAllGMs(handler, ...parameters);
@@ -94,7 +91,6 @@ export class SocketUtil {
    */
   static execForAll = async (handler, ...parameters) => {
     if (!SocketUtil.socket) {
-      LogUtil.log("SocketUtil - Socket not initialized. Cannot execute for all clients.");
       return;
     }
     return await SocketUtil.socket.executeForEveryone(handler, ...parameters);
@@ -109,20 +105,18 @@ export class SocketUtil {
    * @returns {Promise} A promise resolving when the function executes.
    */
   static execForUser = async (handler, userId, ...parameters) => {
+    LogUtil.log('execForUser', [handler, userId, ...parameters]);
     if (!SocketUtil.socket) {
-        LogUtil.log("SocketUtil - Socket not initialized. Cannot execute as user.");
         return;
     }
 
     if(userId === game.user.id){
-      LogUtil.log("SocketUtil - Preventing recursive call", [userId]);
       return null; // Break the recursion
     }
     const executionKey = `${handler}-${userId}`;
     
     // Check if this exact execution is already in progress
     if (SocketUtil._activeExecutions.has(executionKey)) {
-        LogUtil.log("SocketUtil - Preventing recursive call", [executionKey]);
         return null; // Break the recursion
     }
     // Mark this execution as active
@@ -130,10 +124,8 @@ export class SocketUtil {
     
     try {
         const resp = await SocketUtil.socket.executeAsUser(handler, userId, ...parameters);
-        LogUtil.log("SocketUtil - Executed as user.", [resp]);
         return resp;
     } catch (error) {
-        LogUtil.log("SocketUtil - Error executing as user", [error]);
         return null;
     } finally {
         // Always clean up, even if there was an error
@@ -147,6 +139,7 @@ export class SocketUtil {
    * @returns {*} - Serialized data
    */
   static serializeForTransport(data, hasRolls=false) { 
+    LogUtil.log('serializeForTransport', [data, hasRolls]);
     // Handle null or undefined
     if (data == null) return data;
     
@@ -162,7 +155,6 @@ export class SocketUtil {
         }
       });
     }
-    LogUtil.log("ROLLS DATA", [data, data.subject]);
     
     return data;
   }
@@ -173,6 +165,7 @@ export class SocketUtil {
    * @returns {*} - Deserialized data with reconstructed objects
    */
   static deserializeFromTransport(data, hasRolls=false) {
+    LogUtil.log('deserializeFromTransport', [data, hasRolls]);
     let result = { ...data };
     if (!data) return result;
 
@@ -184,7 +177,6 @@ export class SocketUtil {
         }else {
           roll = Roll.fromJSON(JSON.stringify(r));
         }
-        LogUtil.log("ROLL", [roll, r]);
         return roll;
       })
       result.rolls = [...rolls];

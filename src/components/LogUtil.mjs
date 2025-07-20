@@ -11,24 +11,27 @@ export class LogUtil {
   /**
    * Logs information to the console, adding module name and reference
    * @param {string} ref - Reference information to log after module name
-   * @param {any[]} data - data to log on console
+   * @param {*[]} data - array of items to log on console
    * @param {boolean} [bypassSettings=false] - Whether to bypass debug settings check
    */
   static log(ref="", data=[], bypassSettings=false) {
     try {
-      const debugSetting = game.settings.get(MODULE_ID, "debugMode") || LogUtil.debugOn;
+      const debugSetting = game.settings.get(MODULE_ID, "debug-mode") || LogUtil.debugOn;
       const isDebugModeOn = bypassSettings || debugSetting;
       if(!isDebugModeOn) { return; }
       console.log(...DEBUG_TAG, ref, ...data);
     } catch(e) {
-      console.log(...DEBUG_TAG, ref, ...data);
+      // If settings aren't available yet, check bypassSettings
+      if (bypassSettings || LogUtil.debugOn) {
+        console.log(...DEBUG_TAG, ref, ...data);
+      }
     }
   }
 
   /**
    * Outputs warning on console, adding module name and reference
    * @param {string} ref - Reference information to log after module name
-   * @param {any[]} data - data to log on console
+   * @param {*[]} data - data to log on console
    */
   static warn(ref="", data=[]) {
     console.warn(...DEBUG_TAG, ref, ...data);

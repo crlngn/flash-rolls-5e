@@ -52,6 +52,26 @@ export const getSettings = () => {
       default: false,
       scope: SETTING_SCOPE.world,
       config: true
+    },
+    rollInterceptionEnabled: {
+      tag: "roll-interception-enabled",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.rollInterceptionEnabled.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.rollInterceptionEnabled.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: true
+    },
+    showOfflineNotifications: {
+      tag: "show-offline-notifications",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: true
     }
     // Additional settings will be added as needed
   };

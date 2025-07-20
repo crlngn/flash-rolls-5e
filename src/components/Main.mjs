@@ -1,132 +1,48 @@
-import { HOOKS_CORE } from "../constants/Hooks.mjs"; 
-import { LogUtil } from "./LogUtil.mjs"; 
-import { SettingsUtil } from "./SettingsUtil.mjs";
-import { RollRequestsMenu } from "./RollRequestsMenu.mjs"; 
 import { getSettings } from "../constants/Settings.mjs";
-import { MODULE_ID } from "../constants/General.mjs";
+import { SOCKET_CALLS } from "../constants/General.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
-import { RequestsUtil } from "./RequestsUtil.mjs";
-import { ActivityUtil } from "./ActivityUtil.mjs";
+import { DiceConfigUtil } from "./DiceConfigUtil.mjs";
+import { HooksUtil } from "./HooksUtil.mjs";
+import { SettingsUtil } from "./SettingsUtil.mjs";
+import { RollRequestUtil } from "./RollRequestUtil.mjs";
 
 /**
  * Main class handling core module initialization and setup
  * Manages module lifecycle, hooks, and core functionality
  */
 export class Main {
-  static diceConfig = {};
-  static SOCKET_CALLS = {
-    receiveDiceConfig: "receiveDiceConfig",
-    getDiceConfig: "getDiceConfig"
-  };
   /**
    * Initialize the module and set up core hooks
    * @static
    */
   static init(){
-    // Initialize socketlib
     SocketUtil.initialize(Main.registerSocketCalls);
-    Hooks.once(HOOKS_CORE.INIT, () => { 
-      const SETTINGS = getSettings();
-      LogUtil.log("Initiating module...", [], true);
-      SettingsUtil.registerSettings();
-      RequestsUtil.init();
-      ActivityUtil.init();
-      RollRequestsMenu.init();
-      Main.setDiceConfig();
-    });
-
-    Hooks.once(HOOKS_CORE.READY, () => {
-      LogUtil.log("Core Ready", [ui?.sidebar, ui?.sidebar?._collapsed]);
-      const SETTINGS = getSettings();
-      
-      var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
-      if(isDebugOn){CONFIG.debug.hooks = true};
-      
-      if(game.user.isGM){
-        Hooks.on(HOOKS_CORE.USER_CONNECTED, Main.onUserConnected);
-        // Only run this on the GM client
-        game.users.forEach(user => {
-          Main.onUserConnected(user);
-        });
-        SettingsUtil.applyRollRequestsSetting();
-        RollRequestsMenu.injectRollRequestsMenu();
-        Hooks.on(HOOKS_CORE.COLLAPSE_SIDE_BAR, (sidebar) => { 
-          LogUtil.log(HOOKS_CORE.COLLAPSE_SIDE_BAR, [sidebar._collapsed]);
-          if(sidebar){ Main.checkSideBar(!sidebar._collapsed); }
-        });
-        Main.checkSideBar(!ui?.sidebar?._collapsed);
-      }else{
-        Main.getDiceConfig();
-      }
-    });
+    HooksUtil.initialize();
   }
 
-  /**
-   * Adds or removes the sidebar-expanded class based on the isExpanded parameter
-   * @param {boolean} isExpanded 
-   */
-  static checkSideBar = (isExpanded) => {
-    const body = document.querySelector("body");
-    if(isExpanded){
-      body.classList.add("sidebar-expanded");
-    }else{
-      body.classList.remove("sidebar-expanded");
-    }
-  }
-
-  /**
-   * Request dice configuration from the connected user
-   * @param {*} user 
-   * @returns 
-   */
-  static onUserConnected(user) {
-    // Request dice configuration from the connected user
-    if (user.active && user.id !== game.user.id) {
-      LogUtil.log("onUserConnected", [user]);
-      SocketUtil.execForUser(Main.SOCKET_CALLS.getDiceConfig, user.id);
-    }
-  }
-
-  static setDiceConfig(){
-    if(!game.user) return;
-    const clientSettings = game.settings.storage.get("client"); 
-    Main.diceConfig = clientSettings[`core.diceConfiguration`] || '';
-    LogUtil.log(`getDiceConfig`, [Main.diceConfig]);
-    return Main.diceConfig;
+  // Wrapper methods for socket calls to DiceConfigUtil
+  static getDiceConfig() {
+    return DiceConfigUtil.getDiceConfig();
   }
   
-  // Add the getDiceConfig method that will be called on the player's client
-  static getDiceConfig() { 
-    if(!game.user) return;
-    Main.setDiceConfig();
-    
-    if(game.user.isGM) {
-      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig;
-      SocketUtil.execForGMs(Main.SOCKET_CALLS.receiveDiceConfig, game.user.id, Main.diceConfig);
-      return;
-    }else{
-      RequestsUtil.playerDiceConfigs[game.user.id] = Main.diceConfig ? JSON.parse(Main.diceConfig) : {};
-    }
+  static receiveDiceConfig(userId, diceConfig) {
+    DiceConfigUtil.receiveDiceConfig(userId, diceConfig);
   }
 
-  // Add the receiveDiceConfig method that will be called on the GM's client
-  static receiveDiceConfig(userId, diceConfig) {
-    if (game.user?.isGM || userId===game.user.id){ // for GM or own user
-      // Store the dice configuration for this user
-      if (!RequestsUtil.playerDiceConfigs) RequestsUtil.playerDiceConfigs = {};
-      RequestsUtil.playerDiceConfigs[userId] = diceConfig ? JSON.parse(diceConfig) : {};
-      
-      LogUtil.log(`Received dice configuration from user ${userId}`, [RequestsUtil.playerDiceConfigs]);
-    }
+  /**
+   * Handle roll request from GM on player side
+   * @param {import('./RollRequestUtil.mjs').RollRequestData} requestData - The roll request data
+   */
+  static async handleRollRequest(requestData) {
+    return RollRequestUtil.handleRequest(requestData);
   }
 
   /**
    * Register methods with socketlib for remote execution
    */
   static registerSocketCalls() {
-    SocketUtil.registerCall(Main.SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
-    SocketUtil.registerCall(Main.SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
-    RequestsUtil.registerSocketCalls();
+    SocketUtil.registerCall(SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
+    SocketUtil.registerCall(SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
+    SocketUtil.registerCall(SOCKET_CALLS.handleRollRequest, Main.handleRollRequest);
   }
-
 }

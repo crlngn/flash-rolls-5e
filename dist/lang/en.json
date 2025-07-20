@@ -1,4 +1,22 @@
 {
+  "CRLNGN_ROLL_REQUESTS": {
+    "notifications": {
+      "playerOffline": "{player} is offline. Rolling locally",
+      "rollRequestSent": "Roll request for {actor} sent to {player}",
+      "rollRequestReceived": "{gm} request: {rollType}",
+      "rollRequestsReceivedMultiple": "{gm} requests: {requests}",
+      "rollError": "Error executing roll for {actor}",
+      "combatCreated": "Combat encounter created",
+      "allActorsHaveInitiative": "All selected actors already have initiative",
+      "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
+      "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
+      "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
+      "noHitDice": "No available hit dice for {actor}"
+    },
+    "chat": {
+      "requestedBy": "[Requested by {gm}]"
+    }
+  },
   "CRLNGN_ROLLS": {
     "settings": {
       "debugMode": {
@@ -16,6 +34,14 @@
       "skipDialogs": {
         "label": "Skip Roll Dialogs on Requests",
         "hint": "Enable this to skip the Roll Configuration windows when you request rolls from a player or when rolling for groups of multiple NPCs."
+      },
+      "rollInterceptionEnabled": {
+        "label": "Intercept GM Rolls for Players",
+        "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owning player"
+      },
+      "showOfflineNotifications": {
+        "label": "Show Offline Notifications",
+        "hint": "Enable to notify the GM before rolling when a player is offline"
       }
     },
     "ui": {
@@ -35,14 +61,62 @@
       },
       "notifications": {
         "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib.",
-        "rollRequestSent": "Roll Request sent to "
+        "rollRequestSent": "Roll Request sent to ",
+        "invalidFormula": "Invalid roll formula: {formula}"
       },
       "cards": {
         "rollRequestFlavor": "Roll request"
       },
       "dialogs": {
-        "multipleActors": "Multiple Actors"
+        "multipleActors": "Multiple Actors",
+        "noCombatActive": "There is no active combat encounter. Would you like to create one before rolling initiative?",
+        "rerollInitiativeTitle": "Re-roll Initiative?",
+        "rerollInitiative": "These actors already have initiative: <b>{actors}</b>. Do you want to re-roll?",
+        "customRollTitle": "Custom Roll",
+        "rollFormula": "Roll Formula",
+        "formulaValid": "Valid formula",
+        "formulaInvalid": "Invalid formula",
+        "gmRollConfigTitle": "GM Roll Configuration",
+        "gmRollConfigActors": "Rolling for {count} actors",
+        "optional": "optional",
+        "dcPlaceholder": "Leave blank for default",
+        "situationalNote": "e.g., +2, 1d4, or +1d4+2",
+        "sendRequest": "Send as Request",
+        "sendRequestNote": "Choose whether to send rolls to players or execute locally",
+        "sendToPlayers": "Send to Players",
+        "rollLocally": "Roll Locally",
+        "hitDie": {
+          "refillTitle": "No Hit Dice Available",
+          "refillMessage": "No hit dice available for {actors}. has no hit dice available. Would you like to refill their hit dice and send the request?",
+          "refillMessageLocal": "No hit dice available for {actors}. Would you like to refill their hit dice and roll?",
+          "refillAndSend": "Refill & Send",
+          "refillAndRoll": "Refill & Roll",
+          "refilled": "Hit dice refilled for {actor}"
+        }
+      },
+      "menus": {
+        "rollRequestsTitle": "Roll Requests"
       }
+    },
+    "common": {
+      "and": "and"
+    },
+    "rollTypes": {
+      "abilitycheck": "Ability Check",
+      "savingthrow": "Saving Throw",
+      "skill": "Skill Check",
+      "tool": "Tool Check",
+      "concentration": "Concentration Check",
+      "initiativedialog": "Initiative Roll",
+      "deathsave": "Death Save",
+      "custom": "Custom Roll",
+      "ability": "Ability Check",
+      "save": "Saving Throw",
+      "initiative": "Initiative Roll",
+      "attack": "Attack Roll",
+      "damage": "Damage Roll",
+      "itemsave": "Save (Item)",
+      "hitdie": "Hit Die"
     }
   }
 }
