@@ -158,7 +158,10 @@ export class ActivityUtil {
                 return
               }
             }
-            await activity.use(config.usage, config.dialog, config.message);
+            await activity.use(config.usage, config.dialog, {
+              ...config.message,
+              create: true
+            });
           } finally {
             // Only clean up the flag if we set it
             await activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');

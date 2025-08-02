@@ -359,7 +359,7 @@ Object containing handler functions for each roll type:
   - Sends via SocketUtil to specific player
   - Shows notification unless suppressed
 
-- **`_initiateRollRequest(actor, requestType, rollKey, config)`**: Executes single actor roll
+- **`_initiateRoll(actor, requestType, rollKey, config)`**: Executes single actor roll
   - Builds requestData structure for RollHandlers
   - Uses RollHandlers for all roll types (same as player rolls)
   - Delegates to appropriate handler based on requestType

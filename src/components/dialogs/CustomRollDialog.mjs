@@ -4,7 +4,8 @@ import { LogUtil } from "../LogUtil.mjs";
 /**
  * Custom Roll Dialog - ApplicationV2 component for custom roll formulas
  */
-export class CustomRollDialog extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor(options = {}) {
     super(options);
     this.formula = options.formula || "";
@@ -17,22 +18,24 @@ export class CustomRollDialog extends foundry.applications.api.HandlebarsApplica
   /**
    * Default application configuration
    */
-  static DEFAULT_OPTIONS = {
-    id: "crlngn-custom-roll-dialog",
-    classes: ["flash-rolls-5e-dialog", "crlngn-custom-roll-dialog"],
-    tag: "div",
-    window: {
-      title: "CRLNGN_ROLLS.ui.dialogs.customRollTitle",
-      icon: "fas fa-dice-d20",
-      resizable: false,
-      positioned: true,
-      frame: true
-    },
-    position: {
-      width: 420,
-      height: "auto"
-    }
-  };
+  static get DEFAULT_OPTIONS() {
+    return foundry.utils.mergeObject(super.DEFAULT_OPTIONS, {
+      id: "crlngn-custom-roll-dialog",
+      classes: ["flash-rolls-5e-dialog", "crlngn-custom-roll-dialog"],
+      tag: "div",
+      window: {
+        title: "CRLNGN_ROLLS.ui.dialogs.customRollTitle",
+        icon: "fas fa-dice-d20",
+        resizable: false,
+        positioned: true,
+        frame: true
+      },
+      position: {
+        width: 420,
+        height: "auto"
+      }
+    });
+  }
   
   /**
    * Override to handle action clicks

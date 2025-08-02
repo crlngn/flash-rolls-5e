@@ -4,9 +4,10 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from './dialogs/GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from './dialogs/gm-dialogs/index.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
+import { GeneralUtil } from './helpers/GeneralUtil.mjs';
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
  */
@@ -37,10 +38,12 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_TOOL_V2, this._handlePreRoll.bind(this, ROLL_TYPES.TOOL));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._handlePreRoll.bind(this, ROLL_TYPES.ATTACK));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DAMAGE));
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DEATH_SAVE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.DEATH_SAVE));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.HIT_DIE));
+
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
+    this._registerHook(HOOKS_DND5E.ROLL_INITIATIVE, this._handleRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
+    // this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
   }
   
   /**
@@ -131,16 +134,14 @@ export class RollInterceptor {
     }
 
     let actor;
-    // if (rollType === ROLL_TYPES.INITIATIVE && config instanceof Actor) {
-    //   // 
-    //   actor = config;
-    //   // For initiative, check if this is from our own dialog execution
-    //   LogUtil.log('_handlePreRoll - Initiative', [config, dialog, message]);
-    //   if (dialog?.isRollRequest === false || message?.isRollRequest === false) {
-    //     return;
-    //   }
-    // } else 
-    if (rollType === ROLL_TYPES.HIT_DIE) {
+    if (rollType === ROLL_TYPES.INITIATIVE && config instanceof Actor) {
+      actor = config;
+      // For initiative, check if this is from our own dialog execution
+      LogUtil.log('_handlePreRoll - Initiative', [config, dialog, message]);
+      if (dialog?.isRollRequest === false || message?.isRollRequest === false) {
+        return;
+      }
+    } else if (rollType === ROLL_TYPES.HIT_DIE) {
       actor = dialog?.subject?.actor || dialog?.subject || dialog?.actor;
     } else if(rollType === ROLL_TYPES.ATTACK || rollType === ROLL_TYPES.DAMAGE){
       actor = config.subject?.actor;
@@ -158,8 +159,8 @@ export class RollInterceptor {
     }
 
     LogUtil.log('_handlePreRoll', [config, message]);
-    const owner = this._getActorOwner(actor);   
-    if (!owner || owner.id === game.user.id || //!owner.active || // player owner inexistent or not active
+    const owner = GeneralUtil.getActorOwner(actor);   
+    if (!owner || !owner.active || owner.id === game.user.id || // player owner inexistent or not active
         dialog.configure===false || config.isRollRequest===false || config.skipDialog===true || config.fastForward===true) { // config skips the dialog
       return;
     }
@@ -176,8 +177,12 @@ export class RollInterceptor {
     LogUtil.log('_handlePreRoll - intercepting roll #2', [config, message]);
     this._showGMConfigDialog(actor, owner, rollType, config, dialog, message);
     
-    // Prevent the normal roll
     return false;
+  }
+
+  static _handleRollInitiative(a,b,c,d,e) {
+    LogUtil.log('_handleRollInitiative', [a,b,c,d,e]);
+    return;
   }
   
   /**
@@ -207,7 +212,7 @@ export class RollInterceptor {
         
         // Check if actor already has initiative
         const filteredActorIds = await filterActorsForInitiative([actor.id], game);
-        if (filteredActorIds.length === 0) { return; } // User chose not to re-roll
+        if (filteredActorIds.length === 0) { return; } // No actors to roll or re-roll for
       }
       
       let DialogClass;
@@ -235,47 +240,6 @@ export class RollInterceptor {
         }]
       };
       
-      switch (normalizedRollType) {
-        case ROLL_TYPES.ABILITY:
-          rollConfig.ability = config.ability || config.subject?.ability;
-          break;
-        case ROLL_TYPES.SAVE:
-          rollConfig.ability = config.ability || config.subject?.ability;
-          if (config.ability === 'con' && config.targetValue !== undefined) {
-            rollType = ROLL_TYPES.CONCENTRATION;
-          }
-          break;
-        case ROLL_TYPES.SKILL:
-          rollConfig.skill = config.skill;
-          rollConfig.ability = config.ability;
-          break;
-        case ROLL_TYPES.TOOL:
-          rollConfig.tool = config.tool;
-          rollConfig.ability = config.ability;
-          break;
-        case ROLL_TYPES.CONCENTRATION:
-          rollConfig.ability = 'con';
-          break;
-        case ROLL_TYPES.INITIATIVE:
-          // No special config
-          break;
-        case ROLL_TYPES.HIT_DIE:
-          rollConfig.denomination = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
-          break;
-        case ROLL_TYPES.ATTACK:
-          if (dialog?.options) {
-            rollConfig.ammunition = dialog.options.ammunition;
-            rollConfig.attackMode = dialog.options.attackMode;
-            rollConfig.mastery = dialog.options.mastery;
-          }
-          break;
-        case ROLL_TYPES.DAMAGE:
-          rollConfig.item = config.subject?.item;
-          rollConfig.subject = config.subject;
-          rollConfig.critical = config.critical || false;
-          break;
-      }
-      
       // Check if we should skip dialogs
       const SETTINGS = getSettings();
       const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
@@ -294,29 +258,50 @@ export class RollInterceptor {
         let rollKey = null;
         switch (normalizedRollType) {
           case ROLL_TYPES.SKILL:
-            rollKey = config.skill;
+            rollConfig.skill = config.skill;
+            rollConfig.ability = config.ability || config.subject?.ability;
+            rollKey = rollConfig.skill;
             break;
           case ROLL_TYPES.TOOL:
-            rollKey = config.tool;
+            rollConfig.tool = config.tool;
+            rollConfig.ability = config.ability || config.subject?.ability;
+            rollKey = rollConfig.tool;
             break;
           case ROLL_TYPES.ABILITY:
           case ROLL_TYPES.SAVE:
-            rollKey = config.ability || config.subject?.ability;
+            rollConfig.ability = config.ability || config.subject?.ability;
+            rollKey = rollConfig.ability;
+            if (rollConfig.ability === 'con' && config.targetValue !== undefined) {
+              rollType = ROLL_TYPES.CONCENTRATION;
+            }
             break;
           case ROLL_TYPES.CONCENTRATION:
-            rollKey = 'con'; // Concentration is always Constitution
+            rollConfig.ability = 'con';
+            rollKey = 'con';
             break;
           case ROLL_TYPES.INITIATIVE:
+          case ROLL_TYPES.INITIATIVE_DIALOG:
             rollKey = actor.system.attributes?.init?.ability || 'dex'; // Default to dexterity
             break;
           case ROLL_TYPES.HIT_DIE:
-            rollKey = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
+            rollConfig.denomination = typeof config === 'string' ? config : (config.denomination || config.subject?.denomination);
+            rollKey = rollConfig.denomination;
             break;
           case ROLL_TYPES.ATTACK:
+            if (dialog?.options) {
+              rollConfig.ammunition = dialog.options.ammunition;
+              rollConfig.attackMode = dialog.options.attackMode;
+              rollConfig.mastery = dialog.options.mastery;
+            }
             rollKey = config.subject?.item?.id;
             break;
           case ROLL_TYPES.DAMAGE:
+            rollConfig.item = config.subject?.item;
+            rollConfig.subject = config.subject;
+            rollConfig.critical = config.critical || false;
             rollKey = config.subject?.item?.id;
+            break;
+          default:
             break;
         }
         // Use the static initConfiguration method which properly waits for dialog result
@@ -522,28 +507,6 @@ export class RollInterceptor {
     } catch (error) {
       this._sendRollRequest(actor, owner, rollType, config);
     }
-  }
-
-  /**
-   * Get the player owner of an actor
-   * @param {Actor} actor 
-   * @returns {User|null}
-   */
-  static _getActorOwner(actor) {
-    LogUtil.log('_getActorOwner', [actor]);
-    // Find the first active player who owns this actor
-    const ownership = actor.ownership || {};
-    
-    for (const [userId, level] of Object.entries(ownership)) {
-      if (level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
-        const user = game.users.get(userId);
-        if (user && !user.isGM) {
-          return user;
-        }
-      }
-    }
-    
-    return null;
   }
   
   /**

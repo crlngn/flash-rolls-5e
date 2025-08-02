@@ -105,13 +105,15 @@ export class SettingsUtil {
   }
 
   static applyRollRequestsEnabled(newValue){
-    const requestsIcon = document.querySelector("#chat-controls .chat-control-icon.flash-rolls-icon");
+    const requestsIcon = document.querySelector(".chat-controls .flash-rolls-icon");
     if(!requestsIcon){ return; }
     
     if(newValue){
       requestsIcon.classList.add("active");
+      // requestsIcon.setAttribute("aria-pressed", "true");
     }else{
       requestsIcon.classList.remove("active");
+      // requestsIcon.setAttribute("aria-pressed", "false");
     }
   }
 }

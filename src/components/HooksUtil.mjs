@@ -7,6 +7,7 @@ import { updateSidebarClass, isSidebarExpanded } from "./helpers/Helpers.mjs";
 import { SidebarUtil } from "./SidebarUtil.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { MODULE_ID } from "../constants/General.mjs";
+import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -36,7 +37,7 @@ export class HooksUtil {
     DiceConfigUtil.initialize();
     
     // Register sidebar control hook
-    this._registerHook(HOOKS_CORE.RENDER_SIDEBAR_TAB, this._onRenderSidebarTab.bind(this));
+    this._registerHook(HOOKS_CORE.RENDER_SIDEBAR, this._onRenderSidebar.bind(this));
   }
   
   /**
@@ -68,6 +69,8 @@ export class HooksUtil {
     this._registerHook(HOOKS_DND5E.POST_ROLL_CONFIG, this._onPostRollConfig.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessage.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
+    this._registerHook(HOOKS_CORE.CHANGE_SIDEBAR_TAB, this._onSidebarUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.COLLAPSE_SIDE_BAR, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
@@ -93,6 +96,11 @@ export class HooksUtil {
     // this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     // this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
   }
+
+  static _onSidebarUpdate(tab) {
+    LogUtil.log("_onSidebarUpdate", [tab]);
+    updateSidebarClass(isSidebarExpanded());
+  }
   
   /**
    * Handle data after roll configuration
@@ -109,6 +117,17 @@ export class HooksUtil {
    * Handle data before creating chat message for requested rolls
    */
   static _onPreCreateChatMessage(chatMessage, data, options, userId) {
+    // Log all roll messages to debug initiative
+    if (data.rolls?.length > 0 || data.flavor?.includes('Initiative')) {
+      LogUtil.log('_onPreCreateChatMessage - Roll message', [
+        'flavor:', data.flavor,
+        'rolls:', data.rolls,
+        'speaker:', data.speaker,
+        'type:', data.type,
+        'flags:', data.flags
+      ]);
+    }
+    
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
       const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
@@ -155,7 +174,6 @@ export class HooksUtil {
     
     // Does the dialog have a situational input field?
     const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    LogUtil.log("Situational inputs:", [situationalInputs.length]);
     
     let hasTriggered = false;
     situationalInputs.forEach((input, index) => {      
@@ -170,7 +188,6 @@ export class HooksUtil {
         app._situationalTriggered = true;
         hasTriggered = true;
         
-        // Dispatch a change event to trigger formula update
         setTimeout(() => {
           input.dispatchEvent(new Event('change', {
             bubbles: true,
@@ -194,11 +211,19 @@ export class HooksUtil {
       DiceConfigUtil.requestDiceConfigFromUser(user.id);
     }
   }
+
+  /**
+   * Handle render ApplicationV2
+   */
+  static _onRenderApplicationV2(app, html, options) {
+    LogUtil.log("_onRenderApplicationV2", [app, html, options]);
+  }
   
   /**
-   * Handle render sidebar tab
+   * Handle render Sidebar
    */
-  static _onRenderSidebarTab(app, html, options) {
+  static _onRenderSidebar(app, html, options) {
+    LogUtil.log("_onRenderSidebar", [app, html, options]);
     SidebarUtil.addSidebarControls(app, html, options);
   }
   
@@ -411,12 +436,14 @@ export class HooksUtil {
     const actor = activity.actor;
     if (!actor) return;
     
-    const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
-      const user = game.users.get(userId);
-      return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-    });
+    // const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
+    //   const user = game.users.get(userId);
+    //   return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+    // });
+
+    const actorOwner = GeneralUtil.getActorOwner(actor);
     
-    if (hasPlayerOwner) {
+    if (actorOwner && actorOwner.active && !actorOwner.isGM) {
       LogUtil.log("Preventing usage message for player-owned actor", [actor.name]);
       message.create = false;
     }

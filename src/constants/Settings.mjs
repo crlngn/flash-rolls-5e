@@ -63,6 +63,16 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: true
     },
+    publicPlayerRolls: {
+      tag: "public-player-rolls",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.publicPlayerRolls.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.publicPlayerRolls.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: true
+    },
     showOfflineNotifications: {
       tag: "show-offline-notifications",
       label: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.label"),
@@ -73,6 +83,5 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: true
     }
-    // Additional settings will be added as needed
   };
 };

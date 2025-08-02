@@ -7,6 +7,10 @@ import { SettingsUtil } from "./SettingsUtil.mjs";
 import { RollRequestUtil } from "./RollRequestUtil.mjs";
 
 /**
+ * @typedef {import("./RollRequestUtil.mjs").RollRequestData} RollRequestData
+ */
+
+/**
  * Main class handling core module initialization and setup
  * Manages module lifecycle, hooks, and core functionality
  */
@@ -31,7 +35,7 @@ export class Main {
 
   /**
    * Handle roll request from GM on player side
-   * @param {import('./RollRequestUtil.mjs').RollRequestData} requestData - The roll request data
+   * @param {RollRequestData} requestData - The roll request data
    */
   static async handleRollRequest(requestData) {
     return RollRequestUtil.handleRequest(requestData);

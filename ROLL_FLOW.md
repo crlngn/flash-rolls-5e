@@ -85,10 +85,10 @@ There are two main paths:
 **Class: `RollRequestsMenu`**
 - `_handleGMRolls(actors, requestType, rollKey, dialogConfig)`
   - Builds config for local rolls
-  - For each actor, calls → `_initiateRollRequest()`
+  - For each actor, calls → `_initiateRoll()`
 
 **Class: `RollRequestsMenu`**
-- `_initiateRollRequest(actor, requestType, rollKey, config)`
+- `_initiateRoll(actor, requestType, rollKey, config)`
   - Builds requestData structure
   - Gets handler from `RollHandlers[rollType]`
   - Calls appropriate handler

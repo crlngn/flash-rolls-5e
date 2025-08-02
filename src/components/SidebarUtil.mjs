@@ -14,13 +14,15 @@ export class SidebarUtil {
    * @param {Object} options - Render options
    */
   static addSidebarControls(app, html, options) {
-    if (!game.user.isGM || app.id !== "chat") return;
+    if (!game.user.isGM || app.id !== "sidebar") return;
     
-    const htmlElement = html[0] || html;
+    // const htmlElement = html[0] || html;
+    // document.querySelector("#chat");
     
     // Find the chat controls container
-    const chatControls = htmlElement.querySelector("#chat .chat-controls");
+    const chatControls = document.querySelector("#roll-privacy");
     LogUtil.log("addSidebarControls",[chatControls]);
+
     if (!chatControls || chatControls.querySelector('.flash-rolls-icon')) {
       return;
     }
@@ -30,23 +32,26 @@ export class SidebarUtil {
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     
     // Create the roll request icon
-    const rollRequestIcon = document.createElement('a');
-    rollRequestIcon.id = "flash-rolls-icon";
+    const rollRequestIcon = document.createElement('button');
+    rollRequestIcon.id = "flash-rolls-icon"; 
     rollRequestIcon.setAttribute("data-tooltip-direction", "RIGHT");
-    rollRequestIcon.className = `chat-control-icon flash-rolls-icon${rollRequestsEnabled ? ' active' : ''}`;
+    rollRequestIcon.className = `ui-control icon chat-control-icon flash-rolls-icon${rollRequestsEnabled ? ' active' : ''}`;
     rollRequestIcon.title = game.i18n.localize('CRLNGN_ROLLS.ui.menus.rollRequestsTitle');
     rollRequestIcon.innerHTML = `<i class="fas fa-bolt${rollRequestsEnabled ? '' : '-slash'}"></i>`;
     
     // Insert before the d20 dice icon
-    const firstChatControlIcon = chatControls.querySelector('.chat-control-icon');
+    const firstChatControlIcon = chatControls.firstChild;
     if (firstChatControlIcon) {
       firstChatControlIcon.parentNode.insertBefore(rollRequestIcon, firstChatControlIcon);
     } else {
       chatControls.insertBefore(rollRequestIcon, chatControls.firstChild);
     }
+
+    LogUtil.log("addSidebarControls",[firstChatControlIcon, rollRequestIcon]);
     
-    // Add click listener
-    rollRequestIcon.addEventListener("click", () => {
+    rollRequestIcon.addEventListener("click", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
       RollRequestsMenu.toggle();
     });
   }

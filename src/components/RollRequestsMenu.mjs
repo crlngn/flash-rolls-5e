@@ -4,19 +4,21 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './dialogs/GMRollConfigDialog.mjs';
+import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './dialogs/gm-dialogs/index.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
-import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership } from './helpers/Helpers.mjs';
+import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, adjustMenuOffset } from './helpers/Helpers.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { RollHelpers } from './helpers/RollHelpers.mjs';
 import { CustomRollDialog } from './dialogs/CustomRollDialog.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
+import { GeneralUtil } from './helpers/GeneralUtil.mjs';
 
 /**
  * Roll Requests Menu Application
  * Extends Foundry's ApplicationV2 with Handlebars support to provide a menu interface for GMs to request rolls from players
  */
-export default class RollRequestsMenu extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+export default class RollRequestsMenu extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * Singleton instance of the menu
    * @type {RollRequestsMenu|null}
@@ -24,15 +26,14 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   static #instance = null;
 
   constructor(options = {}) {
-    LogUtil.log('RollRequestsMenu.constructor');
+    LogUtil.log('RollRequestsMenu.constructor', [options]);
     super(options);
     
     // Track selected actors and current state
     this.selectedActors = new Set();
-    this.currentTab = 'pc'; // 'pc' or 'npc'
+    this.currentTab = 'pc';
     this.selectedRequestType = null;
-    this.isLocked = false; // Track lock state
-    // Get options expanded state from user flag
+    this.isLocked = false; 
     this.optionsExpanded = game.user.getFlag(MODULE.ID, 'menuOptionsExpanded') ?? false;
     
     // Initialize with actors from selected tokens
@@ -48,32 +49,24 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       resizable: false,
       minimizable: false
     },
-    position: null
+    position: {}
   };
 
   static PARTS = {
     main: {
       template: `modules/${MODULE.ID}/templates/requests-menus.hbs`
     }
-  };
-
-  /**
-   * Prepare data for the template
-   */
+  };  
+  
   async _prepareContext(options) {
     LogUtil.log('_prepareContext');
     const context = await super._prepareContext(options);
-    
-    // Get all actors and separate by ownership
     const actors = game.actors.contents;
     const pcActors = [];
     const npcActors = [];
-    
-    // Get current scene to check for NPC tokens
     const currentScene = game.scenes.active;
     
     for (const actor of actors) {
-      // Skip non-character actors
       if (actor.type !== 'character' && actor.type !== 'npc') continue;
       
       const actorData = {
@@ -95,12 +88,9 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       if (isPlayerOwned) {
         pcActors.push(actorData);
       } else {
-        // For NPCs, only include if they have a token in the current scene
-        if (currentScene) {
-          const hasTokenInScene = currentScene.tokens.some(token => token.actorId === actor.id);
-          if (hasTokenInScene) {
-            npcActors.push(actorData);
-          }
+        const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
+        if (hasTokenInScene) {// Only include NPCs if they have a token in the current scene
+          npcActors.push(actorData);
         }
       }
     }
@@ -115,7 +105,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const selectAllOn = currentActors.length > 0 && 
       currentActors.every(actor => this.selectedActors.has(actor.id));
     
-    // Build request types array for template
     const requestTypes = [];
     if (this.selectedActors.size > 0) {
       for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
@@ -128,8 +117,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         });
       }
     }
-    
-    // Build roll types array based on selected request type
+
     const rollTypes = buildRollTypes(this.selectedRequestType, this.selectedActors);
     
     return {
@@ -175,7 +163,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       });
     }
     
-    // Spell DC - check both old and new locations for compatibility
     const spellDC = system.attributes?.spell?.dc;
     if (spellDC) {
       stats.push({
@@ -184,7 +171,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       });
     }
     
-    // Passive Perception
     if (system.skills?.prc?.passive) {
       stats.push({
         abbrev: 'PRC',
@@ -196,31 +182,43 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
   }
 
   /**
+   * Override _renderFrame to control where the element is inserted in the DOM
+   * @override
+   */
+  async _renderFrame(options) {
+    const frame = await super._renderFrame(options);
+    
+    const chatNotifications = document.querySelector('#chat-notifications');
+    if (chatNotifications && frame) {
+      chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+    }
+    
+    return frame;
+  }
+
+  /**
    * Called after the application is rendered
+   * Verifies if roll controls are visible and adjusts the offset of the menu
    */
   _onRender(context, options) {
     LogUtil.log('_onRender');
     super._onRender(context, options);
     this._attachListeners();
+
+    adjustMenuOffset();
     
-    // Apply expanded state if saved
+    // Expand options if applicable
     if (this.optionsExpanded) {
       const optionsToggle = this.element.querySelector('.options-toggle');
       const optionsElement = this.element.querySelector('li.options');
-      if (optionsToggle) {
-        optionsToggle.classList.add('expanded');
-      }
-      if (optionsElement) {
-        optionsElement.classList.add('expanded');
-      }
+      optionsToggle?.classList.add('expanded');
+      optionsElement?.classList.add('expanded');
     }
     
-    // Add click outside listener with capture to catch events early
     setTimeout(() => {
       document.addEventListener('click', this._onClickOutside, true);
     }, 100);
     
-    // Hook into token control changes
     this._tokenControlHook = Hooks.on('controlToken', this._onTokenControlChange.bind(this));
   }
   
@@ -229,22 +227,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
    */
   _onTokenControlChange(token, controlled) {
     LogUtil.log('_onTokenControlChange');
-    // Only process if menu is rendered
     if (!this.rendered) return;
     
-    // Ignore if we're programmatically updating tokens
     if (this._ignoreTokenControl) return;
-    
-    // Debounce updates to avoid multiple renders when selecting multiple tokens
     if (this._tokenUpdateTimeout) {
       clearTimeout(this._tokenUpdateTimeout);
     }
     
     this._tokenUpdateTimeout = setTimeout(() => {
-      // Update selections from current controlled tokens
       this._initializeFromSelectedTokens();
-      
-      // Re-render to update UI
       this.render();
       
       this._tokenUpdateTimeout = null;
@@ -262,7 +253,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     if (event.target.closest('.flash-rolls-menu')) return;
     if (menu.contains(event.target)) return;
     if (event.target.closest('#flash-rolls-icon')) return;
-    if (event.target.closest('.dialog, .app, .notification')) return;
+    if (event.target.closest('.dialog, .app, .notification, .application')) return;
     this.close();
   }
 
@@ -549,7 +540,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     LogUtil.log('_onRequestTypeClick', [requestType, requestItem.dataset, rollOption]);
     
     if (!rollOption) {
-      LogUtil.error('Unknown request type:', requestType);
+      LogUtil.error('Unknown request type:', [requestType]);
       return;
     }
     
@@ -674,7 +665,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     const offlinePlayerActors = [];
     const onlinePlayerActors = [];
     
-    LogUtil.log('_orchestrateRollsForActors', [config]);
+    LogUtil.log('_orchestrateRollsForActors', [config, pcActors, npcActors]);
 
     if (config.sendRequest) {
       for (const { actor, owner } of pcActors) {
@@ -731,7 +722,6 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       .map(id => game.actors.get(id));
       // .filter(actor => actor);
     
-    // Get roll method name
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
     
@@ -743,9 +733,8 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       case ROLL_TYPES.INITIATIVE:
       case ROLL_TYPES.INITIATIVE_DIALOG:
         const combatReady = await ensureCombatForInitiative();
-        if (!combatReady) return;
-        if (game.combat) {
-          LogUtil.log("_triggerRoll", []);
+        if (combatReady) {
+          LogUtil.log("_triggerRoll", [validActorIds]);
           const filteredActorIds = await filterActorsForInitiative(validActorIds, game);
 
           LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
@@ -768,22 +757,15 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       return;
     }
     
-    // Categorize actors
     const { pcActors, npcActors } = categorizeActorsByOwnership(actors);
-    
-    // Get roll configuration
     const config = await this._getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors);
     
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
     
-    // Execute rolls
     await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
-    
-    // Close menu
     setTimeout(() => this.close(), 500);
   }
-  
   
   /**
    * Send a roll request to a player
@@ -963,28 +945,24 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
     LogUtil.log('_handleGMRolls', [actors, requestType, rollKey, rollProcessConfig]);
     
     for (const actor of actors) {
-      await this._initiateRollRequest(actor, requestType, rollKey, rollProcessConfig);
-      await delay(100);// To reduce lag and improve chat readability
+      await this._initiateRoll(actor, requestType, rollKey, rollProcessConfig);
+      await delay(100);
     }
   }
   
   /**
-   * Execute a roll for a specific actor
+   * Execute local roll for a GM actor
    * @param {Actor} actor 
    * @param {string} requestType 
    * @param {string} rollKey 
    * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
-  async _initiateRollRequest(actor, requestType, rollKey, rollProcessConfig) {
-    LogUtil.log('_initiateRollRequest', [requestType, rollKey, rollProcessConfig]);
-    // try {
-      // Normalize the requestType to ensure case matching
+  async _initiateRoll(actor, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_initiateRoll', [requestType, rollKey, rollProcessConfig]);
+    try {
       const normalizedType = requestType.toLowerCase();
-      
-      // Special handling for Hit Die rolls - get the denomination from the actor
       let actualRollKey = rollKey;
       if (normalizedType === ROLL_TYPES.HIT_DIE) {
-        // Get the first available hit die denomination for this actor
         const hdData = actor.system.attributes.hd;
         if (hdData) {
           // Find the first denomination with available uses
@@ -999,7 +977,7 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
         }
         if (!actualRollKey) {
           // No hit dice available - show refill dialog
-          LogUtil.log('_initiateRollRequest - No hit dice available', [actor.name]);
+          LogUtil.log('_initiateRoll - No hit dice available', [actor.name]);
           
           const dialogResult = await foundry.applications.api.DialogV2.confirm({
             window: {
@@ -1086,38 +1064,37 @@ export default class RollRequestsMenu extends foundry.applications.api.Handlebar
       } else {
         NotificationManager.notify('warn', `Unknown roll type: ${requestType}`);
       }
-    // } catch (error) {
-    //   LogUtil.error('executeActorRoll', [error]);
-    //   NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
-    //     actor: actor.name 
-    //   }));
-    // }
+    } catch (error) {
+      LogUtil.error('executeActorRoll', [error]);
+      NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
+        actor: actor.name 
+      }));
+    }
   }
 
   /**
    * Clean up when closing
    */
   async _onClose(options) {
-    LogUtil.log('_onClose');
+    LogUtil.log('_onClose',[options]);
     await super._onClose(options);
     
-    // Reset state
     this.selectedActors.clear();
     this.selectedRequestType = null;
-    
-    // Remove click outside listener (with capture flag to match addEventListener)
     document.removeEventListener('click', this._onClickOutside, true);
     
-    // Remove token control hook
     if (this._tokenControlHook) {
       Hooks.off('controlToken', this._tokenControlHook);
       this._tokenControlHook = null;
     }
     
-    // Clear any pending token update timeout
     if (this._tokenUpdateTimeout) {
       clearTimeout(this._tokenUpdateTimeout);
       this._tokenUpdateTimeout = null;
+    }
+    
+    if (RollRequestsMenu.#instance === this) {
+      RollRequestsMenu.#instance = null;
     }
   }
 

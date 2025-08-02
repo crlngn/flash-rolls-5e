@@ -2,19 +2,35 @@
   box-sizing: border-box;
   border-radius: 0;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-  color: var(--color-text-light-highlight);
+  color: var(--color-text-light-highlight, var(--color-light-1));
   display: block;
   font-size: 0.75rem;
   position: fixed;
-  right: var(--current-sidebar-width, 5px);
+  right: var(--current-sidebar-width, 2px);
+  padding-right: var(--flash-rolls-menu-offset, 0px);
   bottom: 0;
   width: auto;
-  z-index: var(--z-index-app);
+  z-index: 0;
   pointer-events: none;
   height: auto;
+  border-top-left-radius: 4px;
+  background: transparent;
+  transition: right 0.25s ease-in-out;
 
   &.hidden{
     display: none;
+  }
+
+  &:after {
+    content: "";
+    display: block;
+    width: var(--flash-rolls-menu-offset, 0px);
+    height: 100%;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    background: var(--control-bg-color, hsla(0, 0%, 8%, .9));
   }
 }
 
@@ -32,15 +48,20 @@
   padding: 1em 0.25em 1em 1em;
   height: auto;
   max-height:50vh;
-  min-height: 265px;
+  min-height: 228px;
   overflow-y: hidden;
-  background: var(--left-control-main-bg, rgba(20, 20, 20, 0.9));
   border: 1px solid rgba(0, 0, 0, 1);
   font-size: var(--font-size-13);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
 }
+/*
+#flash-rolls-menu > div > ul.actors {
+  background: transparent;
+}
+  */
 
 #flash-rolls-menu > div > ul.actors > li.options-toggle {
   display: flex;
@@ -85,7 +106,7 @@
   margin-right: 0.5rem;
   max-height: 1.5em;
   overflow: hidden;
-  transition: max-height 0.2s ease-in-out;
+  /*transition: max-height 0.2s ease-in-out;*/
 
   &.expanded{
     max-height: 10em;

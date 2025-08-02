@@ -1,8 +1,8 @@
 /**
  * Helper functions for the Flash Rolls 5e module
  */
-
 import { MODULE, ROLL_TYPES } from '../../constants/General.mjs';
+import { GeneralUtil } from './GeneralUtil.mjs';
 
 /**
  * Get display name for roll type with optional details
@@ -235,7 +235,7 @@ export function delay(ms) {
  * @returns {boolean} True if sidebar is expanded
  */
 export function isSidebarExpanded() {
-  return !ui?.sidebar?._collapsed;
+  return ui?.sidebar?.expanded || false;
 }
 
 /**
@@ -243,12 +243,13 @@ export function isSidebarExpanded() {
  * @param {boolean} isExpanded - Whether sidebar is expanded
  */
 export function updateSidebarClass(isExpanded) {
-  const body = document.querySelector("body");
+  const body = document.querySelector("body"); 
   if (isExpanded) {
-    body.classList.add("sidebar-expanded");
+    body.classList.add("crlngn-sidebar-expanded"); 
   } else {
-    body.classList.remove("sidebar-expanded");
+    body.classList.remove("crlngn-sidebar-expanded"); 
   }
+  adjustMenuOffset();
 }
 
 /**
@@ -480,7 +481,6 @@ export function categorizeActorsByOwnership(actors) {
   return { pcActors, npcActors };
 }
 
-
 export function addHDUpdate(updates, newUpdate){
   const existingIndex = updates.findIndex(update => update._id === newUpdate._id);
   if(existingIndex > -1){
@@ -491,4 +491,13 @@ export function addHDUpdate(updates, newUpdate){
   }else{
     updates.push(newUpdate);
   }
+}
+
+/**
+ * Adjust the offset vars for the roll menu based on the state of the roll privacy controls
+ */
+export function adjustMenuOffset(isExpanded=true){
+  const rollPrivacyVertical = document.querySelector('#chat-notifications #roll-privacy');
+  const controlsWidth = rollPrivacyVertical ? GeneralUtil.getFullWidth(rollPrivacyVertical) : 0;
+  GeneralUtil.addCSSVars('--flash-rolls-menu-offset', controlsWidth + 'px');
 }

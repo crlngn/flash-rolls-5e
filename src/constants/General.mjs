@@ -37,7 +37,6 @@ export const HOOK_NAMES = {
   INITIATIVE: { name: "initiative", requestType: "check" }, // Initiative rolls
   FORMULA: { name: "formula", requestType: "formula" }, // Formula rolls
   RECHARGE: { name: "recharge", requestType: "formula" }, // Recharge rolls
-
   D20_TEST: { name: "d20Test", requestType: "formula" }, // D20 test
   SHORT_REST: { name: "shortRest", requestType: "formula" }, // Short rest
   LONG_REST: { name: "longRest", requestType: "formula" }, // Long rest
@@ -100,7 +99,7 @@ export const ROLL_REQUEST_OPTIONS = {
   SKILL: { name: ROLL_TYPES.SKILL, label: "Skill Check", subList: "skills", actorPath: 'system.skills' },
   TOOL: { name: ROLL_TYPES.TOOL, label: "Tool Check", subList: "tools", actorPath: 'system.tools' },
   CONCENTRATION: { name: ROLL_TYPES.CONCENTRATION, label: "Concentration Check", subList: null, actorPath: '' },
-  INITIATIVE: { name: ROLL_TYPES.INITIATIVE_DIALOG, label: "Initiative Roll", subList: null, actorPath: '' },
+  INITIATIVE: { name: ROLL_TYPES.INITIATIVE, label: "Initiative Roll", subList: null, actorPath: '' },
   DEATH_SAVE: { name: ROLL_TYPES.DEATH_SAVE, label: "Death Save", subList: null, actorPath: '' },
   // ITEM_SAVE: { name: ROLL_TYPES.ITEM_SAVE, label: "Item Save", subList: null, actorPath: '' },
   HIT_DIE: { name: ROLL_TYPES.HIT_DIE, label: "Hit Die", subList: null, actorPath: '' },

@@ -31,13 +31,17 @@
         "label": "Use GM Targeted Tokens",
         "hint": "When players confirm a requested roll, this setting will force use of GM targeted tokens instead of player targeted tokens. If this setting is disabled, the GM targets will only be transferred if the player has no targets."
       },
+      "publicPlayerRolls": {
+        "label": "Default Player Rolls to Public",
+        "hint": "When GM sends a roll request to player, the roll mode will default to 'public' (it can still be changed on the roll dialog). Disable this to use the GM's current roll mode as default."
+      },
       "skipDialogs": {
         "label": "Skip Roll Dialogs on Requests",
         "hint": "Enable this to skip the Roll Configuration windows when you request rolls from a player or when rolling for groups of multiple NPCs."
       },
       "rollInterceptionEnabled": {
         "label": "Intercept GM Rolls for Players",
-        "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owning player"
+        "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owner player, if they are online."
       },
       "showOfflineNotifications": {
         "label": "Show Offline Notifications",

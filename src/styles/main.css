@@ -2,9 +2,10 @@
 @import url('./flash-rolls-menu.css');
 
 body{
-  --current-sidebar-width: 5px;
+  --current-sidebar-width: 0px;
+  --flash-rolls-menu-offset: 0px;
 
-  &.sidebar-expanded{
+  &.crlngn-sidebar-expanded{
     --current-sidebar-width: var(--sidebar-width, 200px);
   }
 }
@@ -17,18 +18,18 @@ body{
     > .track{
       display: inline-block;
       font-size: var(--font-size-12);
-      height: 1.5em;
-      width: 2.5em;
-      background: var(--color-secondary-bright, #5f5f5f);
+      height: 0.86rem;
+      width: 1.6rem;
+      background: rgba(255, 255, 255, 0.2);
       border-radius: 1.5em;
-      border: 1px solid var(--color-border-dark);
+      border: 0;
       z-index: 0;
     }
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 3px;
+    gap: 4px;
   }
   .crlngn-switch > input[type="checkbox"] {
     left: 0;
@@ -44,12 +45,12 @@ body{
     }
   }
   .crlngn-switch > .handle {
-    height: 0.8em;
-    width: 0.8em;
-    margin: 0.35em;
+    height: 0.6rem;
+    width: 0.6rem;
+    margin: 0.2em;
     position: absolute;
     left: 0;
-    border-radius: 0.8em;
+    border-radius: 0.6rem;
     background: #fff;
     box-shadow: 0 0.1em 0.3em rgba(0,0,0,0.3);
     z-index: 1;
@@ -57,7 +58,7 @@ body{
   }
   
   .crlngn-switch input:checked ~ .handle {
-    margin-left: 1rem;
+    margin-left: 0.8rem;
     position: absolute;
   }
   
@@ -106,27 +107,63 @@ body{
   }
 }
 
-#flash-rolls-icon{
-  cursor: pointer;
-  align-self: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.6em;
-  margin-right: 2px;
-
-  i{
-    pointer-events: none;
-    align-self: center;
-    opacity: 0.5; 
+#ui-right {
+  #roll-privacy button.ui-control {
+    border-radius: 0;
   }
 
-  &.active{
+  #roll-privacy button.ui-control:first-child{
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+  }
+
+  #roll-privacy button.ui-control:last-child{
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+  }
+
+  #roll-privacy button#flash-rolls-icon{
+    cursor: pointer;
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    margin-right: 0;
+    border-right-width: 1px;
+    box-shadow: none;
+    outline: 0;
+  
     i{
-      opacity: 1;
+      pointer-events: none;
+      align-self: center;
     }
   }
+
+  #roll-privacy.vertical button.ui-control,
+  #roll-privacy.vertical button.ui-control:last-child {
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  #roll-privacy.vertical button.ui-control:first-child {
+    border-radius: 4px 0 0 0;
+  }
+
+  /*
+  #roll-privacy.vertical button#flash-rolls-icon {
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }*/
+
 }
+
+
 
 .flash-rolls-5e-dialog {
   min-height: 200px;

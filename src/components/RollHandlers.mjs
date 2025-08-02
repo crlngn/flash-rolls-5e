@@ -11,6 +11,7 @@ export const RollHandlers = {
       ability: requestData.rollKey
     });
     LogUtil.log('RollHandlers.ability #2', [config.rolls?.[0]]);
+    LogUtil.log('RollHandlers.ability - messageConfig', messageConfig);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -121,16 +122,24 @@ export const RollHandlers = {
     }
     
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
-    // Store situational bonus temporarily on actor for the hook to pick up
     const situational = requestData.config.situational || rollConfig.data.situational || '';
     if (situational && dialogConfig.configure && !game.user.isGM) {
       actor._initiativeSituationalBonus = situational;
     }
+    LogUtil.log('RollHandlers.initiative #1', [actor, requestData, rollConfig, dialogConfig, messageConfig]);
     
     if (dialogConfig.configure && !game.user.isGM) {
-      await actor.rollInitiativeDialog(config); // Player side with dialog
+      await actor.rollInitiativeDialog();//config); // Player side with dialog
     } else {
-      await actor.rollInitiative({createCombatants: true}, config); // GM can skip dialog
+      const combatant = game.combat.getCombatantsByActor(actor.id);
+      if (!combatant) {
+        LogUtil.log('RollHandlers.initiative - combatant not found', [actor, game.combat]);
+        return;
+      }
+        
+      await actor.rollInitiative({
+        createCombatants: true, rerollInitiative: true
+      }, config); // GM can skip dialog
     }
   },
   
