@@ -226,7 +226,9 @@ export const RollHelpers = {
           rolls: app.rolls,
           config: app.config,
           message: app.message,
-          sendRequest: app.sendRequest
+          sendRequest: app.sendRequest,
+          critical: app.config.critical,
+          isCritical: app.config.isCritical
         });
       }, { once: true });
       app.render({ force: true });

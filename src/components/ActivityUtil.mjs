@@ -186,15 +186,16 @@ export class ActivityUtil {
           // Extract the roll configuration from the usage config
           const damageConfig = {
             critical: config.usage.critical || {},
+            situational: config.usage.rolls[0].data.situational || "",
             rollMode: config.message?.rollMode,
             create: config.message?.create !== false
           };
           
           // Add situational bonus if present
-          if (config.usage.rolls?.[0]?.data?.situational) {
-            if (!damageConfig.data) damageConfig.data = {};
-            damageConfig.data.situational = config.usage.rolls[0].data.situational;
-          }
+          // if (config.usage.rolls?.[0]?.data?.situational) {
+          //   if (!damageConfig.rolls) damageConfig.rolls = [{data: {}}];
+          //   damageConfig.rolls[0].data.situational = config.usage.rolls[0].data.situational;
+          // }
 
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);

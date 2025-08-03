@@ -147,7 +147,7 @@ export class HooksUtil {
    * Used to add custom situational bonus from data, since the default DnD5e dialog does not seem to handle that
    */
   static _onRenderRollConfigDialog(app, html, data) {
-    LogUtil.log("_onRenderRollConfigDialog triggered", [ app, data ]);
+    LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
     if (app._flashRollsApplied) return;
     
     // Check if this is an initiative roll
@@ -155,7 +155,6 @@ export class HooksUtil {
                            app.element?.id?.includes('initiative');
     
     if (isInitiativeRoll) {
-      // Get the stored configuration from the actor flag
       const actor = app.config?.subject;
       if (!actor) return;
       
@@ -174,33 +173,32 @@ export class HooksUtil {
       }
       
       return;
+    }else{
+      const situationalInputs = html.querySelectorAll('input[name*="situational"]');
+      
+      situationalInputs.forEach((input, index) => { 
+        if (!input.value && app.config?.rolls?.[0]?.data?.situational) {
+          input.value = app.config.rolls[0].data.situational;
+        }
+        LogUtil.log("_onRenderRollConfigDialog #1", [input.value, app.config.rolls[0]]);
+        
+        if (input.value) {
+          app._flashRollsApplied = true;
+          
+          setTimeout(() => {
+            input.dispatchEvent(new Event('change', {
+              bubbles: true,
+              cancelable: false
+            }));
+
+            if (app.config?.rolls?.[0]?.data) {
+              delete app.config.rolls[0].data.situational;
+            }
+          }, 50);
+        }
+      });
     }
     
-    // Regular handling for other roll types
-    const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    
-    situationalInputs.forEach((input, index) => {  
-      // Check if we need to populate the value for concentration rolls
-      if (!input.value && app.config?.rolls?.[0]?.data?.situational && app.config?.isConcentration) {
-        input.value = app.config.rolls[0].data.situational;
-      }
-      
-      if (input.value) {
-        app._flashRollsApplied = true;
-        
-        setTimeout(() => {
-          input.dispatchEvent(new Event('change', {
-            bubbles: true,
-            cancelable: false
-          }));
-          
-          // Clear the situational value from the roll config data to prevent re-population
-          if (app.config?.rolls?.[0]?.data) {
-            delete app.config.rolls[0].data.situational;
-          }
-        }, 50);
-      }
-    });
   }
   
   /**
@@ -427,7 +425,7 @@ export class HooksUtil {
     
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
     if (stored) {
-      LogUtil.log("_onPreRollDamageV2 - Found stored request config from flag", [stored]);
+      LogUtil.log("_onPreRollDamageV2 - Found stored request config from flag", [stored, stored.situational]);
       
       if(stored.isRollRequest === false || stored.skipRollDialog === true || stored.sendRequest === false) {
         LogUtil.log("_onPreRollDamageV2 - Not a roll request, skipping", [stored]);
