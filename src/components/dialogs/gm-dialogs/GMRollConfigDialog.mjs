@@ -201,7 +201,7 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}) {
     // Validate and normalize actors
-    actors = RollHelpers.validateAndNormalizeActors(actors);
+    actors = RollHelpers.validateActors(actors);
     if (!actors) return null;
     
     const actor = actors[0];
@@ -236,7 +236,7 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
       }
     };
     // Execute the dialog
-    const result = await RollHelpers.executeRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
+    const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
     
     // Process the dialog result
     const rollProcessConfig = RollHelpers.processDialogResult(result, actors, rollType, rollKey, options);

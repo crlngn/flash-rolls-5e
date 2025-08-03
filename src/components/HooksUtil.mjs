@@ -93,8 +93,8 @@ export class HooksUtil {
     // this._registerHook(HOOKS_DND5E.PRE_CONFIGURE_INITIATIVE, this._onPreConfigureInitiative.bind(this));
     
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
     // this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
-    // this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
   }
 
   static _onSidebarUpdate(tab) {
@@ -418,6 +418,44 @@ export class HooksUtil {
       LogUtil.log("_onPreRollAttackV2 - Applied stored configuration to attack roll", [config, messageOptions]);
     }
   }
+
+  /**
+   * Handle pre-roll damage hook to restore GM-configured options
+   */
+  static _onPreRollDamageV2(config, dialogOptions, messageOptions) {
+    LogUtil.log("_onPreRollDamageV2 triggered", [config, dialogOptions, messageOptions]);
+    
+    const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+    if (stored) {
+      LogUtil.log("_onPreRollDamageV2 - Found stored request config from flag", [stored]);
+      
+      if(stored.isRollRequest === false || stored.skipRollDialog === true || stored.sendRequest === false) {
+        LogUtil.log("_onPreRollDamageV2 - Not a roll request, skipping", [stored]);
+        return;
+      }
+
+      // Merge damage options
+      if (stored.critical) config.critical = stored.critical;
+      messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
+      
+      // Set situational bonus
+      if (stored.situational) {
+        if (!config.rolls || config.rolls.length === 0) {
+          config.rolls = [{
+            parts: [],
+            data: {},
+            options: {}
+          }];
+        }
+        
+        if (!config.rolls[0].data) {
+          config.rolls[0].data = {};
+        }
+        config.rolls[0].data.situational = stored.situational;
+      }
+      LogUtil.log("_onPreRollDamageV2 - Applied stored configuration to damage roll", [config, messageOptions]);
+    }
+  }
   
   /**
    * Handle pre-use activity hook to prevent usage messages when GM intercepts rolls
@@ -430,6 +468,8 @@ export class HooksUtil {
 
     LogUtil.log("_onPreUseActivity - Settings", [requestsEnabled, rollInterceptionEnabled]);
     activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig'); 
+    activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig'); 
+    activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig'); 
     if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
     
     // Check if the actor has player ownership

@@ -49,7 +49,7 @@ export function GMRollConfigMixin(Base) {
       const dcFromForm = formData?.get("dc");
       
       const situational = formData?.get(`rolls.${index}.situational`);
-      LogUtil.log(`_buildConfig`, [situational, formData, config]);
+      LogUtil.log('_buildConfig', [situational, formData, config]);
       if (situational) {
         if (!config.parts) config.parts = [];
         config.parts.push("@situational");

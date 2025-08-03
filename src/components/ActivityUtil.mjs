@@ -143,7 +143,6 @@ export class ActivityUtil {
             advantage: config.usage.advantage,
             disadvantage: config.usage.disadvantage,
             rollMode: config.message?.rollMode
-            // isRollRequest: config.usage.isRollRequest
           };
           await activity.item.setFlag(MODULE_ID, 'tempAttackConfig', rollRequestConfig);
           
@@ -186,8 +185,7 @@ export class ActivityUtil {
           
           // Extract the roll configuration from the usage config
           const damageConfig = {
-            critical: config.usage.critical || false,
-            event: config.usage.event,
+            critical: config.usage.critical || {},
             rollMode: config.message?.rollMode,
             create: config.message?.create !== false
           };
@@ -197,13 +195,17 @@ export class ActivityUtil {
             if (!damageConfig.data) damageConfig.data = {};
             damageConfig.data.situational = config.usage.rolls[0].data.situational;
           }
-          
+
+          await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
-          
-          if(activity?.previousAttack || activity?.damageOnly) {
-            return await activity.rollDamage(damageConfig, config.dialog, config.message);
+          try {
+          // if(activity?.previousAttack || activity?.damageOnly) {
+            await activity.rollDamage(damageConfig, config.dialog, config.message);
+          // }
+          } finally {
+            await activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
           }
-          return await activity.rollDamage(damageConfig, config.dialog, config.message);
+          return;
         case ROLL_TYPES.ITEM_SAVE:
           // For save activities, use the item's use() method to show the save card
           return await item.use({ activity: activity.id }, { skipRollDialog: config.fastForward });

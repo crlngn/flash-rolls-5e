@@ -92,53 +92,142 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     }
   }
   
+  // /**
+  //  * Get static roll configuration from dialog results.
+  //  * @param {Actor[]} actors - The actors for this roll
+  //  * @param {string} rollType - The type of roll
+  //  * @param {string} rollKey - Optional key for the specific roll
+  //  * @param {Object} options - Dialog options
+  //  * @param {BasicRollProcessConfiguration} originalConfig - Original roll configuration
+  //  * @param {BasicRollDialogConfiguration} originalDialog - Original dialog configuration
+  //  * @returns {Promise<Object|null>} The dialog result or null if cancelled
+  //  */
+  // static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
+  //   // Validate and normalize actors
+  //   actors = RollHelpers.validateActors(actors);
+  //   if (!actors) return null;
+    
+  //   const actor = actors[0];
+  //   LogUtil.log('GMDamageConfigDialog, initConfiguration', []);
+    
+  //   const SETTINGS = getSettings();
+  //   const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
+    
+  //   const normalizedRollType = rollType?.toLowerCase();
+  //   const rollMode = RollHelpers.determineRollMode(isPublicRollsOn, result.message?.rollMode);
+    
+  //   // Build roll configuration
+  //   const rollConfig = {
+  //     subject: originalConfig.subject, // Preserve the activity/item reference
+  //     data: actor.getRollData(),
+  //     critical: originalConfig.critical || false,
+  //     rolls: originalConfig.rolls || [{
+  //       parts: [],
+  //       data: actor.getRollData(),
+  //       options: {}
+  //     }]
+  //   };
+    
+  //   const messageConfig = RollHelpers.createMessageConfig(actor, rollMode);
+  //   const { position, ...dialogOptions } = originalDialog?.options || {};
+    
+  //   // Dialog configuration
+  //   const dialogConfig = {
+  //     options: {
+  //       actors,
+  //       sendRequest: actors.some(a => RollHelpers.isPlayerOwned(a)),
+  //       rollKey,
+  //       rollType: CONFIG.Dice.DamageRoll || CONFIG.Dice.BasicRoll,
+  //       rollTypeString: normalizedRollType,
+  //       window: {
+  //         title: game.i18n.localize("DND5E.DamageRoll"),
+  //         subtitle: GMRollConfigDialog._getSubtitle(actors)
+  //       },
+  //       ...dialogOptions,
+  //       ...options
+  //     }
+  //   };
+    
+  //   // Execute the dialog
+  //   const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
+  //   if (!result?.rolls?.length) {
+  //     LogUtil.log('GMDamageConfigDialog, initConfiguration - cancelled');
+  //     return null;
+  //   }
+    
+  //   LogUtil.log('GMDamageConfigDialog, initConfiguration - result', [result]);
+    
+  //   // Build the roll process configuration to return
+  //   const rollProcessConfig = {
+  //     rolls: result.rolls,
+  //     sendRequest: result.sendRequest,
+  //     critical: result.config?.critical || false,
+  //     skipRollDialog: options.skipRollDialog || false,
+  //     chatMessage: true
+  //   };
+    
+  //   rollProcessConfig.rollMode = rollMode;
+    
+  //   rollProcessConfig.rollTitle = dialogConfig.options.window.title;
+  //   rollProcessConfig.rollType = normalizedRollType;
+  //   rollProcessConfig.rollKey = rollKey;
+    
+  //   LogUtil.log('GMDamageConfigDialog, initConfiguration - final result', [rollProcessConfig]);
+    
+  //   return rollProcessConfig;
+  // }
+
   /**
-   * Get static roll configuration from dialog results.
-   * @param {Actor[]} actors - The actors for this roll
-   * @param {string} rollType - The type of roll
-   * @param {string} rollKey - Optional key for the specific roll
-   * @param {Object} options - Dialog options
-   * @param {BasicRollProcessConfiguration} originalConfig - Original roll configuration
-   * @param {BasicRollDialogConfiguration} originalDialog - Original dialog configuration
-   * @returns {Promise<Object|null>} The dialog result or null if cancelled
+   * Static method to create and display the attack configuration dialog.
+   * SIMPLIFIED VERSION: Matches ability check pattern without attack-specific configs
+   * @param {Actor[]} actors - Array of actors to roll for
+   * @param {string} rollType - The roll type ("attack")
+   * @param {string} rollKey - The item ID for the attack
+   * @param {Object} options - Additional options
+   * @param {boolean} [options.sendRequest=true] - Default state for send request toggle
+   * @param {Object} originalConfig - The original roll configuration from the intercepted roll
+   * @param {Object} originalDialog - The original dialog configuration from the intercepted roll
+   * @returns {Promise<Object|null>} Configuration with rolls array and sendRequest flag, or null if cancelled
+   * @static
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
     // Validate and normalize actors
-    actors = RollHelpers.validateAndNormalizeActors(actors);
+    actors = RollHelpers.validateActors(actors);
+    LogUtil.log('GMDamageConfigDialog, initConfiguration actors', [actors]);
     if (!actors) return null;
     
     const actor = actors[0];
-    LogUtil.log('GMDamageConfigDialog, initConfiguration', []);
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #0', [originalConfig]);
     
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
+    const rollMode = RollHelpers.determineRollMode(isPublicRollsOn, originalConfig.rollMode);
     
     const normalizedRollType = rollType?.toLowerCase();
-    const rollMode = RollHelpers.determineRollMode(isPublicRollsOn, result.message?.rollMode);
     
-    // Build roll configuration
     const rollConfig = {
-      subject: originalConfig.subject, // Preserve the activity/item reference
+      subject: originalConfig.subject || actor, 
       data: actor.getRollData(),
-      critical: originalConfig.critical || false,
+      critical: originalConfig.critical || {},
       rolls: originalConfig.rolls || [{
         parts: [],
         data: actor.getRollData(),
         options: {}
       }]
     };
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #1', [rollConfig]);
     
     const messageConfig = RollHelpers.createMessageConfig(actor, rollMode);
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #2', [messageConfig]);
     
-    const { position, ...dialogOptions } = originalDialog?.options || {};
+    const { position, ...dialogOptions } = originalDialog?.options || {}; 
     
-    // Dialog configuration
     const dialogConfig = {
       options: {
         actors,
         sendRequest: actors.some(a => RollHelpers.isPlayerOwned(a)),
         rollKey,
-        rollType: CONFIG.Dice.DamageRoll || CONFIG.Dice.BasicRoll,
+        rollType: CONFIG.Dice.DamageRoll,
         rollTypeString: normalizedRollType,
         window: {
           title: game.i18n.localize("DND5E.DamageRoll"),
@@ -148,32 +237,49 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
         ...options
       }
     };
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #3', [dialogConfig]);
     
     // Execute the dialog
-    const result = await RollHelpers.executeRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
-    if (!result?.rolls?.length) {
-      LogUtil.log('GMDamageConfigDialog, initConfiguration - cancelled');
-      return null;
-    }
+    const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #4', [result]); 
     
-    LogUtil.log('GMDamageConfigDialog, initConfiguration - result', [result]);
+    if (!result?.rolls || result.rolls.length === 0) return null;
+    LogUtil.log('GMDamageConfigDialog, initConfiguration #5', [result]); 
     
-    // Build the roll process configuration to return
+    const firstRoll = result.rolls[0];
+    
+    const situational = firstRoll?.data?.situational || "";
+    const target = firstRoll?.options?.target;
+    
     const rollProcessConfig = {
-      rolls: result.rolls,
+      rolls: [{
+        parts: [],
+        data: situational ? { situational } : {},
+        options: {
+          ...(target && { target }),
+          isCritical: critical
+        }
+      }],
+      subject: originalConfig.subject || actor, // Preserve the original activity
+      critical: rollConfig.critical || {},
+      target,
+      // Custom flags for the module
       sendRequest: result.sendRequest,
-      critical: result.config?.critical || false,
+      isRollRequest: result.sendRequest,
       skipRollDialog: options.skipRollDialog || false,
       chatMessage: true
     };
     
-    rollProcessConfig.rollMode = rollMode;
+    // Add roll mode - use the one from dialog result to respect user changes
+    const finalRollMode = RollHelpers.determineRollMode(isPublicRollsOn, result.message?.rollMode);
+    rollProcessConfig.rollMode = finalRollMode;
     
+    // Store additional metadata that handlers might need
     rollProcessConfig.rollTitle = dialogConfig.options.window.title;
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;
     
-    LogUtil.log('GMDamageConfigDialog, initConfiguration - final result', [rollProcessConfig]);
+    LogUtil.log('GMDamageConfigDialog, initConfiguration - result', [rollProcessConfig]);
     
     return rollProcessConfig;
   }

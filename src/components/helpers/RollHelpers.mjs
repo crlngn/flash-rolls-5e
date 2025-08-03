@@ -100,7 +100,7 @@ export const RollHelpers = {
    * @param {Actor[]|string[]} actors - Array of Actor documents or actor IDs
    * @returns {Actor[]|null} Array of valid actors or null if no valid actors
    */
-  validateAndNormalizeActors(actors) {
+  validateActors(actors) {
     if (!actors || actors.length === 0) return null;
     
     // Convert actor IDs to Actor documents if needed
@@ -217,7 +217,7 @@ export const RollHelpers = {
    * @param {Object} dialogOptions - Dialog options
    * @returns {Promise<Object|null>} Dialog result or null if cancelled
    */
-  async executeRollDialog(DialogClass, rollConfig, messageConfig, dialogOptions) {
+  async triggerRollDialog(DialogClass, rollConfig, messageConfig, dialogOptions) {
     const app = new DialogClass(rollConfig, messageConfig, dialogOptions);
     
     const result = await new Promise(resolve => {

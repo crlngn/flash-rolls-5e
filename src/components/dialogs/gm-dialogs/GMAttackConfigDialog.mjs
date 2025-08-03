@@ -150,7 +150,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
     // Validate and normalize actors
-    actors = RollHelpers.validateAndNormalizeActors(actors);
+    actors = RollHelpers.validateActors(actors);
     if (!actors) return null;
     
     const actor = actors[0];
@@ -190,15 +190,13 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
           title: game.i18n.localize("DND5E.Attack"),
           subtitle: GMRollConfigDialog._getSubtitle(actors)
         },
-        // Merge original dialog options to preserve ammunitionOptions, attackModeOptions, masteryOptions
-        // but excluding position to prevent NaN values
         ...dialogOptions,
         ...options
       }
     };
     
     // Execute the dialog
-    const result = await RollHelpers.executeRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
+    const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
     LogUtil.log('GMAttackConfigDialog, initConfiguration', [result?.sendRequest]);
     
     // If no rolls or user cancelled

@@ -175,15 +175,15 @@ export class RollInterceptor {
         rollMode: CONST.DICE_ROLL_MODES.PUBLIC
       };
     }
-    LogUtil.log('_handlePreRoll - intercepting roll #2', [config, message]);
-    this._showGMConfigDialog(actor, owner, rollType, config, dialog, message);
+
+    LogUtil.log('_handlePreRoll - intercepting roll #2', [config, message]); 
+    this._showGMConfigDialog(actor, owner, rollType, config, dialog, message); 
     
     return false;
   }
 
   static _handleRollInitiative(a,b,c,d,e) {
     LogUtil.log('_handleRollInitiative', [a,b,c,d,e]);
-    // Don't return anything - let the roll proceed normally
     return;
   }
   
@@ -225,11 +225,12 @@ export class RollInterceptor {
       } else if (normalizedRollType === ROLL_TYPES.ATTACK) {
         DialogClass = GMAttackConfigDialog;
       } else if (normalizedRollType === ROLL_TYPES.DAMAGE) {
-        if (dnd5e.applications?.dice?.DamageRollConfigurationDialog) {
-          DialogClass = GMDamageConfigDialog;
-        } else {
-          DialogClass = GMRollConfigDialog;
-        }
+        DialogClass = GMDamageConfigDialog;
+        // if (dnd5e.applications?.dice?.DamageRollConfigurationDialog) {
+        //   DialogClass = GMDamageConfigDialog;
+        // } else {
+        //   DialogClass = GMRollConfigDialog;
+        // }
       } else {
         DialogClass = GMRollConfigDialog;
       }
@@ -253,6 +254,8 @@ export class RollInterceptor {
         sendRequest: true,
         skipRollDialog: skipRollDialog
       };
+
+      LogUtil.log('_showGMConfigDialog #3', [rollConfig, options]);
       
       let result;
       if (!skipRollDialog) {
@@ -300,12 +303,14 @@ export class RollInterceptor {
           case ROLL_TYPES.DAMAGE:
             rollConfig.item = config.subject?.item;
             rollConfig.subject = config.subject;
-            rollConfig.critical = config.critical || false;
+            rollConfig.critical = config.critical || {};
             rollKey = config.subject?.item?.id;
             break;
           default:
             break;
         }
+        LogUtil.log('_showGMConfigDialog #4', [rollConfig, rollRequestsEnabled]);
+
         // Use the static initConfiguration method which properly waits for dialog result
         if (!DialogClass.initConfiguration) {
           LogUtil.error('DialogClass.initConfiguration not found', [DialogClass, DialogClass.name]);
@@ -323,6 +328,7 @@ export class RollInterceptor {
             sendRequest: rollRequestsEnabled
           });
         }
+        LogUtil.log('_showGMConfigDialog #4', [rollConfig]);
       } else {
         // Skip dialog and use default config
         result = {
@@ -331,10 +337,9 @@ export class RollInterceptor {
           disadvantage: false,
           situational: "",
           rollMode: game.settings.get("core", "rollMode")
-        };
+        }
       }
       
-      // If dialog was cancelled, do nothing (user cancelled the action)
       if (!result) {
         LogUtil.log('_showGMConfigDialog - Dialog cancelled');
         return;
@@ -370,6 +375,7 @@ export class RollInterceptor {
       this._sendRollRequest(actor, owner, rollType, finalConfig);
       
     } catch (error) {
+      LogUtil.error('RollInterceptor._showGMConfigDialog - Error', [error]);
       // Fallback: send request without configuration
       this._sendRollRequest(actor, owner, rollType, config);
     }
@@ -493,7 +499,7 @@ export class RollInterceptor {
     try {
       const rollWrapper = async (finalConfig) => {
         this._sendRollRequest(actor, owner, rollType, finalConfig);
-        return new Roll("1d20").evaluate({async: false});
+        return new Roll("1d20").evaluate({async: false}); // Return a dummy roll
       };
       
       // Replace the roll method in config with our wrapper
@@ -507,6 +513,7 @@ export class RollInterceptor {
       const rollDialog = new DialogClass(modifiedConfig, dialog.options);
       const result = await rollDialog.render(true);
     } catch (error) {
+      LogUtil.error("RollInterceptor._showConfigurationDialog - error", [error]);
       this._sendRollRequest(actor, owner, rollType, config);
     }
   }
@@ -519,6 +526,8 @@ export class RollInterceptor {
    * @param {BasicRollProcessConfiguration} config - The roll process configuration
    */
   static _sendRollRequest(actor, owner, rollType, config) {
+    console.trace('_sendRollRequest', [actor, owner, rollType, config]);
+
     LogUtil.log('_sendRollRequest', [actor, owner, rollType, config]);
     LogUtil.log('_sendRollRequest - config.rolls check', [
       'config.rolls:', config.rolls,
