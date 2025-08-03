@@ -33,10 +33,28 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: true
     },
-    skipDialogs: {
-      tag: "skip-dialogs",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.skipDialogs.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.skipDialogs.hint"),
+
+    consumptionConfigMode: {
+      tag: "consumption-config-mode",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.hint"),
+      propType: Number,
+      inputType: SETTING_INPUT.select,
+      choices: {
+        1: "Skip dialog for player and GM",
+        2: "Skip dialog for player",
+        3: "Skip dialog for GM",
+        4: "Do not skip dialog"
+      },
+      default: 1,
+      scope: SETTING_SCOPE.world,
+      config: true
+    },
+
+    skipRollDialog: {
+      tag: "skip-roll-dialog",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.skipRollDialog.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.skipRollDialog.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,
@@ -73,6 +91,7 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: true
     },
+
     showOfflineNotifications: {
       tag: "show-offline-notifications",
       label: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.label"),

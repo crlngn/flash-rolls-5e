@@ -14,7 +14,7 @@ import { SettingsUtil } from "./SettingsUtil.mjs";
  * @property {string} rollKey - Specific roll key (e.g., "str", "acr", "perception")
  * @property {string|null} activityId - Activity ID for item-based rolls
  * @property {BasicRollProcessConfiguration} rollProcessConfig - D&D5e roll process configuration
- * @property {boolean} skipDialog - Whether to skip the roll configuration dialog
+ * @property {boolean} skipRollDialog - Whether to skip the roll configuration dialog
  * @property {string[]} targetTokenIds - Array of targeted token IDs
  * @property {boolean} preserveTargets - Whether to apply GM's targets to the player
  */
@@ -74,7 +74,7 @@ export class RollRequestUtil {
         options: {}
       };
       
-      const shouldSkipDialog = game.user.isGM ? requestData.skipDialog : false;
+      const shouldSkipDialog = game.user.isGM ? requestData.skipRollDialog : false;
       const dialogConfig = {
         configure: !shouldSkipDialog
       };

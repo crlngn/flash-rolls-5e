@@ -98,7 +98,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Get current settings
     const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
+    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
     // Check if all actors in current tab are selected
     const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
@@ -128,7 +128,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       isNPCTab: this.currentTab === 'npc',
       selectedTab: this.currentTab,
       rollRequestsEnabled,
-      skipDialogs,
+      skipRollDialog,
       selectAllOn,
       hasSelectedActors: this.selectedActors.size > 0,
       requestTypes,
@@ -345,7 +345,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('_onToggleSkipDialogs');
     const SETTINGS = getSettings();
     const skip = event.target.checked;
-    await SettingsUtil.set(SETTINGS.skipDialogs.tag, skip);
+    await SettingsUtil.set(SETTINGS.skipRollDialog.tag, skip);
   }
 
   /**
@@ -597,16 +597,16 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {Actor[]} actors - Actors being rolled for
    * @param {string} rollMethodName - The roll method name
    * @param {string} rollKey - The roll key
-   * @param {boolean} skipDialogs - Whether to skip dialogs
+   * @param {boolean} skipRollDialog - Whether to skip dialogs
    * @param {Array} pcActors - PC actors with owners
    * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration or null if cancelled
    */
-  async _getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors) {
+  async _getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors) {
     const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     
     // Show GM configuration dialog (unless skip dialogs is enabled or it's a custom roll)
-    if (!skipDialogs && rollMethodName !== ROLL_TYPES.CUSTOM) {
+    if (!skipRollDialog && rollMethodName !== ROLL_TYPES.CUSTOM) {
       // Use appropriate dialog based on roll type
       let DialogClass;
       if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName)) {
@@ -617,7 +617,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         DialogClass = GMRollConfigDialog;
       }
       const config = await DialogClass.initConfiguration(actors, rollMethodName, rollKey, { 
-        skipDialogs,
+        skipRollDialog,
         sendRequest: rollRequestsEnabled || false 
       });
       LogUtil.log('_getRollConfiguration', [config]);
@@ -636,7 +636,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         rollMode: game.settings.get("core", "rollMode"),
         chatMessage: true,
         isRollRequest: false,
-        skipDialog: true,
+        skipRollDialog: true,
         sendRequest: rollRequestsEnabled && pcActors.length > 0
       };
       
@@ -701,7 +701,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // GM Rolls: Actors owned by offline players or NPC actors
     const gmRolledActors = [...offlinePlayerActors, ...npcActors];
     if (gmRolledActors.length > 0) {
-      config.skipDialog = true;
+      config.skipRollDialog = true;
       await this._handleGMRolls(gmRolledActors, rollMethodName, rollKey, config);
     }
   }
@@ -715,7 +715,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('_triggerRoll', [requestType, rollKey]);
     const SETTINGS = getSettings();
     const selectedActorIds = Array.from(this.selectedActors);
-    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
+    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
     // Validate and filter actors
     const validActorIds = this._getValidActorIds(selectedActorIds);
@@ -776,7 +776,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     const { pcActors, npcActors } = categorizeActorsByOwnership(actors);
-    const config = await this._getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors);
+    const config = await this._getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors);
     
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
@@ -877,7 +877,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         ...config,
         _requestedBy: game.user.name  // Add who requested the roll
       },
-      skipDialog: false, // Never skip to player when it's a request
+      skipRollDialog: false, // Never skip to player when it's a request
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
@@ -1064,7 +1064,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       
       // Dialog configuration
       const dialogConfig = {
-        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipDialog,
+        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipRollDialog,
         isRollRequest: true  // Mark this as a roll request to prevent re-interception
       };
       

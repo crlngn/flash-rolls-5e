@@ -387,7 +387,7 @@ export class HooksUtil {
     if (stored) {
       LogUtil.log("_onPreRollAttackV2 - Found stored request config from flag", [stored]);
       
-      if(stored.isRollRequest === false || stored.skipDialog === true || stored.sendRequest === false) {
+      if(stored.isRollRequest === false || stored.skipRollDialog === true || stored.sendRequest === false) {
         LogUtil.log("_onPreRollAttackV2 - Not a roll request, skipping", [stored]);
         return;
       }
@@ -396,8 +396,9 @@ export class HooksUtil {
       if (stored.attackMode) config.attackMode = stored.attackMode;
       if (stored.ammunition) config.ammunition = stored.ammunition;
       if (stored.mastery !== undefined) config.mastery = stored.mastery;
-      if (stored.advantage) config.advantage = true;
-      if (stored.disadvantage) config.disadvantage = true;
+      config.advantage = stored.advantage || false;
+      config.disadvantage = stored.disadvantage || false;
+      messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
       
       // Set situational bonus
       if (stored.situational) {
@@ -414,7 +415,7 @@ export class HooksUtil {
         }
         config.rolls[0].data.situational = stored.situational;
       }
-      LogUtil.log("_onPreRollAttackV2 - Applied stored configuration to attack roll", [config]);
+      LogUtil.log("_onPreRollAttackV2 - Applied stored configuration to attack roll", [config, messageOptions]);
     }
   }
   

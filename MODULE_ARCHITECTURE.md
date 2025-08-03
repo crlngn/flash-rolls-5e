@@ -519,7 +519,7 @@ Extends AttackRollConfigurationDialog with GMRollConfigMixin
 - **`registerSettings()`**: Registers all module settings
   - rollRequestsEnabled: Master toggle
   - rollInterceptionEnabled: Auto-intercept rolls
-  - skipDialogs: Skip roll dialogs on player side
+  - skipRollDialog: Skip roll dialogs on player side
   - useGMTargetTokens: Apply GM's targets to player rolls
   - debugMode: Enable debug logging
 
@@ -627,7 +627,7 @@ Extends AttackRollConfigurationDialog with GMRollConfigMixin
 2. Delegates to RollRequestUtil.handleRequest
 3. Validates actor ownership
 4. Applies GM configuration
-5. Shows roll dialog (unless skipDialog=true)
+5. Shows roll dialog (unless skipRollDialog=true)
 6. Executes roll using RollHandlers
 7. Posts to chat with requester info
 
@@ -684,7 +684,7 @@ Extends AttackRollConfigurationDialog with GMRollConfigMixin
     ability: "str|dex|etc", // For skills/tools
     requestedBy: "GM Name"
   },
-  skipDialog: boolean,
+  skipRollDialog: boolean,
   targetTokenIds: ["token-ids"],
   preserveTargets: boolean
 }
@@ -722,7 +722,7 @@ Process-level configuration passed to D&D5e actor roll methods:
   // Custom module flags:
   isRollRequest?: boolean,          // Prevents re-interception
   sendRequest?: boolean,            // Send to player vs roll locally
-  skipDialog?: boolean,             // Skip configuration dialog
+  skipRollDialog?: boolean,             // Skip configuration dialog
   _showRequestedBy?: boolean,       // Show requester in chat
   _requestedBy?: string             // Requester name
 }

@@ -162,7 +162,7 @@ export class RollInterceptor {
     LogUtil.log('_handlePreRoll', [config, message]);
     const owner = GeneralUtil.getActorOwner(actor);   
     if (!owner || !owner.active || owner.id === game.user.id || // player owner inexistent or not active
-        dialog.configure===false || config.isRollRequest===false || config.skipDialog===true || config.fastForward===true) { // config skips the dialog
+        dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) { // config skips the dialog
       return;
     }
     
@@ -244,18 +244,18 @@ export class RollInterceptor {
       
       // Check if we should skip dialogs
       const SETTINGS = getSettings();
-      const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
+      const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
       
       const options = {
         actors: [actor],
         rollType: normalizedRollType,
         showDC: true,
         sendRequest: true,
-        skipDialogs: skipDialogs
+        skipRollDialog: skipRollDialog
       };
       
       let result;
-      if (!skipDialogs) {
+      if (!skipRollDialog) {
         // Extract roll key based on roll type
         let rollKey = null;
         switch (normalizedRollType) {
@@ -314,12 +314,12 @@ export class RollInterceptor {
         
         if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE) {
           result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
-            skipDialogs: false,
+            skipRollDialog: false,
             sendRequest: rollRequestsEnabled
           }, config, dialog);
         } else {
           result = await DialogClass.initConfiguration([actor], normalizedRollType, rollKey, {
-            skipDialogs: false,
+            skipRollDialog: false,
             sendRequest: rollRequestsEnabled
           });
         }
@@ -527,7 +527,7 @@ export class RollInterceptor {
       'config.rolls[0].data.situational:', config.rolls?.[0]?.data?.situational
     ]);
     const SETTINGS = getSettings();
-    const skipDialogs = SettingsUtil.get(SETTINGS.skipDialogs.tag);
+    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
     // Normalize rollType to lowercase for consistent comparisons
     let normalizedRollType = rollType?.toLowerCase();
@@ -590,7 +590,7 @@ export class RollInterceptor {
         ...config,
         _requestedBy: game.user.name  // Add who requested the roll
       },
-      skipDialog: skipDialogs,
+      skipRollDialog: skipRollDialog,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };

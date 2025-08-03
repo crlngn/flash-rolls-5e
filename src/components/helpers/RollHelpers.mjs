@@ -277,7 +277,7 @@ export const RollHelpers = {
       target,
       sendRequest: result.sendRequest,
       isRollRequest: result.sendRequest,
-      skipDialog: options.skipDialogs || false,
+      skipRollDialog: options.skipRollDialog || false,
       chatMessage: true
     };
     

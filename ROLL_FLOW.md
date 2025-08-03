@@ -40,7 +40,7 @@ There are two main paths:
 ### 4. Getting Roll Configuration
 
 **Class: `RollRequestsMenu`**
-- `_getRollConfiguration(actors, rollMethodName, rollKey, skipDialogs, pcActors)`
+- `_getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors)`
   - Determines dialog class (GMRollConfigDialog, GMSkillToolConfigDialog, or GMHitDieConfigDialog)
   - Calls → `DialogClass.initConfiguration()`
 
@@ -187,7 +187,7 @@ From here, follows the same path as menu-initiated rolls (step 5A or 5B above)
     target: 15,
     requestedBy: "GM Name"
   },
-  skipDialog: false
+  skipRollDialog: false
 }
 ```
 

@@ -163,7 +163,7 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       rolls: result.rolls,
       sendRequest: result.sendRequest,
       critical: result.config?.critical || false,
-      skipDialog: options.skipDialogs || false,
+      skipRollDialog: options.skipRollDialog || false,
       chatMessage: true
     };
     
