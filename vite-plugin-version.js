@@ -44,7 +44,7 @@ export default function vitePluginVersion() {
         writeFileSync(moduleJsonPath, JSON.stringify(moduleJson, null, 2));
         console.log(`Updated module.json version to ${version}`);
       } catch (error) {
-        console.error('Error updating version:', error);
+        console.error('Error updating version:', [error]);
       }
     }
   };

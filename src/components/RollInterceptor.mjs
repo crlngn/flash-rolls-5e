@@ -42,8 +42,8 @@ export class RollInterceptor {
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._handlePreRoll.bind(this, ROLL_TYPES.HIT_DIE));
 
     this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG, this._handlePreRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
     this._registerHook(HOOKS_DND5E.ROLL_INITIATIVE, this._handleRollInitiative.bind(this, ROLL_TYPES.INITIATIVE));
-    // this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._handlePreRoll.bind(this, ROLL_TYPES.INITIATIVE));
   }
   
   /**
@@ -84,6 +84,7 @@ export class RollInterceptor {
     //   return;
     // }
 
+    // Don't return anything - let the roll proceed normally
     return;
     // return RollHandlers.initiative(actor, roll);
   }
@@ -182,6 +183,7 @@ export class RollInterceptor {
 
   static _handleRollInitiative(a,b,c,d,e) {
     LogUtil.log('_handleRollInitiative', [a,b,c,d,e]);
+    // Don't return anything - let the roll proceed normally
     return;
   }
   

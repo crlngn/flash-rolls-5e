@@ -86,12 +86,17 @@ export async function filterActorsForInitiative(actorIds, game) {
       
       return filteredIds;
     } else { // User chose to re-roll
-      for (const actorId of actorIdsWithInitiative) {
-        const combatants = game.combat.getCombatantsByActor(actorId);
-        LogUtil.log('filterActorsForInitiative - combatants', [combatants]);
-        combatants.forEach(c => {
-          c.update({ initiative: null });
-        });
+      // Only GM can reset initiative
+      if (game.user.isGM) {
+        for (const actorId of actorIdsWithInitiative) {
+          const combatants = game.combat.getCombatantsByActor(actorId);
+          LogUtil.log('filterActorsForInitiative - resetting initiative for combatants', [combatants]);
+          for (const c of combatants) {
+            await c.update({ initiative: null });
+          }
+        }
+      } else {
+        LogUtil.log('filterActorsForInitiative - Player cannot reset initiative, will let system handle re-roll');
       }
       
       return actorIds;

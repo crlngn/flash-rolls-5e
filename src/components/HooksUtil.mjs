@@ -36,8 +36,7 @@ export class HooksUtil {
     SettingsUtil.registerSettings();
     DiceConfigUtil.initialize();
     
-    // Register sidebar control hook
-    this._registerHook(HOOKS_CORE.RENDER_SIDEBAR, this._onRenderSidebar.bind(this));
+    this._registerHooks();
   }
   
   /**
@@ -49,11 +48,11 @@ export class HooksUtil {
     if (isDebugOn) {
       CONFIG.debug.hooks = true;
     }
-    RollInterceptor.initialize();
     
-    this._registerDnd5eHooks();
+    
 
     if (game.user.isGM) {
+      RollInterceptor.initialize();
       this._registerGMHooks();
     }else{
       DiceConfigUtil.getDiceConfig();
@@ -65,8 +64,8 @@ export class HooksUtil {
   /**
    * Register D&D5e specific hooks
    */
-  static _registerDnd5eHooks() {
-    this._registerHook(HOOKS_DND5E.POST_ROLL_CONFIG, this._onPostRollConfig.bind(this));
+  static _registerHooks() {
+    this._registerHook(HOOKS_CORE.RENDER_SIDEBAR, this._onRenderSidebar.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessage.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
     this._registerHook(HOOKS_CORE.CHANGE_SIDEBAR_TAB, this._onSidebarUpdate.bind(this));
@@ -75,6 +74,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
+    this._registerHook(HOOKS_DND5E.POST_ROLL_CONFIG, this._onPostRollConfig.bind(this));
   }
   
   /**
@@ -83,14 +83,14 @@ export class HooksUtil {
   static _registerGMHooks() {
     this._registerHook(HOOKS_CORE.USER_CONNECTED, this._onUserConnected.bind(this));
     
-    // Request dice config from all active users
     game.users.forEach(user => {
       this._onUserConnected(user);
     });
   }
 
   static _registerPlayerHooks() {
-    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG_V2, this._onPreRollInitiativeDialogV2.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_INITIATIVE_DIALOG, this._onPreRollInitiativeDialog.bind(this));
+    // this._registerHook(HOOKS_DND5E.PRE_CONFIGURE_INITIATIVE, this._onPreConfigureInitiative.bind(this));
     
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
     // this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
@@ -117,17 +117,6 @@ export class HooksUtil {
    * Handle data before creating chat message for requested rolls
    */
   static _onPreCreateChatMessage(chatMessage, data, options, userId) {
-    // Log all roll messages to debug initiative
-    if (data.rolls?.length > 0 || data.flavor?.includes('Initiative')) {
-      LogUtil.log('_onPreCreateChatMessage - Roll message', [
-        'flavor:', data.flavor,
-        'rolls:', data.rolls,
-        'speaker:', data.speaker,
-        'type:', data.type,
-        'flags:', data.flags
-      ]);
-    }
-    
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
       const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
@@ -141,16 +130,14 @@ export class HooksUtil {
    * Handle flavor data before creating chat message
    */
   static _onPreCreateChatMessageFlavor(message, data, options, userId) {
-    // Check if this is a roll message with our custom flavor
     if (data.rolls?.length > 0 && data.rolls[0]) {
       try {
-        // The roll data includes the options directly
         const rollData = data.rolls[0];
         if (rollData.options?._customFlavor) {
           data.flavor = rollData.options._customFlavor;
         }
       } catch (error) {
-        // Silently ignore errors
+        LogUtil.error("_onPreCreateChatMessageFlavor", [error]);
       }
     }
   }
@@ -161,32 +148,45 @@ export class HooksUtil {
    */
   static _onRenderRollConfigDialog(app, html, data) {
     LogUtil.log("_onRenderRollConfigDialog triggered", [ app, data ]);
+    if (app._flashRollsApplied) return;
     
-    // // Check if this is a hit die dialog first
-    // const title = html.querySelector('.window-title')?.textContent;
-    // if (title && title.includes('Hit Die')) {
-    //   this._onRenderHitDieDialog(app, html, data);
-    //   return;
-    // }
+    // Check if this is an initiative roll
+    const isInitiativeRoll = app.config?.hookNames?.includes('initiativeDialog') || 
+                           app.element?.id?.includes('initiative');
     
-    // Do not continue if we've already triggered
-    if (app._situationalTriggered) return;
-    
-    // Does the dialog have a situational input field?
-    const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    
-    let hasTriggered = false;
-    situationalInputs.forEach((input, index) => {      
-      // check if we need to populate the value
-      if (!input.value && (app.config?.rolls?.[0]?.data?.situational) && app.config?.isConcentration) {
-        input.value = app.config.rolls[0].data.situational;
-        hasTriggered = true;
+    if (isInitiativeRoll) {
+      // Get the stored configuration from the actor flag
+      const actor = app.config?.subject;
+      if (!actor) return;
+      
+      const storedConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');      
+      if (storedConfig) {
+        app._flashRollsApplied = true;
+
+        // Trigger change event after a short delay
+        const situationalInput = html.querySelector('input[name*="situational"]');
+        setTimeout(() => {
+          situationalInput.dispatchEvent(new Event('change', {
+            bubbles: true,
+            cancelable: false
+          }));
+        }, 50);
       }
       
-      if (input.value && !hasTriggered) {
-        // Apply flag to prevent re-render loop
-        app._situationalTriggered = true;
-        hasTriggered = true;
+      return;
+    }
+    
+    // Regular handling for other roll types
+    const situationalInputs = html.querySelectorAll('input[name*="situational"]');
+    
+    situationalInputs.forEach((input, index) => {  
+      // Check if we need to populate the value for concentration rolls
+      if (!input.value && app.config?.rolls?.[0]?.data?.situational && app.config?.isConcentration) {
+        input.value = app.config.rolls[0].data.situational;
+      }
+      
+      if (input.value) {
+        app._flashRollsApplied = true;
         
         setTimeout(() => {
           input.dispatchEvent(new Event('change', {
@@ -226,35 +226,6 @@ export class HooksUtil {
     LogUtil.log("_onRenderSidebar", [app, html, options]);
     SidebarUtil.addSidebarControls(app, html, options);
   }
-  
-  // /**
-  //  * Handle pre-configure initiative hook to add situational bonus
-  //  */
-  // static _onPreConfigureInitiative(actor, config) {
-  //   // Check if there's a stored situational bonus for this actor
-  //   if (actor._initiativeSituationalBonus) {
-  //     LogUtil.log("Adding situational bonus to initiative:", [
-  //       "actor:", actor.name,
-  //       "situational:", actor._initiativeSituationalBonus,
-  //       "config before:", config
-  //     ]);
-      
-  //     // Initialize rolls array if needed
-  //     if (!config.rolls || config.rolls.length === 0) {
-  //       config.rolls = [{
-  //         parts: [],
-  //         data: {},
-  //         options: {}
-  //       }];
-  //     }
-      
-  //     // Add situational bonus to the roll data
-  //     // config.situational = actor._initiativeSituationalBonus;
-  //     config.rolls[0].data.situational = actor._initiativeSituationalBonus;
-      
-  //     LogUtil.log("Flash Rolls 5e | Initiative config after adding situational:", [config]);
-  //   }
-  // }
   
   /**
    * Register a hook and track it
@@ -349,33 +320,61 @@ export class HooksUtil {
   /**
    * Handle pre-roll initiative dialog hook to add situational bonus
    */
-  static _onPreRollInitiativeDialogV2(config, dialogOptions, messageOptions) {
-    LogUtil.log("_onPreRollInitiativeDialogV2 triggered", [config, dialogOptions, messageOptions]);
+  static _onPreRollInitiativeDialog(config, dialogOptions, messageOptions) {
     
     // Check if actor has stored situational bonus
     const actor = config.subject;
-    if (actor && actor._initiativeSituationalBonus) {
-      if (!config.rolls || config.rolls.length === 0) {
-        const initiativeConfig = actor.getInitiativeRollConfig({});
-        config.rolls = initiativeConfig.rolls || [];
-      }
+    const storedConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');
+
+
+    LogUtil.log("_onPreRollInitiativeDialog triggered", [config, storedConfig, dialogOptions, messageOptions]);
+    // Apply advantage/disadvantage to the app config
+    config.advantage = storedConfig?.advantage || config.advantage || false;
+    config.disadvantage = storedConfig?.disadvantage || config.disadvantage || false;
+    
+    config.rollMode = storedConfig?.rollMode || config.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
+    messageOptions.rollMode = storedConfig?.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
       
-      // Add situational bonus
-      if (config.rolls.length > 0) {
-        if (!config.rolls[0].data) {
-          config.rolls[0].data = {};
-        }
-        config.rolls[0].data.situational = actor._initiativeSituationalBonus;
-        
-        LogUtil.log("Added situational bonus to initiative dialog", [{
-          bonus: actor._initiativeSituationalBonus,
-          rolls: config.rolls
-        }]);
-        
-        // Clean up the temporary storage
-        delete actor._initiativeSituationalBonus;
-      }
+    // const rollModeSelect = html.querySelector('select[name="rollMode"]');
+    // if (rollModeSelect) {
+    //   rollModeSelect.value = storedConfig.rollMode;
+    // }
+    if (storedConfig.rolls?.[0]?.data?.situational && config.rolls?.[0]?.data) {
+      config.rolls[0].data.situational = storedConfig.rolls[0].data.situational;
     }
+    
+    // Apply the situational bonus from stored rolls
+    // if (storedConfig.rolls?.[0]?.data?.situational) {
+    //   const situationalInputs = html.querySelectorAll('input[name*="situational"]');
+    //   situationalInputs.forEach(input => {
+    //     if (!input.value) {
+    //       input.value = storedConfig.rolls[0].data.situational;
+    //     }
+    //   });
+    // }
+    
+    // if (actor && actor._initiativeSituationalBonus) {
+    //   if (!config.rolls || config.rolls.length === 0) {
+    //     const initiativeConfig = actor.getInitiativeRollConfig({});
+    //     config.rolls = initiativeConfig.rolls || [];
+    //   }
+      
+    //   // Add situational bonus
+    //   if (config.rolls.length > 0) {
+    //     if (!config.rolls[0].data) {
+    //       config.rolls[0].data = {};
+    //     }
+    //     config.rolls[0].data.situational = actor._initiativeSituationalBonus;
+        
+    //     LogUtil.log("Added situational bonus to initiative dialog", [{
+    //       bonus: actor._initiativeSituationalBonus,
+    //       rolls: config.rolls
+    //     }]);
+        
+    //     // Clean up the temporary storage
+    //     delete actor._initiativeSituationalBonus;
+    //   }
+    // }
   }
   
   /**
@@ -429,12 +428,14 @@ export class HooksUtil {
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
 
     LogUtil.log("_onPreUseActivity - Settings", [requestsEnabled, rollInterceptionEnabled]);
-    if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
     activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig'); 
+    if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
     
     // Check if the actor has player ownership
     const actor = activity.actor;
     if (!actor) return;
+
+    dialog.configure = false;
     
     // const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
     //   const user = game.users.get(userId);
@@ -454,11 +455,8 @@ export class HooksUtil {
    */
   static _onRenderSkillToolDialog(app, html, data) {
     LogUtil.log("_onRenderSkillToolDialog triggered", [app]);
-    
-    // Prevent infinite loops
     if (app._abilityFlavorFixed) return;
     
-    // Find the ability selector
     const abilitySelect = html.querySelector('select[name="ability"]');
     if (!abilitySelect) return;
     

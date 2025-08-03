@@ -3,6 +3,7 @@ import { ActivityUtil } from "./ActivityUtil.mjs";
 import { RollHelpers } from "./helpers/RollHelpers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { CustomRollDialog } from "./dialogs/CustomRollDialog.mjs";
+import { NotificationManager } from "./helpers/Helpers.mjs";
 
 export const RollHandlers = {
   ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
@@ -115,31 +116,74 @@ export const RollHandlers = {
   },
 
   initiative: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    // Initiative rolls require an active combat
     if (!game.combat) {
       ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
       return;
     }
     
-    const config = RollHelpers.buildRollConfig(requestData, rollConfig);
-    const situational = requestData.config.situational || rollConfig.data.situational || '';
-    if (situational && dialogConfig.configure && !game.user.isGM) {
-      actor._initiativeSituationalBonus = situational;
-    }
-    LogUtil.log('RollHandlers.initiative #1', [actor, requestData, rollConfig, dialogConfig, messageConfig]);
+    const situational = requestData.config.situational || rollConfig.data?.situational || '';
     
-    if (dialogConfig.configure && !game.user.isGM) {
-      await actor.rollInitiativeDialog();//config); // Player side with dialog
-    } else {
-      const combatant = game.combat.getCombatantsByActor(actor.id);
-      if (!combatant) {
-        LogUtil.log('RollHandlers.initiative - combatant not found', [actor, game.combat]);
+    // If this is a base actor (not a token actor), we need to find its token
+    let tokenActor = actor;
+    if (!actor.isToken) {
+      // Find a token for this actor in the current scene
+      const token = canvas.tokens.placeables.find(t => t.actor?.id === actor.id);
+      if (token) {
+        tokenActor = token.actor;
+      } else {
+        ui.notifications.error(game.i18n.format("COMBAT.NoneActive"));
         return;
       }
+    }
+    
+    try {
+
+      if (dialogConfig.configure) {
+        // Build a proper roll configuration for initiative using buildRollConfig
+        if (requestData.config) {
+          LogUtil.log('RollHandlers.initiative - Building roll config for flag storage', [{
+            actorId: actor.id,
+            requestData: requestData,
+            rollConfig: rollConfig
+          }]);
+          
+          // Build the roll configuration with proper structure
+          const initiativeConfig = RollHelpers.buildRollConfig(requestData, rollConfig, {
+            ability: actor.system.attributes?.init?.ability || 'dex'
+          });
+          
+          // Create the config object to store
+          const tempConfig = {
+            advantage: requestData.config.advantage || false,
+            disadvantage: requestData.config.disadvantage || false,
+            rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
+            rolls: initiativeConfig.rolls
+          };
+          
+          LogUtil.log('RollHandlers.initiative - Storing built config as actor flag', [{
+            tempConfig: tempConfig
+          }]);
+          
+          // Store as a flag on the base actor (not token actor) so it persists
+          await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
+        }
         
-      await actor.rollInitiative({
-        createCombatants: true, rerollInitiative: true
-      }, config); // GM can skip dialog
+        await tokenActor.rollInitiativeDialog();
+        
+        // Clean up the flag after dialog
+        await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+      } else {
+        const rollOptions = {
+          createCombatants: true,
+          rerollInitiative: true
+        };
+        await tokenActor.rollInitiative(rollOptions);
+      }
+      
+      LogUtil.log('RollHandlers.initiative - COMPLETE');
+    } catch (error) {
+      LogUtil.error('RollHandlers.initiative - Error', [error]);
+      NotificationManager.notify('error', `Initiative roll failed: ${error.message}`);
     }
   },
   

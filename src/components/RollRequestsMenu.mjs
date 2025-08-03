@@ -563,6 +563,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   _onRollTypeClick(event) {
     LogUtil.log('_onRollTypeClick');
     const rollKey = event.currentTarget.dataset.id;
+    // Pass the event through for local rolls
     this._triggerRoll(this.selectedRequestType, rollKey);
   }
 
@@ -734,7 +735,24 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       case ROLL_TYPES.INITIATIVE_DIALOG:
         const combatReady = await ensureCombatForInitiative();
         if (combatReady) {
-          LogUtil.log("_triggerRoll", [validActorIds]);
+          LogUtil.log("_triggerRoll - initiative", [validActorIds]);
+          
+          // Ensure all actors are combatants before filtering
+          for (const actorId of validActorIds) {
+            const actor = game.actors.get(actorId);
+            if (actor) {
+              const combatants = game.combat.getCombatantsByActor(actorId);
+              if (!combatants || combatants.length === 0) {
+                LogUtil.log("_triggerRoll - adding actor to combat", actor.name);
+                // Add the actor to combat
+                await game.combat.createEmbeddedDocuments("Combatant", [{
+                  actorId: actorId,
+                  tokenId: actor.getActiveTokens()?.[0]?.id
+                }]);
+              }
+            }
+          }
+          
           const filteredActorIds = await filterActorsForInitiative(validActorIds, game);
 
           LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
@@ -763,6 +781,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
     
+    // Pass event to orchestrate rolls for local GM rolls
     await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
     setTimeout(() => this.close(), 500);
   }
@@ -1045,13 +1064,15 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       
       // Dialog configuration
       const dialogConfig = {
-        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipDialog
+        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipDialog,
+        isRollRequest: true  // Mark this as a roll request to prevent re-interception
       };
       
       // Message configuration
       const messageConfig = {
         rollMode: rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
-        create: rollProcessConfig.chatMessage !== false
+        create: rollProcessConfig.chatMessage !== false,
+        isRollRequest: true  // Mark this as a roll request to prevent re-interception
       };
       
       // Pass the proper roll configuration structure

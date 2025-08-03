@@ -6,7 +6,7 @@
 export const HOOKS_CORE = {
   INIT: "init",
   READY: "ready",
-  RENDER_CHAT_MESSAGE: "renderChatMessage",
+  RENDER_CHAT_MESSAGE: "renderChatMessageHtml",
   RENDER_CHAT_LOG: "renderChatLog",
   RENDER_CHAT_INPUT: "renderChatInput",
   // RENDER_SIDEBAR_TAB: "renderSidebarTab",
@@ -85,7 +85,7 @@ export const HOOKS_DND5E = {
   // Initiative
   PRE_CONFIGURE_INITIATIVE: "dnd5e.preConfigureInitiative",
   PRE_ROLL_INITIATIVE_DIALOG: "dnd5e.preRollInitiativeDialog",
-  PRE_ROLL_INITIATIVE_DIALOG_V2: "dnd5e.preRollInitiativeDialogV2",
+  // PRE_ROLL_INITIATIVE_DIALOG_V2: "dnd5e.preRollInitiativeDialogV2",
   PRE_ROLL_INITIATIVE: "dnd5e.preRollInitiative",
   ROLL_INITIATIVE: "dnd5e.rollInitiative",
   
