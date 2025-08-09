@@ -33,12 +33,23 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: true
     },
+    
+    groupRollsMsgEnabled: {
+      tag: "group-roll-enabled",
+      label: game.i18n.localize("CRLNGN_ROLLS.settings.groupRollsMsgEnabled.label"),
+      hint: game.i18n.localize("CRLNGN_ROLLS.settings.groupRollsMsgEnabled.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: true
+    },
 
     consumptionConfigMode: {
       tag: "consumption-config-mode",
       label: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.label"),
       hint: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.hint"),
-      propType: Number,
+      propType: Number, 
       inputType: SETTING_INPUT.select,
       choices: {
         1: "Skip dialog for player and GM",

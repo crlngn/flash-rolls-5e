@@ -6,8 +6,10 @@ import { RollInterceptor } from "./RollInterceptor.mjs";
 import { updateSidebarClass, isSidebarExpanded } from "./helpers/Helpers.mjs";
 import { SidebarUtil } from "./SidebarUtil.mjs";
 import { LogUtil } from "./LogUtil.mjs";
-import { MODULE_ID } from "../constants/General.mjs";
+import { ACTIVITY_TYPES, MODULE_ID } from "../constants/General.mjs";
 import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
+import { ModuleHelpers } from "./helpers/ModuleHelpers.mjs";
+import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -18,6 +20,7 @@ export class HooksUtil {
    * @type {Map<string, number>}
    */
   static registeredHooks = new Map();
+  static midiTimeout = null;
   
   /**
    * Initialize main module hooks
@@ -32,7 +35,7 @@ export class HooksUtil {
    */
   static _onInit() {
     const SETTINGS = getSettings();
-    document.body.classList.add("flash-rolls-5e");
+    document.body.classList.add("flash5e");
     SettingsUtil.registerSettings();
     DiceConfigUtil.initialize();
     
@@ -43,13 +46,23 @@ export class HooksUtil {
    * Triggered when Foundry is ready (fully loaded)
    */
   static _onReady() {
+    if(ModuleHelpers.isModuleActive("midi-qol")){
+      LogUtil.log("HooksUtil.initialize", ["midi-qol is active. Awaiting for it to be ready..."]);
+      Hooks.once("midi-qol.ready", this._initModule.bind(this));
+    }else{
+      LogUtil.log("HooksUtil.initialize", ["midi-qol is NOT active. Starting..."]);
+      this._initModule();
+    }
+  }
+
+  static async _initModule() {
     const SETTINGS = getSettings();
     const isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
     if (isDebugOn) {
       CONFIG.debug.hooks = true;
     }
-    
-    
+
+    await ChatMessageUtils.initialize();
 
     if (game.user.isGM) {
       RollInterceptor.initialize();
@@ -68,11 +81,13 @@ export class HooksUtil {
     this._registerHook(HOOKS_CORE.RENDER_SIDEBAR, this._onRenderSidebar.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessage.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageFlavor.bind(this));
+    this._registerHook(HOOKS_CORE.RENDER_CHAT_MESSAGE, this._onRenderChatMessageHTML.bind(this));
     this._registerHook(HOOKS_CORE.CHANGE_SIDEBAR_TAB, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_CORE.COLLAPSE_SIDE_BAR, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
+    this._registerHook(HOOKS_DND5E.POST_USE_ACTIVITY, this._onPostUseActivity.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
     this._registerHook(HOOKS_DND5E.POST_ROLL_CONFIG, this._onPostRollConfig.bind(this));
   }
@@ -82,7 +97,9 @@ export class HooksUtil {
    */
   static _registerGMHooks() {
     this._registerHook(HOOKS_CORE.USER_CONNECTED, this._onUserConnected.bind(this));
-    
+    this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageGM.bind(this));
+    this._registerHook(HOOKS_DND5E.PRE_ROLL_V2, this._onPreRoll.bind(this));
+
     game.users.forEach(user => {
       this._onUserConnected(user);
     });
@@ -94,6 +111,13 @@ export class HooksUtil {
     
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
+    Hooks.on("dnd5e.preRollAbilityCheckV2", (config, dialog, message) => {
+      LogUtil.log("_onPreRollAbilityCheckV2", [config, dialog, message]);
+      if (config.isRollRequest) {
+        dialog.configure = true;
+      }
+    });
+    
     // this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
   }
 
@@ -117,12 +141,100 @@ export class HooksUtil {
    * Handle data before creating chat message for requested rolls
    */
   static _onPreCreateChatMessage(chatMessage, data, options, userId) {
+    // Handle requested by text
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
       const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
       
       const currentFlavor = data.flavor || '';
       data.flavor = currentFlavor ? `${currentFlavor} ${requestedText}` : requestedText;
+    }
+    
+    // Check if we have groupRollId in the message data flags that needs to be preserved
+    if (data.flags?.[MODULE_ID]?.groupRollId) {
+      LogUtil.log('_onPreCreateChatMessage - Found groupRollId in data flags', [data]);
+    }
+    
+    // Check if this is a roll message that should be part of a group
+    if (data.rolls?.length > 0 || data.flags?.core?.initiativeRoll) {
+      const speaker = data.speaker;
+      const actorId = speaker?.actor;
+      
+      if (actorId) {
+        // Get the actor - could be a token actor
+        let actor = game.actors.get(actorId);
+        
+        // For initiative rolls, the speaker might reference a token
+        if (!actor && speaker?.token) {
+          const token = canvas.tokens.get(speaker.token);
+          if (token?.actor) {
+            actor = token.actor;
+            LogUtil.log('_onPreCreateChatMessage - Using token actor from speaker', [actor.name, actor.id]);
+          }
+        }
+        
+        if (!actor) {
+          LogUtil.log('_onPreCreateChatMessage - No actor found', [actorId, speaker]);
+          return;
+        }
+        
+        if (game.user.isGM) {
+          // GM: Check pending group rolls
+          // Need to check both the token actor ID and base actor ID
+          const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
+          const checkIds = [actorId, baseActorId].filter(id => id);
+          
+          for (const [groupRollId, pendingData] of ChatMessageUtils.pendingRolls.entries()) {
+            if (checkIds.some(id => pendingData.actors.includes(id))) {
+              // This actor is part of a group roll, add the flag
+              data.flags = data.flags || {};
+              data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
+              data.flags[MODULE_ID].groupRollId = groupRollId;
+              LogUtil.log('_onPreCreateChatMessage - Added groupRollId flag (GM)', [groupRollId, actorId]);
+              break;
+            }
+          }
+        } else {
+          // Player: Check if we have a stored groupRollId for this roll
+          let storedGroupRollId = actor.getFlag(MODULE_ID, 'tempGroupRollId');
+          if (!storedGroupRollId && actor.isToken) {
+            const baseActor = game.actors.get(actor.actor?.id);
+            if (baseActor) {
+              storedGroupRollId = baseActor.getFlag(MODULE_ID, 'tempGroupRollId');
+              LogUtil.log('_onPreCreateChatMessage - Checking base actor for tempGroupRollId', [baseActor.id, storedGroupRollId]);
+            }
+          }
+          
+          if (storedGroupRollId) {
+            actor.unsetFlag(MODULE_ID, 'tempGroupRollId');
+            if (actor.isToken) {
+              const baseActor = game.actors.get(actor.actor?.id);
+              if (baseActor) {
+                baseActor.unsetFlag(MODULE_ID, 'tempGroupRollId');
+              }
+            }
+          }
+          
+          // Also check for initiative-specific stored config
+          let storedInitConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');
+          
+          // For token actors, also check the base actor
+          if (!storedInitConfig && actor.isToken) {
+            const baseActor = game.actors.get(actor.actor?.id);
+            if (baseActor) {
+              storedInitConfig = baseActor.getFlag(MODULE_ID, 'tempInitiativeConfig');
+              LogUtil.log('_onPreCreateChatMessage - Checking base actor for tempInitiativeConfig', [baseActor.id, storedInitConfig]);
+            }
+          }
+          
+          if (storedInitConfig?.groupRollId || storedGroupRollId) {
+            data.flags = data.flags || {};
+            data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
+            data.flags[MODULE_ID].groupRollId = storedGroupRollId || storedInitConfig.groupRollId;
+            LogUtil.log('_onPreCreateChatMessage - Added groupRollId flag from initiative config', [storedInitConfig.groupRollId, actorId]);
+          }
+        }
+      }
     }
   }
   
@@ -202,6 +314,22 @@ export class HooksUtil {
   }
   
   /**
+   * Intercept group roll message creation (GM only) - currently unused
+   */
+  static _onPreCreateChatMessageGM(message, data, options, userId) {
+    LogUtil.log("_onPreCreateChatMessageGM", [message, data, options, userId]);
+  }
+  
+  /**
+   * Intercept rendered chat messages to handle group rolls
+   */
+  static _onRenderChatMessageHTML(message, html, context) {
+    LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
+    // ChatMessageUtils handles hiding and deletion internally
+    ChatMessageUtils.interceptRollMessage(message, html, context);
+  }
+  
+  /**
    * Request dice configuration from the connected user
    */
   static _onUserConnected(user) {
@@ -260,6 +388,17 @@ export class HooksUtil {
       }
     }
     return false;
+  }
+
+  /**
+   * Triggered before a roll is made
+   * @param {*} config 
+   * @param {*} dialogOptions 
+   * @param {*} messageOptions 
+   */
+  static _onPreRoll(config, dialogOptions, messageOptions, d) {
+    LogUtil.log("_onPreRoll #0", [config, dialogOptions, messageOptions, d]);
+    
   }
   
   /**
@@ -332,16 +471,12 @@ export class HooksUtil {
     
     config.rollMode = storedConfig?.rollMode || config.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
     messageOptions.rollMode = storedConfig?.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
-      
-    // const rollModeSelect = html.querySelector('select[name="rollMode"]');
-    // if (rollModeSelect) {
-    //   rollModeSelect.value = storedConfig.rollMode;
-    // }
+    
     if (storedConfig.rolls?.[0]?.data?.situational && config.rolls?.[0]?.data) {
       config.rolls[0].data.situational = storedConfig.rolls[0].data.situational;
     }
-    
-    // Apply the situational bonus from stored rolls
+
+    // // Apply the situational bonus from stored rolls
     // if (storedConfig.rolls?.[0]?.data?.situational) {
     //   const situationalInputs = html.querySelectorAll('input[name*="situational"]');
     //   situationalInputs.forEach(input => {
@@ -373,6 +508,7 @@ export class HooksUtil {
     //     delete actor._initiativeSituationalBonus;
     //   }
     // }
+  
   }
   
   /**
@@ -468,24 +604,68 @@ export class HooksUtil {
     activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig'); 
     activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig'); 
     activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig'); 
+
+    if(GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol')){
+      // message.create = false;
+    }
     if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
     
     // Check if the actor has player ownership
     const actor = activity.actor;
     if (!actor) return;
 
-    dialog.configure = false;
+    const consumptionConfigMode = SettingsUtil.get(SETTINGS.consumptionConfigMode.tag);
+
+    switch (consumptionConfigMode) {
+      case 1:
+        dialog.configure = false;
+        break;
+      case 2:
+        dialog.configure = game.user.isGM;
+        break;
+      case 3:
+        dialog.configure = !game.user.isGM;
+        break;
+      default:
+        dialog.configure = true;
+        break;
+    }
     
     // const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
     //   const user = game.users.get(userId);
     //   return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
     // });
 
+    if(activity.type === ACTIVITY_TYPES.SAVE){
+      config.create = { measuredTemplate: false };
+      config.hasConsumption = false;
+      config.consume = {
+        action: false,
+        resources: [],
+        spellSlot: false
+      };
+    }
+
     const actorOwner = GeneralUtil.getActorOwner(actor);
     
     if (actorOwner && actorOwner.active && !actorOwner.isGM) {
       LogUtil.log("Preventing usage message for player-owned actor", [actor.name]);
       message.create = false;
+    }
+  }
+
+  static _onPostUseActivity(activity, config, dialog, message) {
+    if(game.user.isGM && activity.type === ACTIVITY_TYPES.SAVE){
+      LogUtil.log("_onPostUseActivity triggered", [activity.damage]);
+      const SETTINGS = getSettings();
+      const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
+      if(activity.damage && activity.damage.parts?.length > 0){
+        activity.rollDamage(config, {
+          ...dialog,
+          configure: !skipRollDialog
+        }, message)
+      }
+      
     }
   }
   

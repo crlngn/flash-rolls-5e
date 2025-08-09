@@ -1,0 +1,26 @@
+<div class="flash5e-group-roll">
+  <header class="group-roll-header">
+    <div class="roll-flavor">
+      {{flavor}} 
+      {{#if showDC}}
+        <span class="dc-indicator">DC {{dc}}</span>
+      {{/if}}
+    </div>
+  </header>
+  
+  <div class="group-roll-list">
+    {{#each results}}
+    <div class="actor-result {{#if success}}success{{/if}} {{#if failure}}failure{{/if}}" data-actor-id="{{actorId}}">
+      <img class="actor-image" src="{{actorImg}}" alt="{{actorName}}" />
+      <span class="actor-name">{{actorName}}</span>
+      <span class="roll-result">
+        {{#if rolled}}
+          <span class="roll-value">{{total}}</span>
+        {{else}}
+          <span class="dice-btn fas fa-dice-d20" alt="Pending Roll"></span>
+        {{/if}}
+      </span>
+    </div>
+    {{/each}}
+  </div>
+</div>

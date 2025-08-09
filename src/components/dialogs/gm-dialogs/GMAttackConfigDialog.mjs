@@ -237,7 +237,7 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       sendRequest: result.sendRequest,
       isRollRequest: result.sendRequest,
       skipDialog: options.skipDialogs || false,
-      chatMessage: true
+      chatMessage: !GeneralUtil.isModuleOn('midi-qol') || true
     };
     
     // Add roll mode - use the one from dialog result to respect user changes

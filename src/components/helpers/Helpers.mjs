@@ -245,9 +245,9 @@ export function isSidebarExpanded() {
 export function updateSidebarClass(isExpanded) {
   const body = document.querySelector("body"); 
   if (isExpanded) {
-    body.classList.add("crlngn-sidebar-expanded"); 
+    body.classList.add("flash5e-sidebar-expanded"); 
   } else {
-    body.classList.remove("crlngn-sidebar-expanded"); 
+    body.classList.remove("flash5e-sidebar-expanded"); 
   }
   adjustMenuOffset();
 }

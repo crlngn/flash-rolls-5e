@@ -96,7 +96,7 @@ export function GMRollConfigMixin(Base) {
 
       
       // Capture the current state of our custom fields before re-render
-      const sendRequestCheckbox = this.element.querySelector('input[name="crlngn-send-request"]');
+      const sendRequestCheckbox = this.element.querySelector('input[name="flash5e-send-request"]');
       if (sendRequestCheckbox) {
         this.sendRequest = sendRequestCheckbox.checked;
       }

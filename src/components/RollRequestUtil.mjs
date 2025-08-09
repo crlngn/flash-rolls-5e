@@ -1,13 +1,14 @@
-import { ROLL_TYPES } from "../constants/General.mjs";
+import { MODULE_ID, ROLL_TYPES } from "../constants/General.mjs";
 import { getRollTypeDisplay, applyTargetTokens, NotificationManager } from "./helpers/Helpers.mjs";
 import { RollHandlers } from "./RollHandlers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
+import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 
 /**
  * @typedef {Object} RollRequestData
- * @property {string} type - Always "rollRequest"
+ * @property {string} type - "rollRequest"
  * @property {string} requestId - Unique identifier for this request
  * @property {string} actorId - ID of the actor to roll for
  * @property {string} rollType - Type of roll (ability, save, skill, etc.) from ROLL_TYPES
@@ -28,6 +29,10 @@ export class RollRequestUtil {
    * @param {RollRequestData} requestData - The roll request data
    */
   static async handleRequest(requestData) {
+    // const SETTINGS = getSettings();
+    // const postRequestToChat = SettingsUtil.get(SETTINGS.postRequestToChat.tag);
+    
+    const isMidiRequest = GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol');
     LogUtil.log('handleRequest', [requestData]);
     if (game.user.isGM) return;
     
@@ -35,10 +40,33 @@ export class RollRequestUtil {
     if (!actor || !actor.isOwner) {
       return;
     }
+
+    if(isMidiRequest && requestData.rollProcessConfig.midiOptions){
+      requestData.rollProcessConfig.midiOptions = {
+        ...requestData.rollProcessConfig.midiOptions,
+        fastForward: false,
+        fastForwardAttack: false,
+        dialogOptions: {
+          ...requestData.rollProcessConfig.midiOptions.dialogOptions,
+          fastForward: false,
+          fastForwardAttack: false,
+          // fastForwardDamage: false
+        },
+        workflowOptions: {
+          ...requestData.rollProcessConfig.midiOptions.workflowOptions,
+          // autoRollAttack: false,
+          // autoRollDamage: "none",
+          fastForward: false,
+          fastForwardAttack: false,
+          // fastForwardDamage: false
+        }
+      };
+    }
+    
     
     if (requestData.preserveTargets && 
-        requestData.targetTokenIds?.length > 0 && 
-        game.user.targets.size === 0) {
+      requestData.targetTokenIds?.length > 0 && 
+      game.user.targets.size === 0) {
       applyTargetTokens(requestData.targetTokenIds);
     }
     
@@ -84,14 +112,6 @@ export class RollRequestUtil {
       const defaultRollMode = game.settings.get("core", "rollMode");
       const finalRollMode = rollModeFromGM || defaultRollMode;
       
-      LogUtil.log('executePlayerRollRequest - Roll Mode Debug', {
-        publicPlayerRolls,
-        rollModeFromGM,
-        defaultRollMode,
-        finalRollMode,
-        fullConfig: requestData.rollProcessConfig
-      });
-      
       const messageConfig = {
         rollMode: finalRollMode,
         create: requestData.rollProcessConfig.chatMessage !== false
@@ -101,15 +121,8 @@ export class RollRequestUtil {
       const handlerRequestData = {
         rollKey: requestData.rollKey,
         activityId: requestData.activityId, // For attack/damage rolls
-        config: requestData.rollProcessConfig
-        // config: {
-        //   advantage: requestData.rollProcessConfig.advantage,
-        //   disadvantage: requestData.rollProcessConfig.disadvantage,
-        //   situational: rollConfig.data?.situational || "",
-        //   rollMode: requestData.rollProcessConfig.rollMode,
-        //   target: requestData.rollProcessConfig.target,
-        //   requestedBy: requestData.rollProcessConfig._requestedBy
-        // }
+        config: requestData.rollProcessConfig,
+        groupRollId: requestData.groupRollId // Pass through for group rolls
       };
 
       // Use the roll handler for the requested roll type

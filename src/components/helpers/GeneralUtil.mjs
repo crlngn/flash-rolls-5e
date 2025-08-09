@@ -54,7 +54,7 @@ export class GeneralUtil {
         if (sheet.ownerNode) {
           const href = sheet.href || '';
           const isFoundryCore = href.includes('css/') || href.includes('styles/');
-          const isCrlngnUI = href.includes('modules/crlngn-ui/');
+          const isCrlngnUI = href.includes('modules/flash-rolls-5e/');
           const isSystem = href.includes('systems/');
           
           if (href && !isFoundryCore && !isCrlngnUI && !isSystem) {
@@ -93,29 +93,29 @@ export class GeneralUtil {
    * @param {string} varValue 
    */
   static addCSSVars(varName, varValue) {
-    let bodyStyle = document.querySelector('#crlngn-ui-vars');
+    let bodyStyle = document.querySelector('#flash5e-vars');
     
     if (!bodyStyle) {
-      const body = document.querySelector('body.crlngn-ui');
+      const body = document.querySelector('body.flash5e');
       if(!body){return}
       bodyStyle = document.createElement('style');
-      bodyStyle.id = 'crlngn-ui-vars';
-      bodyStyle.textContent = 'body.crlngn-ui {\n}\n';
+      bodyStyle.id = 'flash5e-vars';
+      bodyStyle.textContent = 'body.flash5e {\n}\n';
       body.prepend(bodyStyle);
     }
     
     let cssText = bodyStyle.textContent;
     
-    let ruleStart = cssText.indexOf('body.crlngn-ui {');
+    let ruleStart = cssText.indexOf('body.flash5e {');
     let ruleEnd = cssText.indexOf('}', ruleStart);
     
     if (ruleStart === -1) {
-      cssText = 'body.crlngn-ui {\n}\n';
+      cssText = 'body.flash5e {\n}\n';
       ruleStart = 0;
       ruleEnd = cssText.indexOf('}');
     }
     
-    const rulePart = cssText.substring(ruleStart + 'body.crlngn-ui {'.length, ruleEnd);
+    const rulePart = cssText.substring(ruleStart + 'body.flash5e {'.length, ruleEnd);
     
     const declarations = rulePart.split(';')
       .map(decl => decl.trim())
@@ -147,7 +147,7 @@ export class GeneralUtil {
     
     const newCss = 
       cssText.substring(0, ruleStart) + 
-      'body.crlngn-ui {\n' + 
+      'body.flash5e {\n' + 
       newRuleContent + 
       '\n}' + 
       cssText.substring(ruleEnd + 1);
@@ -291,10 +291,10 @@ export class GeneralUtil {
   /**
    * Adds custom CSS to a style element
    * @param {string} content - CSS content to add
-   * @param {string} [id='crlngn-ui-custom-css'] - ID for the style element
+   * @param {string} [id='flash5e-custom-css'] - ID for the style element
    * @param {boolean} [checkForDuplicates=true] - Whether to check for duplicate rules
    */
-  static addCustomCSS(content, id = 'crlngn-ui-custom-css', checkForDuplicates = true) {
+  static addCustomCSS(content, id = 'flash5e-custom-css', checkForDuplicates = true) {
     if (!content) {
       return;
     }
@@ -462,6 +462,16 @@ export class GeneralUtil {
   }
 
   /**
+   * Alias for Foundry's method to load Handlebars template
+   * @param {string[]} templatePaths 
+   * @returns {Promise<HandlebarsTemplate>} Loaded template object
+   */
+  static loadTemplates(templatePaths){
+    if(!Array.isArray(templatePaths)) templatePaths = [templatePaths];
+    return foundry.applications.handlebars.loadTemplates(templatePaths);
+  }
+
+  /**
    * Validates if a string is a valid CSS rule or selector
    * @param {string} cssString - CSS rule or selector to validate
    * @return {boolean} Whether the CSS is valid
@@ -589,10 +599,8 @@ export class GeneralUtil {
    */
   static getActorOwner(actor) {
     const ownership = actor.ownership || {};
-    //user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
 
     for (const [userId, level] of Object.entries(ownership)) {
-      LogUtil.log("getActorOwner #1", [userId, level, CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER]);
       if (level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
         const user = game.users.get(userId);
         if (user && !user.isGM) {
@@ -603,7 +611,6 @@ export class GeneralUtil {
 
     if(ownership?.default >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER){
       const user = game.users.filter(user => !user.isGM)[0];
-      LogUtil.log("getActorOwner #2", [user]);
       if (user) {
         return user;
       }

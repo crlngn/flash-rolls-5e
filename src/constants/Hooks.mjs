@@ -6,7 +6,7 @@
 export const HOOKS_CORE = {
   INIT: "init",
   READY: "ready",
-  RENDER_CHAT_MESSAGE: "renderChatMessageHtml",
+  RENDER_CHAT_MESSAGE: "renderChatMessageHTML",
   RENDER_CHAT_LOG: "renderChatLog",
   RENDER_CHAT_INPUT: "renderChatInput",
   // RENDER_SIDEBAR_TAB: "renderSidebarTab",

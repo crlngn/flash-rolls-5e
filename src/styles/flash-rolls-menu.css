@@ -121,7 +121,7 @@
     align-items: center;
     width: 100%;
     justify-content: space-between;
-    label[for=crlngn-actors-all] {
+    label[for=flash5e-actors-all] {
       margin-right: auto;
       cursor: pointer;
     }
@@ -424,7 +424,7 @@
   font-size: var(--font-size-14);
 }
 
-#crlngn-actors-lock{
+#flash5e-actors-lock{
   cursor: pointer;
   min-width: 1.8em;
   height: 1.8em;

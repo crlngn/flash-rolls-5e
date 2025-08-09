@@ -1,5 +1,5 @@
 import { LogUtil } from './LogUtil.mjs';
-import { ROLL_TYPES, MODULE_ID } from '../constants/General.mjs';
+import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../constants/General.mjs';
 import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
 
 /**
@@ -106,12 +106,14 @@ export class ActivityUtil {
    */
   static async executeActivityRoll(actor, rollType, itemId, activityId, config) {
     LogUtil.log('executeActivityRoll', [actor, rollType, itemId, activityId, config]);
+    const isMidiActive = ModuleHelpers.isModuleActive('midi-qol');
     const item = actor.items.get(itemId);
     if (!item) {
       throw new Error(`Item ${itemId} not found on actor ${actor.name}`);
     }
     
     let activity = null;
+    let damageConfig = null;
     
     // If activity ID provided, use it directly
     if (activityId) {
@@ -129,6 +131,9 @@ export class ActivityUtil {
     
     // Execute the roll based on type
     if (activity) {
+      // if(!isMidiActive) {
+      //   config.message.create = true;
+      // }
       switch (normalizedRollType) {
         case ROLL_TYPES.ATTACK:
           LogUtil.log('executeActivityRoll - is attack activity', [config]);
@@ -149,67 +154,119 @@ export class ActivityUtil {
           LogUtil.log('executeActivityRoll - stored temp config as flag', [rollRequestConfig]);
           
           try {
-            // if(ModuleHelpers.isModuleActive('midi-qol')) {
-            //   const MidiQOL = ModuleHelpers.getMidiQOL();
-            //   if (MidiQOL) {
-            //     const workflow = await ActivityUtil.syntheticItemRoll(item, {
-            //       ...config
-            //     });
-            //     return
-            //   }
-            // }
-            await activity.use(config.usage, config.dialog, {
-              ...config.message,
-              create: true
-            });
+            config.message.create = true;
+            await activity.use(config.usage, config.dialog, config.message);
+            LogUtil.log('CRLNGN TEST', [config]);
+            if(isMidiActive) {
+              const MidiQOL = ModuleHelpers.getMidiQOL();
+              if (MidiQOL) {
+                // const workflow = await ActivityUtil.syntheticItemRoll(item, {
+                //   ...config,
+                //   midiOptions: {
+                //     autoFastAttack: false,
+                //     autoFastDamage: false,
+                //     autoRollAttack: false,
+                //     autoRollDamage: false
+                //   }
+                // });
+                return
+              }
+            }
+          } catch (error) {
+            LogUtil.error('executeActivityRoll - attack roll error', [error]);
           } finally {
             // Only clean up the flag if we set it
             await activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
           }
           return;
         case ROLL_TYPES.DAMAGE:
-          // if(ModuleHelpers.isModuleActive('midi-qol')) {
-          //   const MidiQOL = ModuleHelpers.getMidiQOL();
-          //   if (MidiQOL) {
-          //     const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
-          //     const damageRoll = await workflow.activity.rollDamage({
-          //       ...config,
-          //       workflow: workflow
-          //     });
-          //     return;
-          //   }
-          // }
-          // we need to check if the activity has a previous attack
-          // or if it is a damage only roll, like from a spell with save
           LogUtil.log('executeActivityRoll - damage roll', [activity, config]);
-          
+          if(!isMidiActive) {
+            config.message.create = true;
+          }
           // Extract the roll configuration from the usage config
-          const damageConfig = {
+          damageConfig = {
             critical: config.usage.critical || {},
             situational: config.usage.rolls[0].data.situational || "",
             rollMode: config.message?.rollMode,
             create: config.message?.create !== false
           };
-          
-          // Add situational bonus if present
-          // if (config.usage.rolls?.[0]?.data?.situational) {
-          //   if (!damageConfig.rolls) damageConfig.rolls = [{data: {}}];
-          //   damageConfig.rolls[0].data.situational = config.usage.rolls[0].data.situational;
-          // }
 
+          if(activity.type === ACTIVITY_TYPES.SAVE || activity?.damageOnly){
+            await activity.use(config.usage, config.dialog, config.message);
+          }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
+          
           try {
-          // if(activity?.previousAttack || activity?.damageOnly) {
-            await activity.rollDamage(damageConfig, config.dialog, config.message);
-          // }
+            if(isMidiActive) {
+              const MidiQOL = ModuleHelpers.getMidiQOL();
+              if (MidiQOL) {
+                const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
+                const damageRoll = await workflow.activity.rollDamage({
+                  ...config,
+                  workflow: workflow,
+                  // autoFastAttack: false,
+                  // autoFastDamage: false,
+                  // autoRollAttack: false,
+                  // autoRollDamage: false
+                });
+                // await activity.rollDamage(damageConfig, config.dialog, config.message);
+
+                return;
+              }
+            }else{
+              // if(activity?.previousAttack || activity?.damageOnly) {
+              await activity.rollDamage(damageConfig, config.dialog, config.message);
+              // }
+            }
+          } catch (error) {
+            LogUtil.error(['executeActivityRoll - damage roll error', error]);
           } finally {
             await activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
           }
           return;
-        case ROLL_TYPES.ITEM_SAVE:
-          // For save activities, use the item's use() method to show the save card
-          return await item.use({ activity: activity.id }, { skipRollDialog: config.fastForward });
+        // case ROLL_TYPES.ITEM_SAVE:
+        //   // if(ModuleHelpers.isModuleActive('midi-qol')) {
+        //   //   const MidiQOL = ModuleHelpers.getMidiQOL();
+        //   //   if (MidiQOL) {
+        //   //     const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
+        //   //     const damageRoll = await workflow.activity.rollDamage({
+        //   //       ...config,
+        //   //       workflow: workflow
+        //   //     });
+        //   //     return;
+        //   //   }
+        //   // }
+
+        //   // we need to check if the activity has a previous attack
+        //   // or if it is a damage only roll, like from a spell with save
+        //   LogUtil.log('executeActivityRoll - save damage roll', [activity, config]);
+          
+        //   // Extract the roll configuration from the usage config
+        //   damageConfig = {
+        //     critical: config.usage.critical || {},
+        //     situational: config.usage.rolls[0].data.situational || "",
+        //     rollMode: config.message?.rollMode,
+        //     create: config.message?.create !== false
+        //   };
+
+        //   await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
+        //   LogUtil.log('executeActivityRoll - savedamage config with situational', [damageConfig]);
+        //   try {
+        //     await activity.use(config.usage, config.dialog, {
+        //       ...config.message,
+        //       create: true
+        //     });
+        //     await activity.rollDamage(damageConfig, config.dialog, config.message);
+        //   } catch (error) {
+        //     LogUtil.error(['executeActivityRoll - save damage roll error', error]);
+        //   } finally {
+        //     await activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
+        //   }
+        //   return;
+        //   // // For save activities, use the item's use() method to show the save card
+        //   // return await item.use({ activity: activity.id }, { skipRollDialog: config.fastForward });
         default:
           LogUtil.log('executeActivityRoll - unknown roll type', [normalizedRollType]);
           return;
@@ -266,14 +323,24 @@ export class ActivityUtil {
         consumeSpellSlot: false
     };
     let defaultOptions = {
+      fastForward: false,
+      fastForwardAttack: false,
+      dialogOptions: {
+        fastForward: false,
+        fastForwardAttack: false,
+        // fastForwardDamage: false
+      },
       // targetUuids: targets.map(i => i.document.uuid),
       configureDialog: true,
       // ignoreUserTargets: true,
       workflowOptions: {
-        autoRollAttack: false,
-        autoFastAttack: false,
-        autoRollDamage: 'none',
-        autoFastDamage: false
+        // autoRollAttack: false,
+        // autoFastAttack: false,
+        // autoRollDamage: 'none',
+        // autoFastDamage: false,
+        fastForward: false,
+        fastForwardAttack: false,
+        // fastForwardDamage: false
       }
     };
 
@@ -282,13 +349,13 @@ export class ActivityUtil {
     return await MidiQOL.completeItemUse(item, config, defaultOptions);
   }
 
-  static async replaceDamage(workflow, formula, {ignoreCrit = false, damageType} = {}) {
-    formula = String(formula);
-    if (workflow.isCritical && !ignoreCrit) formula = await rollUtils.getCriticalFormula(formula, workflow.item.getRollData());
-    let roll = await new CONFIG.Dice.DamageRoll(formula).evaluate();
+  // static async replaceDamage(workflow, formula, {ignoreCrit = false, damageType} = {}) {
+  //   formula = String(formula);
+  //   if (workflow.isCritical && !ignoreCrit) formula = await rollUtils.getCriticalFormula(formula, workflow.item.getRollData());
+  //   let roll = await new CONFIG.Dice.DamageRoll(formula).evaluate();
 
-    await workflow.setDamageRolls([roll]);
+  //   await workflow.setDamageRolls([roll]);
     
-    return roll;
-  }
+  //   return roll;
+  // }
 }

@@ -4,6 +4,7 @@ import { RollHelpers } from "./helpers/RollHelpers.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { CustomRollDialog } from "./dialogs/CustomRollDialog.mjs";
 import { NotificationManager } from "./helpers/Helpers.mjs";
+import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 
 export const RollHandlers = {
   ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
@@ -13,6 +14,10 @@ export const RollHandlers = {
     });
     LogUtil.log('RollHandlers.ability #2', [config.rolls?.[0]]);
     LogUtil.log('RollHandlers.ability - messageConfig', messageConfig);
+    
+    // Add groupRollId to message flags if it's a group roll
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
+    
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -24,6 +29,10 @@ export const RollHandlers = {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       ability: requestData.config?.ability || requestData.rollKey
     });
+    
+    // Add groupRollId to message flags if it's a group roll
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
+    
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
   },
   
@@ -57,6 +66,9 @@ export const RollHandlers = {
       messageConfig.data.flavor = flavor;
     }
     LogUtil.log('RollHandlers.skill #2', [config, dialogConfig, messageConfig]);
+    
+    // Add groupRollId to message flags if it's a group roll
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
@@ -95,11 +107,14 @@ export const RollHandlers = {
     }
     LogUtil.log('RollHandlers.tool #2', [config, dialogConfig, messageConfig]);
     
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
 
   concentration: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
+    
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollConcentration(config, dialogConfig, messageConfig);
   },
 
@@ -120,10 +135,9 @@ export const RollHandlers = {
       ui.notifications.warn(game.i18n.localize("COMBAT.NoneActive"));
       return;
     }
-    
     const situational = requestData.config.situational || rollConfig.data?.situational || '';
-    
-    // If this is a base actor (not a token actor), we need to find its token
+    const groupRollId = requestData.groupRollId;
+
     let tokenActor = actor;
     if (!actor.isToken) {
       // Find a token for this actor in the current scene
@@ -135,44 +149,41 @@ export const RollHandlers = {
         return;
       }
     }
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
+
+    LogUtil.log('RollHandlers.initiative - START', [
+      actor, requestData, rollConfig, dialogConfig
+    ]);
     
     try {
-
       if (dialogConfig.configure) {
-        // Build a proper roll configuration for initiative using buildRollConfig
+        LogUtil.log('RollHandlers.initiative - Dialog', []);
+        
         if (requestData.config) {
-          LogUtil.log('RollHandlers.initiative - Building roll config for flag storage', [{
-            actorId: actor.id,
-            requestData: requestData,
-            rollConfig: rollConfig
-          }]);
-          
-          // Build the roll configuration with proper structure
           const initiativeConfig = RollHelpers.buildRollConfig(requestData, rollConfig, {
             ability: actor.system.attributes?.init?.ability || 'dex'
           });
           
-          // Create the config object to store
           const tempConfig = {
             advantage: requestData.config.advantage || false,
             disadvantage: requestData.config.disadvantage || false,
             rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
-            rolls: initiativeConfig.rolls
+            rolls: initiativeConfig.rolls,
+            groupRollId: requestData.groupRollId
           };
-          
-          LogUtil.log('RollHandlers.initiative - Storing built config as actor flag', [{
-            tempConfig: tempConfig
-          }]);
-          
-          // Store as a flag on the base actor (not token actor) so it persists
           await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         }
         
         await tokenActor.rollInitiativeDialog();
-        
-        // Clean up the flag after dialog
-        await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+        await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+
       } else {
+        LogUtil.log('RollHandlers.initiative - Not dialog');
+        const tempConfig = {
+          groupRollId: requestData.groupRollId
+        };
+        await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
+
         const rollOptions = {
           createCombatants: true,
           rerollInitiative: true
@@ -194,6 +205,9 @@ export const RollHandlers = {
 
   deathsave: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
+    
+    // Add groupRollId to message flags if it's a group roll
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
 
@@ -203,13 +217,6 @@ export const RollHandlers = {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       denomination: requestData.rollKey // The hit die denomination (d6, d8, etc.)
     });
-    
-    // // For hit die, D&D5e expects situational bonus only in roll data, not at config level
-    // // Remove top-level situational to prevent D&D5e from creating a second roll
-    // if (config.situational) {
-    //   delete config.situational;
-    // }
-    
     LogUtil.log('RollHandlers.hitdie', [config, dialogConfig, messageConfig]);
     await actor.rollHitDie(config, dialogConfig, messageConfig);
   },
@@ -237,16 +244,13 @@ export const RollHandlers = {
   async handleActivityRoll(actor, rollType, requestData, rollConfig, dialogConfig, messageConfig) {
     LogUtil.log('RollHandlers.handleActivityRoll', [rollType, requestData, rollConfig]);
     if (requestData.rollKey) {
-      // Build a proper roll configuration using buildRollConfig
       const processConfig = RollHelpers.buildRollConfig(requestData, rollConfig);
       
-      // Build the activity configuration
       const rollOptions = processConfig.rolls?.[0]?.options || {};
       const activityConfig = {
         usage: {
           ...requestData.config,
           rolls: processConfig.rolls,
-          // Add attack-specific options at top level for D&D5e dialog
           ...(rollOptions.attackMode && { attackMode: rollOptions.attackMode }),
           ...(rollOptions.ammunition && { ammunition: rollOptions.ammunition }),
           ...(rollOptions.mastery !== undefined && { mastery: rollOptions.mastery })
@@ -280,20 +284,16 @@ export const RollHandlers = {
    * @returns {Promise<void>}
    */
   async handleCustomRoll(actor, requestData, dialogConfig, messageConfig) {
-    const formula = requestData.rollKey; // Formula is stored in rollKey
+    const formula = requestData.rollKey;
     
-    // If dialog should be skipped, execute the roll directly
     if (dialogConfig?.configure === false) {
       try {
         const roll = new Roll(formula, actor.getRollData());
         
-        // Mark the roll to bypass any interceptors
         roll.options = roll.options || {};
         roll.options.isRollRequest = requestData.config?.isRollRequest !== false;
         
         await roll.evaluate({async: true});
-        
-        // Post to chat with message configuration
         await roll.toMessage({
           speaker: ChatMessage.getSpeaker({actor}),
           flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
@@ -307,7 +307,6 @@ export const RollHandlers = {
       return;
     }
     
-    // Show the dialog with the formula in readonly mode
     const dialog = new CustomRollDialog({
       formula: formula,
       readonly: true,
@@ -316,13 +315,10 @@ export const RollHandlers = {
         try {
           const roll = new Roll(confirmedFormula, actor.getRollData());
           
-          // Mark the roll to bypass any interceptors
           roll.options = roll.options || {};
           roll.options.isRollRequest = true;
           
           await roll.evaluate({async: true});
-          
-          // Post to chat with isRollRequest flag in message data
           await roll.toMessage({
             speaker: ChatMessage.getSpeaker({actor}),
             flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),

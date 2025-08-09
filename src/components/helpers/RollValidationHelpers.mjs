@@ -14,7 +14,7 @@ export async function ensureCombatForInitiative() {
     // const createCombat = await foundry.applications.api.DialogV2.confirm({
     //   window: {
     //     title: game.i18n.localize("COMBAT.Create"),
-    //     classes: ["flash-rolls-5e-dialog"]
+    //     classes: ["flash5e-dialog"]
     //   },
     //   content: "<p>" + game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.noCombatActive") + "</p>",
     //   rejectClose: false,
@@ -68,7 +68,7 @@ export async function filterActorsForInitiative(actorIds, game) {
     const reroll = await foundry.applications.api.DialogV2.confirm({
       window: {
         title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.rerollInitiativeTitle"),
-        classes: ["flash-rolls-5e-dialog"]
+        classes: ["flash5e-dialog"]
       },
       content: "<p>" + game.i18n.format("CRLNGN_ROLLS.ui.dialogs.rerollInitiative", {
         actors: actorsNamesWithInitiative.join(", ")

@@ -1,0 +1,56 @@
+.flash5e-group-roll {
+
+  .roll-flavor{
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0.25rem 0 0.5rem 0;
+  }
+}
+
+.flash5e-group-roll .group-roll-list{
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  > .actor-result{
+    display: flex;
+    flex-direction: row;
+    gap: 0.15rem;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0.25rem;
+  }
+
+  .actor-image {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    margin-right: 0.25em;
+  }
+
+  .actor-name{
+    margin-right: auto;
+  }
+
+  .dice-btn{
+    font-family: var(--font-awesome) !important;
+    font-size: 1.25rem;
+    display: flex;
+  }
+
+  .roll-value{
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+  }
+  .roll-result {
+    width: 3em;
+    height: 2.2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3px;
+  }
+}

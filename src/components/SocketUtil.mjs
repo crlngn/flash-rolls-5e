@@ -99,22 +99,24 @@ export class SocketUtil {
 
   /**
    * Executes a function as the specified user.
-   * @param {Function} handler - The function to execute.
+   * @param {Function|string} handler - The function to execute or the name of a registered function.
    * @param {String} userId - the id of the user that should execute this function
    * @param {...*} parameters - The parameters to pass to the function.
    * @returns {Promise} A promise resolving when the function executes.
    */
   static execForUser = async (handler, userId, ...parameters) => {
-    LogUtil.log('execForUser', [handler, userId, ...parameters]);
+    LogUtil.log('execForUser #0', [handler, userId, ...parameters]);
     if (!SocketUtil.socket) {
         return;
     }
 
+    LogUtil.log('execForUser #1', [userId === game.user.id]);
     if(userId === game.user.id){
       return null; // Break the recursion
     }
     const executionKey = `${handler}-${userId}`;
     
+    LogUtil.log('execForUser #2', [SocketUtil._activeExecutions.has(executionKey)]);
     // Check if this exact execution is already in progress
     if (SocketUtil._activeExecutions.has(executionKey)) {
         return null; // Break the recursion
@@ -123,13 +125,16 @@ export class SocketUtil {
     SocketUtil._activeExecutions.set(executionKey, true);
     
     try {
-        const resp = await SocketUtil.socket.executeAsUser(handler, userId, ...parameters);
-        return resp;
+      const resp = await SocketUtil.socket.executeAsUser(handler, userId, ...parameters);
+      LogUtil.log('execForUser #3 - response', [resp]);
+      return resp;
     } catch (error) {
-        return null;
+      LogUtil.error('execForUser #4 - error', [error]);
+      return null;
     } finally {
-        // Always clean up, even if there was an error
-        SocketUtil._activeExecutions.delete(executionKey);
+      LogUtil.log('execForUser #5 - success', []);
+      // Always clean up, even if there was an error
+      SocketUtil._activeExecutions.delete(executionKey);
     }
   }
 

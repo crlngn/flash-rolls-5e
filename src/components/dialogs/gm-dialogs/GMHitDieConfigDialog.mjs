@@ -143,7 +143,7 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   async _processSubmitData(event, form, formData) {
     await super._processSubmitData(event, form, formData);
     // Store send request preference
-    this.sendRequest = formData.get("crlngn-send-request") !== "false";
+    this.sendRequest = formData.get("flash5e-send-request") !== "false";
     
     LogUtil.log('_processSubmitData', [formData, this.config]);
   }

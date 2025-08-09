@@ -1,18 +1,15 @@
-/* Import additional stylesheets */
-@import url('./flash-rolls-menu.css');
-
 body{
   --current-sidebar-width: 0px;
   --flash-rolls-menu-offset: 0px;
 
-  &.crlngn-sidebar-expanded{
+  &.flash5e-sidebar-expanded{
     --current-sidebar-width: var(--sidebar-width, 200px);
   }
 }
 
 /* SWITCH */
-.flash-rolls-5e {
-  .crlngn-switch {
+body.flash5e {
+  .flash5e-switch {
     display: flex;
     position: relative;
     > .track{
@@ -31,7 +28,7 @@ body{
     justify-content: flex-start;
     gap: 4px;
   }
-  .crlngn-switch > input[type="checkbox"] {
+  .flash5e-switch > input[type="checkbox"] {
     left: 0;
     opacity: 0;
     z-index: 2;
@@ -44,7 +41,7 @@ body{
       position: absolute;
     }
   }
-  .crlngn-switch > .handle {
+  .flash5e-switch > .handle {
     height: 0.6rem;
     width: 0.6rem;
     margin: 0.2em;
@@ -57,12 +54,12 @@ body{
     transition: margin-left 0.2s ease-in-out;
   }
   
-  .crlngn-switch input:checked ~ .handle {
+  .flash5e-switch input:checked ~ .handle {
     margin-left: 0.8rem;
     position: absolute;
   }
   
-  .crlngn-switch input:checked ~ .track {
+  .flash5e-switch input:checked ~ .track {
     background-color: var(--color-warm-3);
     justify-self: flex-start;
   }
@@ -95,7 +92,7 @@ body{
   justify-content: center;
   grid-template-columns: repeat(auto-fit, minmax(auto, 30%));
 }
-.crlngn-resolver-title {
+.flash5e-resolver-title {
   text-align: center;
   h1{
     text-align: center;
@@ -165,7 +162,7 @@ body{
 
 
 
-.flash-rolls-5e-dialog {
+.flash5e-dialog {
   min-height: 200px;
 
   .window-content{
@@ -202,9 +199,11 @@ body{
     border: 1px solid rgba(0, 0, 0, .35);
     color: var(--color-light-1);
     height: 2.5rem;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    
 
     &:hover{
       background: var(--color-warm-2);
@@ -255,13 +254,13 @@ body{
 }
 
 /* MidiQOL */
-.flash-rolls-5e .midi-qol-attack-buttons,
-.flash-rolls-5e .midi-qol-damage-buttons {
+.flash5e .midi-qol-attack-buttons,
+.flash5e .midi-qol-damage-buttons {
   display: flex !important;
 }
 
 /* GM Roll Configuration Dialog */
-.flash-rolls-5e .gm-roll-config-fields {
+.flash5e .gm-roll-config-fields {
   display: flex;
   gap: 0.5em;
   flex-direction: row;
@@ -298,7 +297,7 @@ body{
       width: auto;
       flex: 0 0 auto;
       gap: 0.5rem;
-      font-family: var(--crlngn-font-family);
+      font-family: var(--flash5e-font-family);
       font-weight: 500;
     }
   }

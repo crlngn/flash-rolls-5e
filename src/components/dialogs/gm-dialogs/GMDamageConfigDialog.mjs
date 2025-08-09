@@ -82,7 +82,7 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
         wrapper.innerHTML = `
           <div class="form-group">
             <label class="checkbox">
-              <input type="checkbox" name="crlngn-send-request" ${this.sendRequest ? 'checked' : ''}>
+              <input type="checkbox" name="flash5e-send-request" ${this.sendRequest ? 'checked' : ''}>
               ${game.i18n.localize("CRLNGN_ROLL_REQUESTS.ui.dialogs.sendRequestToPlayers")}
             </label>
           </div>

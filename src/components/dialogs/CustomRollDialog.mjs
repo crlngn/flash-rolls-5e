@@ -20,8 +20,8 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
    */
   static get DEFAULT_OPTIONS() {
     return foundry.utils.mergeObject(super.DEFAULT_OPTIONS, {
-      id: "crlngn-custom-roll-dialog",
-      classes: ["flash-rolls-5e-dialog", "crlngn-custom-roll-dialog"],
+      id: "flash5e-custom-roll-dialog",
+      classes: ["flash5e-dialog", "flash5e-custom-roll-dialog"],
       tag: "div",
       window: {
         title: "CRLNGN_ROLLS.ui.dialogs.customRollTitle",

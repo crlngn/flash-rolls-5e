@@ -8,6 +8,7 @@ import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDa
 import { RollHandlers } from './RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 import { GeneralUtil } from './helpers/GeneralUtil.mjs';
+import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
  */
@@ -77,16 +78,7 @@ export class RollInterceptor {
    */
   static _handlePreRollInitiative(rollType, actor, roll) {
     LogUtil.log('_handlePreRollInitiative', [rollType, actor, roll]);
-    // const SETTINGS = getSettings();
-    // const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
-    // const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    // if(!rollInterceptionEnabled || !rollRequestsEnabled){
-    //   return;
-    // }
-
-    // Don't return anything - let the roll proceed normally
     return;
-    // return RollHandlers.initiative(actor, roll);
   }
 
   /**
@@ -101,13 +93,14 @@ export class RollInterceptor {
     LogUtil.log('_handlePreRoll #0', [rollType, config, dialog, message]);
     // Only intercept on GM side
     if (!game.user.isGM || config.isRollRequest === false) return;
+    const isMidiRequest = GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol');
 
     const hookNames = config?.hookNames || dialog?.hookNames || message?.hookNames || [];
     const isInitiativeRoll = hookNames.includes('initiativeDialog') || hookNames.includes('initiative');
     
     if(rollType === ROLL_TYPES.ATTACK){
-      LogUtil.log('_handlePreRoll - is Attack roll', [config.subject?.item]);
       const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig');
+      LogUtil.log('_handlePreRoll - is Attack roll', [config.subject?.item, moduleFlags]);
       if(moduleFlags){
         LogUtil.log('_handlePreRoll - found module flags, skipping interception', [moduleFlags]);
         return;
@@ -115,9 +108,9 @@ export class RollInterceptor {
     }
     
     if(rollType === ROLL_TYPES.DAMAGE){
-      LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config]);
       // Check if this damage roll is from a local execution
       const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+      LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config.subject?.item, moduleFlags]);
       if(moduleFlags){
         LogUtil.log('RollInterceptor._handlePreRoll - found module flags, skipping interception', [moduleFlags]);
         return;
@@ -149,6 +142,7 @@ export class RollInterceptor {
     } else {
       actor = config.subject?.actor || config.subject || config.actor;
     }
+
     // Check if roll interception and requests are enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
@@ -159,11 +153,16 @@ export class RollInterceptor {
       return;
     }
 
-    LogUtil.log('_handlePreRoll', [config, message]);
     const owner = GeneralUtil.getActorOwner(actor);   
-    if (!owner || !owner.active || owner.id === game.user.id || // player owner inexistent or not active
-        dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) { // config skips the dialog
-      return;
+    LogUtil.log('_handlePreRoll - ownership', [owner]);
+    if (!owner || !owner.active || owner.id === game.user.id || // player owner inexistent or not active 
+      dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) { // config skips the dialog
+      
+      LogUtil.log('_handlePreRoll - skipping interception', [dialog.configure, config.midiOptions]);
+
+      if(!isMidiRequest){ 
+        return;
+      }
     }
     
     LogUtil.log('_handlePreRoll - intercepting roll #1', [config, message]);
@@ -226,11 +225,6 @@ export class RollInterceptor {
         DialogClass = GMAttackConfigDialog;
       } else if (normalizedRollType === ROLL_TYPES.DAMAGE) {
         DialogClass = GMDamageConfigDialog;
-        // if (dnd5e.applications?.dice?.DamageRollConfigurationDialog) {
-        //   DialogClass = GMDamageConfigDialog;
-        // } else {
-        //   DialogClass = GMRollConfigDialog;
-        // }
       } else {
         DialogClass = GMRollConfigDialog;
       }
@@ -364,14 +358,6 @@ export class RollInterceptor {
         ...(rollType === ROLL_TYPES.ATTACK && { chatMessage: false })
       };
       
-      LogUtil.log('_showGMConfigDialog - finalConfig for damage roll', [
-        'rollType:', rollType,
-        'result:', result,
-        'result.rolls:', result.rolls,
-        'finalConfig:', finalConfig,
-        'finalConfig.rolls:', finalConfig.rolls
-      ]);
-      
       this._sendRollRequest(actor, owner, rollType, finalConfig);
       
     } catch (error) {
@@ -484,39 +470,39 @@ export class RollInterceptor {
     }
   }
   
-  /**
-   * Show configuration dialog to GM before sending roll request
-   * @param {Actor} actor 
-   * @param {User} owner 
-   * @param {string} rollType 
-   * @param {Object} config 
-   * @param {Object} dialog 
-   * @param {Object} message 
-   */
-  static async _showConfigurationDialog(actor, owner, rollType, config, dialog, message) {
-    LogUtil.log('RollInterceptor._showConfigurationDialog', [actor, owner, rollType, config, dialog, message]);
+  // /**
+  //  * Show configuration dialog to GM before sending roll request
+  //  * @param {Actor} actor 
+  //  * @param {User} owner 
+  //  * @param {string} rollType 
+  //  * @param {Object} config 
+  //  * @param {Object} dialog 
+  //  * @param {Object} message 
+  //  */
+  // static async _showConfigurationDialog(actor, owner, rollType, config, dialog, message) {
+  //   LogUtil.log('RollInterceptor._showConfigurationDialog', [actor, owner, rollType, config, dialog, message]);
 
-    try {
-      const rollWrapper = async (finalConfig) => {
-        this._sendRollRequest(actor, owner, rollType, finalConfig);
-        return new Roll("1d20").evaluate({async: false}); // Return a dummy roll
-      };
+  //   try {
+  //     const rollWrapper = async (finalConfig) => {
+  //       this._sendRollRequest(actor, owner, rollType, finalConfig);
+  //       return new Roll("1d20").evaluate({async: false}); // Return a dummy roll
+  //     };
       
-      // Replace the roll method in config with our wrapper
-      const modifiedConfig = {
-        ...config,
-        _rollMethod: rollWrapper,
-        configured: false
-      };
+  //     // Replace the roll method in config with our wrapper
+  //     const modifiedConfig = {
+  //       ...config,
+  //       _rollMethod: rollWrapper,
+  //       configured: false
+  //     };
       
-      const DialogClass = dialog.cls;
-      const rollDialog = new DialogClass(modifiedConfig, dialog.options);
-      const result = await rollDialog.render(true);
-    } catch (error) {
-      LogUtil.error("RollInterceptor._showConfigurationDialog - error", [error]);
-      this._sendRollRequest(actor, owner, rollType, config);
-    }
-  }
+  //     const DialogClass = dialog.cls;
+  //     const rollDialog = new DialogClass(modifiedConfig, dialog.options);
+  //     const result = await rollDialog.render(true);
+  //   } catch (error) {
+  //     LogUtil.error("RollInterceptor._showConfigurationDialog - error", [error]);
+  //     this._sendRollRequest(actor, owner, rollType, config);
+  //   }
+  // }
   
   /**
    * Send a roll request to the player
@@ -525,24 +511,14 @@ export class RollInterceptor {
    * @param {string} rollType 
    * @param {BasicRollProcessConfiguration} config - The roll process configuration
    */
-  static _sendRollRequest(actor, owner, rollType, config) {
-    console.trace('_sendRollRequest', [actor, owner, rollType, config]);
-
+  static async _sendRollRequest(actor, owner, rollType, config) {
     LogUtil.log('_sendRollRequest', [actor, owner, rollType, config]);
-    LogUtil.log('_sendRollRequest - config.rolls check', [
-      'config.rolls:', config.rolls,
-      'config.rolls[0]:', config.rolls?.[0],
-      'config.rolls[0].data:', config.rolls?.[0]?.data,
-      'config.rolls[0].data.situational:', config.rolls?.[0]?.data?.situational
-    ]);
+    LogUtil.log('_sendRollRequest - config.rolls check', [config.rolls]);
     const SETTINGS = getSettings();
-    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
-    
-    // Normalize rollType to lowercase for consistent comparisons
+    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog);
     let normalizedRollType = rollType?.toLowerCase();
     
     // Convert INITIATIVE to INITIATIVE_DIALOG for player requests
-    // This ensures players get the proper dialog when GM intercepts initiative rolls
     if (normalizedRollType === ROLL_TYPES.INITIATIVE) {
       normalizedRollType = ROLL_TYPES.INITIATIVE_DIALOG;
     }
@@ -569,25 +545,28 @@ export class RollInterceptor {
         activityId = config.subject.id;
         break;
       case ROLL_TYPES.HIT_DIE:
-        // For hit die rolls, the first parameter might be the denomination string
         rollKey = typeof config === 'string' ? config : config.denomination;
         break;
       case ROLL_TYPES.INITIATIVE_DIALOG:
       case ROLL_TYPES.INITIATIVE:
-        // Initiative doesn't need a specific rollKey
         rollKey = null;
         break;
       case ROLL_TYPES.DEATH_SAVE:
-        // Death save doesn't need a specific rollKey
         rollKey = null;
         break;
       default:
-        // Unknown roll type
         LogUtil.warn(`Unknown roll type: ${rollType}`);
         return;
     }
     
     // Build the request data with proper rollProcessConfig
+    // Filter out circular references that midi-qol adds
+    const cleanConfig = { ...config };
+    delete cleanConfig.subject;
+    delete cleanConfig.workflow;
+    delete cleanConfig.item;
+    delete cleanConfig.activity;
+    
     const requestData = {
       type: "rollRequest",
       requestId: foundry.utils.randomID(),
@@ -596,7 +575,7 @@ export class RollInterceptor {
       rollKey,
       activityId,
       rollProcessConfig: {
-        ...config,
+        ...cleanConfig,
         _requestedBy: game.user.name  // Add who requested the roll
       },
       skipRollDialog: skipRollDialog,
@@ -604,8 +583,9 @@ export class RollInterceptor {
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
     
-    // Send request to player via socket
-    SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
+    if(owner && requestData){
+      SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
+    }
     
     // Show notification to GM
     ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent', { 

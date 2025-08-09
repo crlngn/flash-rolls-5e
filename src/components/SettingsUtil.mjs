@@ -15,7 +15,7 @@ export class SettingsUtil {
     
     /* Register each of the settings defined in the SETTINGS constant */
     const settingsList = Object.entries(SETTINGS);
-    settingsList.forEach(async(entry) => {
+    settingsList.forEach((entry) => {
       const setting = entry[1]; 
 
       const settingObj = { 
@@ -32,11 +32,11 @@ export class SettingsUtil {
         settingObj.choices = setting.choices;
       }
 
-      await game.settings.register(MODULE_ID, setting.tag, settingObj);
-
-      /* if the setting has never been defined, set as default value */
-      if(SettingsUtil.get(setting.tag)===undefined || SettingsUtil.get(setting.tag)===null){
-        SettingsUtil.set(setting.tag, setting.default);
+      try {
+        game.settings.register(MODULE_ID, setting.tag, settingObj);
+      } catch (error) {
+        // Setting might already be registered, that's ok
+        LogUtil.log(`Setting ${setting.tag} already registered or error:`, error);
       }
     });
   }
@@ -52,17 +52,23 @@ export class SettingsUtil {
 
     let setting = false;
 
-    if(moduleName===MODULE_ID){
-      setting = game.settings.get(moduleName, settingName);
-    }else{
-      const client = game.settings.storage.get("client");
-      let selectedSetting = client[`${moduleName}.${settingName}`];
-      //
-      if(selectedSetting===undefined){
-        const world = game.settings.storage.get("world");
-        selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
-        setting = selectedSetting?.value;
+    try {
+      if(moduleName===MODULE_ID){
+        setting = game.settings.get(moduleName, settingName);
+      }else{
+        const client = game.settings.storage.get("client");
+        let selectedSetting = client[`${moduleName}.${settingName}`];
+        //
+        if(selectedSetting===undefined){
+          const world = game.settings.storage.get("world");
+          selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
+          setting = selectedSetting?.value;
+        }
       }
+    } catch (error) {
+      // Setting not registered yet, return default
+      LogUtil.log(`Setting ${moduleName}.${settingName} not found, returning false`);
+      return false;
     }
 
     return setting;
@@ -83,11 +89,14 @@ export class SettingsUtil {
     if(!selectedSetting){
       const world = game.settings.storage.get("world");
       selectedSetting = world.getSetting(`${moduleName}.${settingName}`);
+      LogUtil.log('SettingsUtil.set - world Setting?', [selectedSetting]);
     } 
 
     try{
       game.settings.set(moduleName, settingName, newValue);
+      LogUtil.log('SettingsUtil.set - success', [moduleName, settingName, newValue]);
     }catch(e){
+      LogUtil.error('SettingsUtil.set - error', [e]);
     }
 
     return true;

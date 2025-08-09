@@ -181,12 +181,10 @@ Centralized notification system with batching support:
   - Validates module existence and active state
   - Returns boolean
 
-- **`isMidiQOLActive()`**: Checks if MidiQOL module is active
-  - Uses isModuleActive internally
+- **`isModuleActive('midi-qol')`**: Checks if MidiQOL module is active
   - Returns boolean
 
 - **`getMidiQOL()`**: Gets MidiQOL global if available
-  - Checks module active status and global availability
   - Returns MidiQOL object or null
 
 ### 5. RollHandlers.mjs

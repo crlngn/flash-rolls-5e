@@ -12,6 +12,8 @@ import { RollHelpers } from './helpers/RollHelpers.mjs';
 import { CustomRollDialog } from './dialogs/CustomRollDialog.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 import { GeneralUtil } from './helpers/GeneralUtil.mjs';
+import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
+import { ChatMessageUtils } from './ChatMessageUtils.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -99,6 +101,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
+    const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     
     // Check if all actors in current tab are selected
     const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
@@ -129,6 +132,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       selectedTab: this.currentTab,
       rollRequestsEnabled,
       skipRollDialog,
+      groupRollsMsg: groupRollsMsgEnabled,
       selectAllOn,
       hasSelectedActors: this.selectedActors.size > 0,
       requestTypes,
@@ -267,11 +271,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     // Settings toggles
     html.querySelector('#flash-rolls-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
-    html.querySelector('#crlngn-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
-    html.querySelector('#crlngn-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
+    html.querySelector('#flash5e-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
+    html.querySelector('#flash5e-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
     
     // Lock toggle
-    html.querySelector('#crlngn-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
+    html.querySelector('#flash5e-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
     
     // Options toggle
     html.querySelector('.options-toggle')?.addEventListener('click', this._onToggleOptions.bind(this));
@@ -521,7 +525,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   _updateSelectAllState() {
     LogUtil.log('_updateSelectAllState');
-    const selectAllCheckbox = this.element.querySelector('#crlngn-actors-all');
+    const selectAllCheckbox = this.element.querySelector('#flash5e-actors-all');
     const currentActors = this.currentTab === 'pc' ? 'pc' : 'npc';
     const checkboxes = this.element.querySelectorAll(`.${currentActors}-actors .actor-item input[type="checkbox"]`);
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
@@ -668,6 +672,12 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     LogUtil.log('_orchestrateRollsForActors', [config, pcActors, npcActors]);
 
+    
+    const groupRollId = foundry.utils.randomID();
+    
+    // Collect all actors that will be part of this roll
+    const allActors = [];
+
     if (config.sendRequest) {
       for (const { actor, owner } of pcActors) {
         if (!owner.active) {
@@ -681,17 +691,33 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           onlinePlayerActors.push({actor, owner});
         }
       }
+      allActors.push(...onlinePlayerActors.map(({actor}) => actor));
     } else {
       // if requests are off, add to NPC list to roll locally
       npcActors.push(...pcActors.map(({ actor }) => actor));
+    }
+    
+    allActors.push(...offlinePlayerActors, ...npcActors);
+
+    // Create group message if there are multiple actors and setting is enabled
+    const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
+    if (groupRollsMsgEnabled && allActors.length > 1) {
+      await ChatMessageUtils.createGroupRollMessage(
+        allActors,
+        rollMethodName,
+        rollKey,
+        config,
+        groupRollId
+      );
     }
 
     /////////////////////////////////
     // Player Rolls: Actors owned by active players
     for (const { actor, owner } of onlinePlayerActors) {
-      await this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true);
+      const useGroupId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
+      await this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true, useGroupId);
       successfulRequests.push({ actor, owner });
-      await delay(100); // to avoid lag
+      await delay(100);
     }
     if (successfulRequests.length > 0) {
       this._showConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
@@ -702,6 +728,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const gmRolledActors = [...offlinePlayerActors, ...npcActors];
     if (gmRolledActors.length > 0) {
       config.skipRollDialog = true;
+      config.groupRollId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
       await this._handleGMRolls(gmRolledActors, rollMethodName, rollKey, config);
     }
   }
@@ -794,8 +821,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {string} rollKey 
    * @param {Object} config - Roll configuration from dialog
    * @param {boolean} suppressNotification - If true, don't show individual notification
+   * @param {string} groupRollId - Optional group roll ID for multi-actor rolls
    */
-  async _sendRollRequestToPlayer(actor, owner, requestType, rollKey, config, suppressNotification = false) {
+  async _sendRollRequestToPlayer(actor, owner, requestType, rollKey, config, suppressNotification = false, groupRollId = null) {
     LogUtil.log('_sendRollRequestToPlayer #A', [requestType, rollKey]);
     const SETTINGS = getSettings();
     
@@ -820,7 +848,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         const dialogResult = await foundry.applications.api.DialogV2.confirm({
           window: {
             title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
-            classes: ["crlngn-hit-die-dialog"]
+            classes: ["flash5e-hit-die-dialog"]
           },
           position: {
             width: 420
@@ -851,9 +879,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           
           // Get the largest available hit die after refill
           rollKey = actor.system.attributes.hd.largestAvailable;
-          LogUtil.log('_sendRollRequestToPlayer - Hit Die REFILL', [{
-            hdData: actor.system.attributes.hd
-          }]);
           
           NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refilled", { 
             actor: actor.name 
@@ -866,15 +891,22 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     // Build the request data with proper rollProcessConfig
+    // Filter out circular references that midi-qol might add
+    const cleanConfig = { ...config };
+    delete cleanConfig.subject;
+    delete cleanConfig.workflow;
+    delete cleanConfig.item;
+    delete cleanConfig.activity;
+    
     const requestData = {
       type: "rollRequest",
-      requestId: foundry.utils.randomID(),
+      groupRollId: groupRollId || foundry.utils.randomID(),
       actorId: actor.id,
       rollType,
       rollKey,
       activityId: null,  // Menu-initiated rolls don't use activities
       rollProcessConfig: {
-        ...config,
+        ...cleanConfig,
         _requestedBy: game.user.name  // Add who requested the roll
       },
       skipRollDialog: false, // Never skip to player when it's a request
@@ -882,7 +914,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
     
-    
+    // await ModuleHelpers.prepareMidiQOLSettings();
+    LogUtil.log('_sendRollRequestToPlayer - prepareMidiQOLSettings', []);
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
     if (!suppressNotification) {
@@ -1001,7 +1034,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           const dialogResult = await foundry.applications.api.DialogV2.confirm({
             window: {
               title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
-              classes: ["crlngn-hit-die-dialog"]
+              classes: ["flash5e-hit-die-dialog"]
             },
             position: {
               width: 420
@@ -1052,6 +1085,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       // Build requestData structure expected by RollHandlers
       const requestData = {
         rollKey: actualRollKey,
+        groupRollId: rollProcessConfig.groupRollId, // Pass through the group roll ID
         config: {
           ...rollProcessConfig,
           situational: situational,

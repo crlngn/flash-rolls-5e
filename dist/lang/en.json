@@ -27,6 +27,10 @@
         "label": "Roll Requests Enabled",
         "hint": "Enable or disable roll requests functionality"
       },
+      "groupRollsMsgEnabled": {
+        "label": "Group Rolls in One Chat Message",
+        "hint": "When enabled, multiple rolls triggered at once are condensed into a single group message. When disabled, each roll appears as a separate message."
+      },
       "useGMTargetTokens": {
         "label": "Use GM Targeted Tokens",
         "hint": "When players confirm a requested roll, this setting will force use of GM targeted tokens instead of player targeted tokens. If this setting is disabled, the GM targets will only be transferred if the player has no targets."
@@ -60,7 +64,8 @@
       "inputs": {
         "selectAll": "Select All",
         "toggleRollRequests": "Request Rolls",
-        "skipRollDialog": "Skip Roll Dialog"
+        "skipRollDialog": "Skip Roll Dialog",
+        "groupRollsMsg": "Group Rolls"
       },
       "forms": {
         "pixelsRollTitle": "Pixels Dice - Roll Resolver",
@@ -100,6 +105,11 @@
           "refillAndSend": "Refill & Send",
           "refillAndRoll": "Refill & Roll",
           "refilled": "Hit dice refilled for {actor}"
+        },
+        "midiQOLSettings": {
+          "title": "Adjust MidiQOL Settings?",
+          "description": "Some of your current settings on MidiQOL won't work well with Flash Rolls 5e. Would you like to adjust them? This preference will be saved so you don't see this message again.",
+          "changes": "The following settings from MidiQOL will be disabled if you confirm: <ul><li>Auto Fast Forward Ability Checks</li><li>Auto Roll Attack (Player)</li><li>Auto Roll Damage (Player)</li></ul>"
         }
       },
       "menus": {

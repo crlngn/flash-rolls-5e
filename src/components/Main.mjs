@@ -5,6 +5,8 @@ import { DiceConfigUtil } from "./DiceConfigUtil.mjs";
 import { HooksUtil } from "./HooksUtil.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { RollRequestUtil } from "./RollRequestUtil.mjs";
+import { LogUtil } from "./LogUtil.mjs";
+import { HOOKS_CORE } from "../constants/Hooks.mjs";
 
 /**
  * @typedef {import("./RollRequestUtil.mjs").RollRequestData} RollRequestData
@@ -38,6 +40,7 @@ export class Main {
    * @param {RollRequestData} requestData - The roll request data
    */
   static async handleRollRequest(requestData) {
+    LogUtil.log('Main.handleRollRequest', requestData);
     return RollRequestUtil.handleRequest(requestData);
   }
 
