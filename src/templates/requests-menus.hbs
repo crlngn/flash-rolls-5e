@@ -50,12 +50,10 @@
       <ul>
       {{#each actors as |actor|}}
         <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
-          {{!-- <input type="checkbox" id="flash5e-pc-{{ actor.id }}" data-id="{{ actor.id }}"> --}}
-          <div class="actor-select" data-id="{{actor.id}}">
+          {{!-- <div class="actor-select" data-id="{{actor.id}}">
             <i class="icon fas fa-{{#if actor.selected}}circle-dot{{else}}circle{{/if}}"></i>
-          </div>
+          </div> --}}
           <div class="actor-data">
-            {{!-- <span class="actor-name">{{actor.name}}</span> --}}
             {{#if ../showNames}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
             <ul class="actor-stats">
               {{#each actor.crlngnStats as |prop|}}
@@ -80,27 +78,39 @@
     </li>
   </ul>
 
-  <!-- Request Types -->
-  <ul class="request-types{{#if requestTypes}} visible{{/if}}">
-    {{#each requestTypes as |requestType|}}
-      <li data-id="{{ requestType.id }}" class="{{#if requestType.rollable}}rollable{{/if}}{{#if requestType.selected}} selected{{/if}}">
-        {{#if requestType.hasSubList}}
-          <i class="icon fas fa-caret-left"></i>
-        {{else}}
-          <i class="icon fas fa-dice-d20"></i>
-        {{/if}} 
-        {{ requestType.name }}
-      </li>
-    {{/each}}
-  </ul>
-
-  <!-- Roll Types -->
-  <ul class="roll-types{{#if rollTypes}} visible{{/if}}">
-    {{#each rollTypes as |rollType|}}
-      <li data-id="{{ rollType.id }}" class="rollable">
-        <i class="icon fas fa-dice-d20"></i>
-        {{ rollType.name }}
-      </li>
-    {{/each}}
-  </ul>
+  <!-- Request Types with Accordion -->
+  <div class="request-types-accordion{{#if requestTypes}} visible{{/if}}">
+    <!-- Search Input -->
+    <div class="search-container">
+      <input type="text" class="search-input" placeholder="{{localize 'FLASH_ROLLS.ui.search.placeholder'}}" />
+      <i class="icon fas fa-search"></i>
+    </div>
+    
+    <!-- Accordion Items -->
+    <ul class="request-types">
+      {{#each requestTypes as |requestType|}}
+        <li data-id="{{ requestType.id }}" class="request-type-item {{#if requestType.rollable}}rollable{{/if}} {{#if requestType.hasSubList}}has-subitems{{/if}}">
+          <div class="request-type-header {{#if requestType.hasSubList}}accordion-header{{else if requestType.rollable}}toggle{{/if}}">
+            {{#if requestType.hasSubList}}
+              <i class="icon fas fa-chevron-right accordion-toggle"></i>
+            {{else}}
+              <i class="icon fas fa-dice-d20"></i>
+            {{/if}}
+            <span class="request-type-name">{{ requestType.name }}</span>
+          </div>
+          
+          {{#if requestType.hasSubList}}
+            <ul class="roll-types-nested" style="display: none;">
+              {{#each requestType.subItems as |subItem|}}
+                <li data-id="{{ subItem.id }}" data-parent="{{ ../id }}" class="rollable sub-item">
+                  <i class="icon fas fa-dice-d20"></i>
+                  <span class="sub-item-name">{{ subItem.name }}</span>
+                </li>
+              {{/each}}
+            </ul>
+          {{/if}}
+        </li>
+      {{/each}}
+    </ul>
+  </div>
 </div>

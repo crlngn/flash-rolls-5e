@@ -111,13 +111,21 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const requestTypes = [];
     if (this.selectedActors.size > 0) {
       for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
-        requestTypes.push({
+        const requestType = {
           id: key,
           name: game.i18n.localize(`FLASH_ROLLS.rollTypes.${option.name}`) || option.label,
           rollable: option.subList == null,
           hasSubList: !!option.subList,
-          selected: this.selectedRequestType === key
-        });
+          selected: this.selectedRequestType === key,
+          subItems: []
+        };
+        
+        // Build sub-items for accordion
+        if (option.subList) {
+          requestType.subItems = buildRollTypes(key, this.selectedActors);
+        }
+        
+        requestTypes.push(requestType);
       }
     }
 
@@ -296,32 +304,44 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       selectBtn.addEventListener('click', this._onActorSelectClick.bind(this));
     });
     
-    // Request type selection - use event delegation for dynamic content
+    // Search functionality
+    const searchInput = html.querySelector('.search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', this._onSearchInput.bind(this));
+    }
+    
+    // Accordion and request type selection - use event delegation for dynamic content
     const requestTypesContainer = html.querySelector('.request-types');
     if (requestTypesContainer) {
       requestTypesContainer.addEventListener('click', (event) => {
-        const listItem = event.target.closest('li');
-        if (listItem && listItem.dataset.id) {
-          // Create a new event-like object with the list item as currentTarget
-          const customEvent = {
-            ...event,
-            currentTarget: listItem
-          };
-          this._onRequestTypeClick(customEvent);
+        // Handle request type header click
+        const requestHeader = event.target.closest('.request-type-header');
+        if (requestHeader) {
+          const requestItem = requestHeader.closest('.request-type-item');
+          
+          // If it's an accordion header (has sublist), toggle accordion
+          if (requestHeader.classList.contains('accordion-header')) {
+            this._onAccordionToggle(event);
+            return;
+          }
+          
+          // If it's toggle (rollable without sublist), trigger the roll
+          if (requestHeader.classList.contains('toggle') && requestItem && requestItem.classList.contains('rollable')) {
+            const customEvent = {
+              ...event,
+              currentTarget: requestItem
+            };
+            this._onRequestTypeClick(customEvent);
+            return;
+          }
         }
-      });
-    }
-    
-    // Roll type selection - use event delegation for dynamic content
-    const rollTypesContainer = html.querySelector('.roll-types');
-    if (rollTypesContainer) {
-      rollTypesContainer.addEventListener('click', (event) => {
-        const listItem = event.target.closest('li');
-        if (listItem && listItem.dataset.id) {
-          // Create a new event-like object with the list item as currentTarget
+        
+        // Handle sub-item click
+        const subItem = event.target.closest('.sub-item');
+        if (subItem && subItem.dataset.id) {
           const customEvent = {
             ...event,
-            currentTarget: listItem
+            currentTarget: subItem
           };
           this._onRollTypeClick(customEvent);
         }
@@ -546,6 +566,77 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
+   * Handle search input
+   */
+  _onSearchInput(event) {
+    LogUtil.log('_onSearchInput');
+    const searchTerm = event.target.value.toLowerCase().trim();
+    const requestTypesContainer = this.element.querySelector('.request-types');
+    
+    if (!requestTypesContainer) return;
+    
+    // Get all request type items and sub-items
+    const requestItems = requestTypesContainer.querySelectorAll('.request-type-item');
+    
+    requestItems.forEach(requestItem => {
+      const requestName = requestItem.querySelector('.request-type-name')?.textContent.toLowerCase() || '';
+      const subItems = requestItem.querySelectorAll('.sub-item');
+      let hasVisibleSubItems = false;
+      
+      // Check sub-items if they exist
+      if (subItems.length > 0) {
+        subItems.forEach(subItem => {
+          const subItemName = subItem.querySelector('.sub-item-name')?.textContent.toLowerCase() || '';
+          const isVisible = subItemName.includes(searchTerm);
+          subItem.classList.toggle('hidden', !isVisible);
+          if (isVisible) hasVisibleSubItems = true;
+        });
+        
+        // If search term matches the category name or has visible sub-items, show the category
+        const categoryMatches = requestName.includes(searchTerm);
+        const shouldShowCategory = searchTerm === '' || categoryMatches || hasVisibleSubItems;
+        requestItem.classList.toggle('hidden', !shouldShowCategory);
+        
+        // Auto-expand accordion if there's a search term and we have matches
+        if (searchTerm && hasVisibleSubItems) {
+          const nestedList = requestItem.querySelector('.roll-types-nested');
+          const accordionToggle = requestItem.querySelector('.accordion-toggle');
+          if (nestedList && accordionToggle) {
+            nestedList.style.display = 'block';
+            accordionToggle.classList.add('expanded');
+          }
+        }
+      } else {
+        // For items without sub-items, just check the name
+        const isVisible = searchTerm === '' || requestName.includes(searchTerm);
+        requestItem.classList.toggle('hidden', !isVisible);
+      }
+    });
+  }
+
+  /**
+   * Handle accordion toggle
+   */
+  _onAccordionToggle(event) {
+    LogUtil.log('_onAccordionToggle');
+    event.stopPropagation();
+    
+    const requestHeader = event.target.closest('.request-type-header');
+    const requestItem = requestHeader.closest('.request-type-item');
+    const accordionToggle = requestItem.querySelector('.accordion-toggle');
+    const nestedList = requestItem.querySelector('.roll-types-nested');
+    
+    if (!nestedList) return;
+    
+    // Toggle expanded state
+    const isExpanded = accordionToggle.classList.contains('expanded');
+    accordionToggle.classList.toggle('expanded', !isExpanded);
+    
+    // Toggle nested list visibility
+    nestedList.style.display = isExpanded ? 'none' : 'block';
+  }
+
+  /**
    * Handle request type click
    */
   async _onRequestTypeClick(event) {
@@ -573,13 +664,16 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Handle roll type click
+   * Handle roll type click (sub-item in accordion)
    */
   _onRollTypeClick(event) {
     LogUtil.log('_onRollTypeClick');
     const rollKey = event.currentTarget.dataset.id;
+    const parentType = event.currentTarget.dataset.parent;
+    // Use parent type if available (for accordion sub-items), otherwise use selected request type
+    const requestType = parentType || this.selectedRequestType;
     // Pass the event through for local rolls
-    this._triggerRoll(this.selectedRequestType, rollKey);
+    this._triggerRoll(requestType, rollKey);
   }
 
   /**

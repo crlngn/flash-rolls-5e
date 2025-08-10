@@ -34,21 +34,24 @@
   }
 }
 
-/* Style for when the menu needs to grow upward */
-#flash-rolls-menu.grow-up {
-  bottom: 0px;
-  top: auto; /* Let the JS handle the top position */
+#flash-rolls-menu > div {
+  display: flex;
+  flex-direction: row-reverse;
+  /*max-height: 600px;
+  height: auto;
+  min-height: 228px;*/
 }
 
-#flash-rolls-menu > div > ul {
+#flash-rolls-menu > div > ul,
+#flash-rolls-menu > div > div.visible {
+  position:relative;
   pointer-events: all;
   list-style: none;
-  width: 12.8rem;
+  width: 12rem;
   margin: 0;
-  padding: 1em 0.25em 1.5em 1em;
+  padding: 1em 1em 1.5em 1em;
+  max-height: 100%;
   height: auto;
-  max-height: 70vh;
-  min-height: 228px;
   overflow-y: hidden;
   border: 1px solid rgba(0, 0, 0, 1);
   font-size: var(--font-size-13);
@@ -56,6 +59,11 @@
   flex-direction: column;
   justify-content: flex-start;
   background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+}
+
+/* Hide accordion when no actors selected */
+#flash-rolls-menu > div > .request-types-accordion:not(.visible) {
+  display: none;
 }
 /*
 #flash-rolls-menu > div > ul.actors {
@@ -151,7 +159,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   margin: 0;
-  padding: 0 0.75em 0 0;
+  padding: 0;
   
   > ul {
     list-style: none;
@@ -165,7 +173,7 @@
 #flash-rolls-menu > div > ul.actors > li.actor {
   align-items: flex-start;
   display: grid;
-  grid-template-columns: 1.2rem minmax(0, 1fr) 2.75rem;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
   margin:  0 0 1em 0;
   padding: 0;
   gap: 3px;
@@ -353,7 +361,7 @@
 
 /* Request Types Menu */
 #flash-rolls-menu > div > ul.request-types {
-  left: calc(-12.8rem + 1px);
+  left: calc(-12rem + 1px);
   top: 0;
   height: 100%;
   max-height: 70vh;
@@ -423,6 +431,76 @@
 #flash-rolls-menu > div > ul.roll-types > .icon.fa-dice-d20{
   font-size: var(--font-size-14);
 }
+
+#flash-rolls-menu .search-container{
+  position: relative;
+  height: 4em;
+  width: 100%;
+  z-index: 1;
+
+  .search-input{
+    padding-right: 2.5em;
+  }
+  .icon{
+    position: absolute;
+    right: 0.75em;
+    top: 1.25em;
+    transform: translateY(-50%);
+  }
+}
+
+#flash-rolls-menu .request-types {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  margin: 3.5em 0 0 0;
+  padding: 0;
+  max-height: calc(100% - 5em);
+  width: calc(100% - 1em);
+  overflow: auto;
+
+  .request-type-header > i{
+    margin-right: 0.25em;
+  }
+
+  li:last-child{
+    margin-bottom: 0.5em;
+  }
+
+  .request-type-header {
+    padding: 0.4em 0 0.4em 0em;
+    cursor: pointer;
+
+    &:hover{
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .roll-types-nested{
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+
+    li {
+      padding: 0.4em 0 0.4em 1.1em;
+      display: flex;
+      align-items: center;
+      gap: 0.35em;
+      cursor: pointer;
+
+      > i{
+        margin-right: 0.25em;
+      }
+      &:hover{
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+}
+  
 
 #flash5e-actors-lock{
   cursor: pointer;

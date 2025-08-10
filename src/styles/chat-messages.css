@@ -57,7 +57,7 @@
       display: block;
     }
     
-    &.expanded .roll-value.clickable {
+    &.expanded .roll-value.toggle {
       color: var(--color-text-hyperlink);
     }
   }

@@ -598,7 +598,7 @@ Extends AttackRollConfigurationDialog with GMRollConfigMixin
 
 #### Methods
 - **`addSidebarControls(app, html, options)`**: Adds roll request icon to chat controls (GM only)
-  - Creates clickable icon in chat sidebar
+  - Creates toggle icon in chat sidebar
   - Updates icon state based on settings
   - Calls RollRequestsMenu.toggle() on click
 

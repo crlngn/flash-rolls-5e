@@ -104,6 +104,9 @@
       }
     },
     "ui": {
+      "search": {
+        "placeholder": "Find a roll type..."
+      },
       "buttons": {
         "rollRequestsToggleOn": "Roll Requests ON",
         "rollRequestsToggleOff": "Roll Requests OFF",
