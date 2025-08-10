@@ -16,7 +16,7 @@ export async function ensureCombatForInitiative() {
     //     title: game.i18n.localize("COMBAT.Create"),
     //     classes: ["flash5e-dialog"]
     //   },
-    //   content: "<p>" + game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.noCombatActive") + "</p>",
+    //   content: "<p>" + game.i18n.localize("FLASH_ROLLS.ui.dialogs.noCombatActive") + "</p>",
     //   rejectClose: false,
     //   modal: true
     // });
@@ -25,7 +25,7 @@ export async function ensureCombatForInitiative() {
       // const combat = await game.combats.documentClass.create({scene: game.scenes.active.id});
       const combat = await Combat.create({scene: game.scenes.active.id});
       await combat.activate();
-      NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.combatCreated"));
+      NotificationManager.notify('info', game.i18n.localize("FLASH_ROLLS.notifications.combatCreated"));
       // return combat;
     // } else {
     //   return false;
@@ -67,10 +67,10 @@ export async function filterActorsForInitiative(actorIds, game) {
   if (actorsNamesWithInitiative.length > 0) {
     const reroll = await foundry.applications.api.DialogV2.confirm({
       window: {
-        title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.rerollInitiativeTitle"),
+        title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.rerollInitiativeTitle"),
         classes: ["flash5e-dialog"]
       },
-      content: "<p>" + game.i18n.format("CRLNGN_ROLLS.ui.dialogs.rerollInitiative", {
+      content: "<p>" + game.i18n.format("FLASH_ROLLS.ui.dialogs.rerollInitiative", {
         actors: actorsNamesWithInitiative.join(", ")
       }) + "</p>",
       rejectClose: false,
@@ -81,7 +81,7 @@ export async function filterActorsForInitiative(actorIds, game) {
       const filteredIds = actorIds.filter(id => !actorIdsWithInitiative.has(id));
       
       if (filteredIds.length === 0) {
-        NotificationManager.notify('info', game.i18n.localize("CRLNGN_ROLL_REQUESTS.notifications.allActorsHaveInitiative"));
+        NotificationManager.notify('info', game.i18n.localize("FLASH_ROLLS.notifications.allActorsHaveInitiative"));
       }
       
       return filteredIds;

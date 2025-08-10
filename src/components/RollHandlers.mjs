@@ -172,17 +172,19 @@ export const RollHandlers = {
             groupRollId: requestData.groupRollId
           };
           await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
+          await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         }
-        
         await tokenActor.rollInitiativeDialog();
-        await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+        // await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
 
       } else {
         LogUtil.log('RollHandlers.initiative - Not dialog');
         const tempConfig = {
+          rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
           groupRollId: requestData.groupRollId
         };
         await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
+        await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
 
         const rollOptions = {
           createCombatants: true,
@@ -296,13 +298,13 @@ export const RollHandlers = {
         await roll.evaluate({async: true});
         await roll.toMessage({
           speaker: ChatMessage.getSpeaker({actor}),
-          flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
+          flavor: game.i18n.localize(`FLASH_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
           rollMode: messageConfig?.rollMode || requestData.config?.rollMode || game.settings.get("core", "rollMode"),
           isRollRequest: requestData.config?.isRollRequest !== false,
           create: messageConfig?.create !== false
         });
       } catch (error) {
-        ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: formula}));
+        ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {formula: formula}));
       }
       return;
     }
@@ -321,14 +323,14 @@ export const RollHandlers = {
           await roll.evaluate({async: true});
           await roll.toMessage({
             speaker: ChatMessage.getSpeaker({actor}),
-            flavor: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
+            flavor: game.i18n.localize(`FLASH_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
             rollMode: requestData.config.rollMode,
             isRollRequest: true,
             _showRequestedBy: true,
             _requestedBy: requestData.config.requestedBy || 'GM'
           });
         } catch (error) {
-          ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {formula: confirmedFormula}));
+          ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {formula: confirmedFormula}));
         }
       }
     });

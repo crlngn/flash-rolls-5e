@@ -24,7 +24,7 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       classes: ["flash5e-dialog", "flash5e-custom-roll-dialog"],
       tag: "div",
       window: {
-        title: "CRLNGN_ROLLS.ui.dialogs.customRollTitle",
+        title: "FLASH_ROLLS.ui.dialogs.customRollTitle",
         icon: "fas fa-dice-d20",
         resizable: false,
         positioned: true,
@@ -115,11 +115,11 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     const isValid = this.validateFormula(this.formula);
     
     if (isValid) {
-      messageElement.textContent = game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.formulaValid");
+      messageElement.textContent = game.i18n.localize("FLASH_ROLLS.ui.dialogs.formulaValid");
       messageElement.classList.remove('error');
       messageElement.classList.add('success');
     } else {
-      messageElement.textContent = game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.formulaInvalid");
+      messageElement.textContent = game.i18n.localize("FLASH_ROLLS.ui.dialogs.formulaInvalid");
       messageElement.classList.remove('success');
       messageElement.classList.add('error');
     }
@@ -217,7 +217,7 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     
     // Validate the formula
     if (!this.validateFormula(this.formula)) {
-      ui.notifications.error(game.i18n.format("CRLNGN_ROLLS.ui.notifications.invalidFormula", {
+      ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {
         formula: this.formula || "empty"
       }));
       return;

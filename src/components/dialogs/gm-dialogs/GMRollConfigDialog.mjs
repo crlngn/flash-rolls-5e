@@ -374,7 +374,7 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     if (actors.length === 1) {
       return actors[0].name;
     } else if (actors.length > 1) {
-      return game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.multipleActors");
+      return game.i18n.localize("FLASH_ROLLS.ui.dialogs.multipleActors");
     } else {
       return "";
     }

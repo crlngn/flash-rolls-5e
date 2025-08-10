@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants/General.mjs";
-import { getSettings } from "../constants/Settings.mjs";
+import { getSettings, SETTING_SCOPE } from "../constants/Settings.mjs";
+import { getSettingMenus } from "../constants/SettingMenus.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 
 /**
@@ -12,7 +13,7 @@ export class SettingsUtil {
    */
   static registerSettings() {
     const SETTINGS = getSettings();
-    
+
     /* Register each of the settings defined in the SETTINGS constant */
     const settingsList = Object.entries(SETTINGS);
     settingsList.forEach((entry) => {
@@ -26,11 +27,14 @@ export class SettingsUtil {
         scope: setting.scope,
         config: setting.config,
         requiresReload: setting.requiresReload || false,
+        restricted: setting.scope === SETTING_SCOPE.world,
         onChange: value => SettingsUtil.apply(setting.tag, value)
       }
       if(setting.choices){
         settingObj.choices = setting.choices;
       }
+
+      LogUtil.log('registerSettings', [settingObj, settingObj.scope], true);
 
       try {
         game.settings.register(MODULE_ID, setting.tag, settingObj);
@@ -39,6 +43,29 @@ export class SettingsUtil {
         LogUtil.log(`Setting ${setting.tag} already registered or error:`, error);
       }
     });
+  }
+
+  /**
+   * Register the settings menu - should be called during ready hook
+   * @static
+   */
+  static registerSettingsMenu() {
+    const settingMenus = Object.entries(getSettingMenus());
+    const tabbedMenu = settingMenus.find(entry => entry[0] === 'moduleSettingsMenu');
+    if (tabbedMenu) {
+      const tabbedMenuData = tabbedMenu[1];
+      if ((tabbedMenuData.restricted && game.user?.isGM) || !tabbedMenuData.restricted) {
+        const tabbedMenuObj = {
+          name: tabbedMenuData.tag,
+          label: tabbedMenuData.label, 
+          hint: tabbedMenuData.hint,
+          icon: tabbedMenuData.icon, 
+          type: tabbedMenuData.propType,
+          restricted: tabbedMenuData.restricted
+        };
+        game.settings.registerMenu(MODULE_ID, tabbedMenuData.tag, tabbedMenuObj);
+      }
+    }
   }
   
   /**

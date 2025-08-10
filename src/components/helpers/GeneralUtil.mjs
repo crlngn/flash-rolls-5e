@@ -37,56 +37,6 @@ export class GeneralUtil {
     return element.offsetWidth;
   }
 
-
-  /**
-   * Process stylesheets to extract font families
-   * @returns {Promise<string[]>} Array of font family names from stylesheets
-   * @private
-   */
-  static processStyleSheets = async () => {
-    const foundryFonts = new Set(Object.keys(CONFIG.fontDefinitions));
-    const customFontsObj = game.settings.get("core", "fonts") || {};
-    const customFonts = Object.entries(customFontsObj).map(([fontFamily]) => fontFamily);
-    const cssImportedFonts = new Set();
-    
-    for (const sheet of document.styleSheets) {
-      try {
-        if (sheet.ownerNode) {
-          const href = sheet.href || '';
-          const isFoundryCore = href.includes('css/') || href.includes('styles/');
-          const isCrlngnUI = href.includes('modules/flash-rolls-5e/');
-          const isSystem = href.includes('systems/');
-          
-          if (href && !isFoundryCore && !isCrlngnUI && !isSystem) {
-            continue;
-          }
-          
-          await this.processStyleSheetRules(sheet, cssImportedFonts);
-        }
-      } catch (e) {
-        LogUtil.warn('Error processing stylesheet:', [e]);
-      }
-    }
-
-    // Log what we found for debugging
-    LogUtil.log('Found fonts:', [{
-      foundry: Array.from(foundryFonts),
-      custom: customFonts,
-      cssImported: Array.from(cssImportedFonts)
-    }]);
-
-    const allFonts = Array.from(new Set([
-      ...foundryFonts,
-      ...customFonts,
-      ...cssImportedFonts
-    ]))
-    .filter(f => !/FontAwesome|Font Awesome|FoundryVTT/.test(f))
-    .map(f => f.replace(/['"]/g, '').trim())
-    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
-    return allFonts;
-  }
-
   /**
    * Adds CSS variables to a style element
    * @param {string} varName 
@@ -154,95 +104,7 @@ export class GeneralUtil {
     
     bodyStyle.textContent = newCss;
   }
-
-  /**
-   * Process CSS rules from a stylesheet to extract font families
-   * @param {CSSStyleSheet} sheet - The stylesheet to process
-   * @param {Set<string>} cssImportedFonts - Set to collect found font families
-   * @private
-   */
-  static async processStyleSheetRules(sheet, cssImportedFonts) {
-    try {
-      if (sheet.ownerNode?.tagName === 'STYLE') {
-        const cssText = sheet.ownerNode.textContent;
-        this.extractFontsFromCSSText(cssText, cssImportedFonts);
-      }
-      
-      try {
-        const rules = sheet.cssRules || sheet.rules;
-        if (!rules) return;
-        
-        for (let i = 0; i < rules.length; i++) {
-          const rule = rules[i];
-          
-          if (rule instanceof CSSFontFaceRule) {
-            const fontFamily = rule.style.getPropertyValue('font-family');
-            if (fontFamily) {
-              cssImportedFonts.add(fontFamily);
-              LogUtil.log('Found font-face rule:', [fontFamily]);
-            }
-          }
-          else if (rule instanceof CSSImportRule) {
-            LogUtil.log('Found import rule:', [rule.href]);
-            
-            if (rule.styleSheet) {
-              await this.processStyleSheetRules(rule.styleSheet, cssImportedFonts);
-            } else {
-              if (rule.href) {
-                try {
-                  const response = await fetch(rule.href);
-                  const cssText = await response.text();
-                  this.extractFontsFromCSSText(cssText, cssImportedFonts);
-                } catch (e) {
-                  LogUtil.warn('Error fetching imported CSS:', [e]);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        if (e.name === 'SecurityError' && sheet.href) {
-          LogUtil.log('Security restriction on stylesheet, trying to fetch directly:', [sheet.href]);
-          try {
-            const response = await fetch(sheet.href);
-            const cssText = await response.text();
-            this.extractFontsFromCSSText(cssText, cssImportedFonts);
-          } catch (fetchError) {
-            LogUtil.warn('Error fetching cross-origin stylesheet:', [fetchError]);
-          }
-        } else {
-          LogUtil.warn('Error accessing CSS rules:', [e]);
-        }
-      }
-    } catch (e) {
-      LogUtil.warn('Error in processStyleSheetRules:', [e]);
-    }
-  }
-
-  /**
-   * Extract font families from CSS text
-   * @param {string} cssText - CSS text to process
-   * @param {Set<string>} cssImportedFonts - Set to collect found font families
-   * @private
-   */
-  static extractFontsFromCSSText(cssText, cssImportedFonts) {
-    if (!cssText) return;
-    
-    const fontFaceRegex = /@font-face\s*{[^}]*font-family\s*:\s*(['"])(.+?)\1[^}]*}/gs;
-    const fontFaceMatches = cssText.match(fontFaceRegex) || [];
-    
-    fontFaceMatches.forEach(match => {
-      const fontFamilyRegex = /font-family\s*:\s*(['"])(.+?)\1/;
-      const fontFamilyMatch = match.match(fontFamilyRegex);
-      
-      if (fontFamilyMatch && fontFamilyMatch[2]) {
-        const fontName = fontFamilyMatch[2].trim();
-        cssImportedFonts.add(fontName);
-      }
-    });
-  }
   
-
   /**
    * Gets the offset bottom of an element
    * @param {HTMLElement} element 
@@ -415,15 +277,15 @@ export class GeneralUtil {
    * @returns {Promise<boolean>} Resolves to true if confirmed, false otherwise
    */
   static confirmReload(
-    title = game.i18n.localize("CRLNGN_UI.ui.reloadRequiredTitle"), 
-    content = game.i18n.localize("CRLNGN_UI.ui.reloadRequiredLabel"),
+    title = game.i18n.localize("FLASH_ROLLS.ui.reloadRequiredTitle"), 
+    content = game.i18n.localize("FLASH_ROLLS.ui.reloadRequiredLabel"),
     options = {}) {
     
     const dialogConfig = {
       title,
       content,
       yes: {
-        label: game.i18n.localize("CRLNGN_UI.ui.reloadButton"),
+        label: game.i18n.localize("FLASH_ROLLS.ui.reloadButton"),
         callback: () => {
           LogUtil.log("Reloading page after confirmation");
           window.location.reload();
@@ -431,7 +293,7 @@ export class GeneralUtil {
         }
       },
       no: {
-        label: game.i18n.localize("CRLNGN_UI.ui.cancelButton"),
+        label: game.i18n.localize("FLASH_ROLLS.ui.cancelButton"),
         callback: () => false
       },
       defaultYes: false,
@@ -617,5 +479,40 @@ export class GeneralUtil {
     }
     
     return null;
+  }
+
+  /**
+   * Opens a confirmation dialog to reload the page using DialogV2
+   * @param {string} [title=""] - The title of the confirmation dialog
+   * @param {string} [content=""] - The content message
+   * @param {Object} [options={}] - Additional dialog options
+   * @returns {Promise<boolean>} Resolves to true if confirmed, false otherwise
+   */
+  static confirmReload(
+    title = game.i18n.localize("FLASH_ROLLS.ui.dialogs.reloadRequiredTitle"), 
+    content = game.i18n.localize("FLASH_ROLLS.ui.dialogs.reloadRequiredLabel"),
+    options = {}) {
+    
+    const dialogConfig = {
+      title,
+      content,
+      yes: {
+        label: game.i18n.localize("FLASH_ROLLS.ui.buttons.reloadButton"),
+        callback: () => {
+          LogUtil.log("Reloading page after confirmation");
+          window.location.reload();
+          return true;
+        }
+      },
+      no: {
+        label: game.i18n.localize("FLASH_ROLLS.ui.buttons.cancelButton"),
+        callback: () => false
+      },
+      defaultYes: false,
+      rejectClose: false
+    };
+    
+    mergeObject(dialogConfig, options);
+    return foundry.applications.api.DialogV2.confirm(dialogConfig);
   }
 }

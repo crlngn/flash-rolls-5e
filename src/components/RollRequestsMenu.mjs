@@ -113,7 +113,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
         requestTypes.push({
           id: key,
-          name: game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${option.name}`) || option.label,
+          name: game.i18n.localize(`FLASH_ROLLS.rollTypes.${option.name}`) || option.label,
           rollable: option.subList == null,
           hasSubList: !!option.subList,
           selected: this.selectedRequestType === key
@@ -132,7 +132,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       selectedTab: this.currentTab,
       rollRequestsEnabled,
       skipRollDialog,
-      groupRollsMsg: groupRollsMsgEnabled,
+      groupRollsMsgEnabled,
       selectAllOn,
       hasSelectedActors: this.selectedActors.size > 0,
       requestTypes,
@@ -272,6 +272,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Settings toggles
     html.querySelector('#flash-rolls-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
     html.querySelector('#flash5e-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
+    html.querySelector('#flash5e-group-rolls-msg')?.addEventListener('change', this._onToggleGroupRollsMsg.bind(this));
     html.querySelector('#flash5e-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
     
     // Lock toggle
@@ -350,6 +351,16 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const SETTINGS = getSettings();
     const skip = event.target.checked;
     await SettingsUtil.set(SETTINGS.skipRollDialog.tag, skip);
+  }
+
+  /**
+   * Handle skip dialogs toggle
+   */
+  async _onToggleGroupRollsMsg(event) {
+    LogUtil.log('_onToggleGroupRollsMsg');
+    const SETTINGS = getSettings();
+    const isEnabled = event.target.checked;
+    await SettingsUtil.set(SETTINGS.groupRollsMsgEnabled.tag, isEnabled);
   }
 
   /**
@@ -682,7 +693,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       for (const { actor, owner } of pcActors) {
         if (!owner.active) {
           if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
-            NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.playerOffline", { 
+            NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.notifications.playerOffline", { 
               player: owner.name 
             }));
           }
@@ -847,19 +858,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         // No hit dice available - show dialog to GM
         const dialogResult = await foundry.applications.api.DialogV2.confirm({
           window: {
-            title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
+            title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
             classes: ["flash5e-hit-die-dialog"]
           },
           position: {
             width: 420
           },
-          content: `<p>${game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refillMessage", { 
+          content: `<p>${game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refillMessage", { 
             actors: actor.name 
           }) || ""}</p>`,
           modal: true,
           rejectClose: false,
           yes: {
-            label: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillAndSend") || "Refill & Send",
+            label: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillAndSend") || "Refill & Send",
             icon: ""
           },
           no: {
@@ -880,7 +891,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           // Get the largest available hit die after refill
           rollKey = actor.system.attributes.hd.largestAvailable;
           
-          NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refilled", { 
+          NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
             actor: actor.name 
           }) || `Hit dice refilled for ${actor.name}`);
         } else {
@@ -919,7 +930,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
     
     if (!suppressNotification) {
-      NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent", { 
+      NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.notifications.rollRequestSent", { 
         player: owner.name,
         actor: actor.name 
       }));
@@ -957,7 +968,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     const rollTypeKey = rollMethodName;
-    let rollTypeName = game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${rollTypeKey}`) || rollTypeKey;
+    let rollTypeName = game.i18n.localize(`FLASH_ROLLS.rollTypes.${rollTypeKey}`) || rollTypeKey;
     
     // Add specific roll details if applicable
     if (rollKey) {
@@ -1033,19 +1044,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           
           const dialogResult = await foundry.applications.api.DialogV2.confirm({
             window: {
-              title: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
+              title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
               classes: ["flash5e-hit-die-dialog"]
             },
             position: {
               width: 420
             },
-            content: `<p>${game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refillMessageLocal", { 
+            content: `<p>${game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refillMessageLocal", { 
               actors: actor.name 
             }) || ""}</p>`,
             modal: true,
             rejectClose: false,
             yes: {
-              label: game.i18n.localize("CRLNGN_ROLLS.ui.dialogs.hitDie.refillAndRoll") || "Refill & Roll",
+              label: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillAndRoll") || "Refill & Roll",
               icon: ""
             },
             no: {
@@ -1060,7 +1071,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             LogUtil.log('Hit die recovery result', [result]);
             
             // Notify of refill
-            NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLLS.ui.dialogs.hitDie.refilled", { 
+            NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
               actor: actor.name 
             }));
             
@@ -1121,7 +1132,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       }
     } catch (error) {
       LogUtil.error('executeActorRoll', [error]);
-      NotificationManager.notify('error', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollError", { 
+      NotificationManager.notify('error', game.i18n.format("FLASH_ROLLS.notifications.rollError", { 
         actor: actor.name 
       }));
     }

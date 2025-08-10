@@ -22,7 +22,7 @@ export class SocketUtil {
       // Check if socketlib is available before registering the module
       if (typeof socketlib === "undefined") {
         LogUtil.error("SocketUtil Error: socketlib is not loaded. Ensure it is installed and enabled.");
-        ui.notifications.error(game.i18n.localize("CRLNGN_ROLLS.notifications.socketlibMissing"), {permanent: true});
+        ui.notifications.error(game.i18n.localize("FLASH_ROLLS.notifications.socketlibMissing"), {permanent: true});
         return;
       }
 

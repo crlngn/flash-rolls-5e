@@ -2,6 +2,7 @@ import { LogUtil } from "../LogUtil.mjs";
 import { ROLL_TYPES } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../SettingsUtil.mjs";
+import { getPlayerOwner } from "./Helpers.mjs";
 
 /**
  * Helper functions for roll handling
@@ -324,6 +325,293 @@ export const RollHelpers = {
         const user = game.users.get(userId);
         return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
       });
+  },
+
+  /**
+   * Check if actor is player owned
+   * @param {Actor} actor - The actor to check
+   * @returns {boolean} Whether the actor is player owned
+   */
+  isPlayerOwnerActive(actor) {
+    const playerOwner = getPlayerOwner(actor);
+    return playerOwner && playerOwner.active;
+  },
+
+  /* -------------------------------------------- */
+  /*  Group Roll Calculation Methods              */
+  /* -------------------------------------------- */
+
+  /**
+   * Calculate group roll result using Standard Rule - At least half the group must succeed
+   * @param {Object[]} rollResults - Array of roll results with { actorId, total, success, failure }
+   * @param {number} dc - The DC to check against
+   * @returns {Object} Result object with { finalResult, successes, failures, summary }
+   */
+  calculateStandardRule(rollResults, dc) {
+    const successes = rollResults.filter(r => r.total >= dc).length;
+    const failures = rollResults.length - successes;
+    const halfThreshold = Math.ceil(rollResults.length / 2);
+    
+    return {
+      finalResult: successes >= halfThreshold,
+      successes,
+      failures,
+      summary: game.i18n.format("FLASH_ROLLS.groupRoll.standardRule.summary", {
+        successes,
+        total: rollResults.length,
+        threshold: halfThreshold
+      }),
+      method: 'Standard Rule'
+    };
+  },
+
+  /**
+   * Calculate group roll result using Group Average - Simple average of all rolls, rounded down
+   * @param {Object[]} rollResults - Array of roll results with { actorId, total }
+   * @param {number} dc - The DC to check against
+   * @returns {Object} Result object with { finalResult, average, success, summary }
+   */
+  calculateGroupAverage(rollResults, dc) {
+    const sum = rollResults.reduce((acc, r) => acc + r.total, 0);
+    const average = Math.floor(sum / rollResults.length);
+    
+    return {
+      finalResult: average,
+      average,
+      success: average >= dc,
+      summary: game.i18n.format("FLASH_ROLLS.groupRoll.groupAverage.summary", {
+        average,
+        dc
+      }),
+      method: 'Group Average'
+    };
+  },
+
+  /**
+   * Calculate group roll result using Leader with Help - Result from actor with highest bonus, plus successes minus failures
+   * @param {Object[]} rollResults - Array of roll results with { actorId, total, modifier }
+   * @param {number} dc - The DC to check against
+   * @param {Actor[]} actors - Array of actors to get modifiers from
+   * @param {string} rollType - Type of roll (skill, save, ability)
+   * @param {string} rollKey - The specific roll key (e.g., 'ath', 'dex')
+   * @returns {Object} Result object with { finalResult, leaderRoll, bonus, penalty, success, summary }
+   */
+  calculateLeaderWithHelp(rollResults, dc, actors, rollType, rollKey) {
+    let highestModifier = -999;
+    let leaderActorId = null;
+    let leaderModifier = 0;
+    
+    for (const actor of actors) {
+      const modifier = this._getActorModifier(actor, rollType, rollKey);
+      if (modifier > highestModifier) {
+        highestModifier = modifier;
+        leaderActorId = actor.id;
+        leaderModifier = modifier;
+      }
+    }
+    
+    const leaderResult = rollResults.find(r => r.actorId === leaderActorId);
+    if (!leaderResult) {
+      return {
+        finalResult: 0,
+        error: 'Leader actor did not roll',
+        method: 'Leader with Help'
+      };
+    }
+    
+    // Count successes and failures (excluding the leader)
+    const otherResults = rollResults.filter(r => r.actorId !== leaderActorId);
+    const successes = otherResults.filter(r => r.total >= dc).length;
+    const failures = otherResults.filter(r => r.total < dc).length;
+    const adjustedResult = leaderResult.total + successes - failures;
+    
+    return {
+      finalResult: adjustedResult,
+      leaderRoll: leaderResult.total,
+      leaderName: actors.find(a => a.id === leaderActorId)?.name,
+      leaderModifier,
+      bonus: successes,
+      penalty: failures,
+      success: adjustedResult >= dc,
+      summary: game.i18n.format("FLASH_ROLLS.groupRoll.leaderWithHelp.summary", {
+        leaderRoll: leaderResult.total,
+        bonus: successes,
+        penalty: failures,
+        adjustedResult,
+        dc
+      }),
+      method: 'Leader with Help'
+    };
+  },
+
+  /**
+   * Calculate group roll result using Weakest Link - Result from actor with lowest modifier, plus number of group successes
+   * @param {Object[]} rollResults - Array of roll results with { actorId, total }
+   * @param {number} dc - The DC to check against
+   * @param {Actor[]} actors - Array of actors to get modifiers from
+   * @param {string} rollType - Type of roll (skill, save, ability)
+   * @param {string} rollKey - The specific roll key (e.g., 'ath', 'dex')
+   * @returns {Object} Result object with { finalResult, weakestRoll, bonus, success, summary }
+   */
+  calculateWeakestLink(rollResults, dc, actors, rollType, rollKey) {
+    let lowestModifier = 999;
+    let weakestActorId = null;
+    let weakestModifierValue = 0;
+    
+    for (const actor of actors) {
+      const modifier = this._getActorModifier(actor, rollType, rollKey);
+      if (modifier < lowestModifier) {
+        lowestModifier = modifier;
+        weakestActorId = actor.id;
+        weakestModifierValue = modifier;
+      }
+    }
+    
+    const weakestResult = rollResults.find(r => r.actorId === weakestActorId);
+    if (!weakestResult) {
+      return {
+        finalResult: 0,
+        error: 'Weakest link actor did not roll',
+        method: 'Weakest Link'
+      };
+    }
+    
+    const successes = rollResults.filter(r => r.total >= dc).length;
+    const adjustedResult = weakestResult.total + successes;
+    
+    const successWord = successes === 1 ? 
+      game.i18n.localize("FLASH_ROLLS.groupRoll.weakestLink.successSingular") : 
+      game.i18n.localize("FLASH_ROLLS.groupRoll.weakestLink.successPlural");
+    
+    return {
+      finalResult: adjustedResult,
+      weakestRoll: weakestResult.total,
+      weakestName: actors.find(a => a.id === weakestActorId)?.name,
+      weakestModifier: weakestModifierValue,
+      bonus: successes,
+      success: adjustedResult >= dc,
+      summary: game.i18n.format("FLASH_ROLLS.groupRoll.weakestLink.summary", {
+        weakestRoll: weakestResult.total,
+        bonus: successes,
+        successWord,
+        adjustedResult,
+        dc
+      }),
+      method: 'Weakest Link'
+    };
+  },
+
+  /**
+   * Get the modifier for a specific roll type and key from an actor
+   * @private
+   * @param {Actor} actor - The actor to get the modifier from
+   * @param {string} rollType - Type of roll (skill, save, ability)
+   * @param {string} rollKey - The specific roll key
+   * @returns {number} The modifier value
+   */
+  _getActorModifier(actor, rollType, rollKey) {
+    const normalizedType = rollType?.toLowerCase();
+    
+    switch (normalizedType) {
+      case ROLL_TYPES.SKILL:
+        return actor.system.skills[rollKey]?.total || 
+               actor.system.skills[rollKey]?.mod || 0;
+      
+      case ROLL_TYPES.SAVE:
+      case ROLL_TYPES.SAVING_THROW:
+        return actor.system.abilities[rollKey]?.save || 0;
+      
+      case ROLL_TYPES.ABILITY:
+      case ROLL_TYPES.ABILITY_CHECK:
+        return actor.system.abilities[rollKey]?.mod || 0;
+      
+      case ROLL_TYPES.TOOL:
+        if (actor.system.tools?.[rollKey]) {
+          return actor.system.tools[rollKey].total || 
+                 actor.system.tools[rollKey].mod || 0;
+        }
+        const tool = actor.items.find(i => 
+          i.type === 'tool' && 
+          i.system.toolType === rollKey
+        );
+        return tool?.system.bonus || 0;
+      
+      default:
+        return 0;
+    }
+  },
+
+  /**
+   * Get the group roll result based on the selected calculation method
+   * @param {Object[]} rollResults - Array of roll results with { actorId, total }
+   * @param {number} dc - The DC to check against
+   * @param {Actor[]} actors - Array of actors (needed for some methods)
+   * @param {string} rollType - Type of roll (needed for modifier calculation)
+   * @param {string} rollKey - The specific roll key (needed for modifier calculation)
+   * @returns {Object} Result object with { complete, success, result }
+   */
+  getGroupResult(rollResults, dc, actors, rollType, rollKey) {
+    const complete = rollResults.every(r => r.total !== null && r.total !== undefined);
+    
+    if (!complete) {
+      return {
+        complete: false,
+        success: false,
+        result: 0
+      };
+    }
+
+    const SETTINGS = getSettings();
+    const resultMode = SettingsUtil.get(SETTINGS.groupRollResultMode.tag) || 1;
+    
+    let calculationResult;
+    
+    switch (resultMode) {
+      case 1: // Standard Rule
+        calculationResult = this.calculateStandardRule(rollResults, dc);
+        return {
+          complete: true,
+          success: calculationResult.finalResult,
+          result: calculationResult.finalResult ? 1 : 0,
+          details: calculationResult
+        };
+        
+      case 2: // Group Average
+        calculationResult = this.calculateGroupAverage(rollResults, dc);
+        return {
+          complete: true,
+          success: calculationResult.success,
+          result: calculationResult.finalResult,
+          details: calculationResult
+        };
+        
+      case 3: // Leader with Help
+        calculationResult = this.calculateLeaderWithHelp(rollResults, dc, actors, rollType, rollKey);
+        return {
+          complete: true,
+          success: calculationResult.success,
+          result: calculationResult.finalResult,
+          details: calculationResult
+        };
+        
+      case 4: // Weakest Link
+        calculationResult = this.calculateWeakestLink(rollResults, dc, actors, rollType, rollKey);
+        return {
+          complete: true,
+          success: calculationResult.success,
+          result: calculationResult.finalResult,
+          details: calculationResult
+        };
+        
+      default:
+        calculationResult = this.calculateStandardRule(rollResults, dc);
+        return {
+          complete: true,
+          success: calculationResult.finalResult,
+          result: calculationResult.finalResult ? 1 : 0,
+          details: calculationResult
+        };
+    }
   }
 };
 

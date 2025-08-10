@@ -46,6 +46,8 @@ export class HooksUtil {
    * Triggered when Foundry is ready (fully loaded)
    */
   static _onReady() {
+
+    SettingsUtil.registerSettingsMenu();
     if(ModuleHelpers.isModuleActive("midi-qol")){
       LogUtil.log("HooksUtil.initialize", ["midi-qol is active. Awaiting for it to be ready..."]);
       Hooks.once("midi-qol.ready", this._initModule.bind(this));
@@ -144,7 +146,7 @@ export class HooksUtil {
     // Handle requested by text
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
-      const requestedText = game.i18n.format('CRLNGN_ROLL_REQUESTS.chat.requestedBy', { gm: requestedBy });
+      const requestedText = game.i18n.format('FLASH_ROLLS.chat.requestedBy', { gm: requestedBy });
       
       const currentFlavor = data.flavor || '';
       data.flavor = currentFlavor ? `${currentFlavor} ${requestedText}` : requestedText;

@@ -11,7 +11,7 @@ import { GeneralUtil } from './GeneralUtil.mjs';
  * @returns {string} Formatted display string
  */
 export function getRollTypeDisplay(rollType, rollKey) {
-  let display = game.i18n.localize(`CRLNGN_ROLLS.rollTypes.${rollType}`) || rollType;
+  let display = game.i18n.localize(`FLASH_ROLLS.rollTypes.${rollType}`) || rollType;
   
   // Normalize rollType to lowercase for consistent comparisons
   const normalizedRollType = rollType?.toLowerCase();
@@ -72,7 +72,7 @@ export function showBatchedNotifications(pendingNotifications, getRollTypeDispla
   if (entries.length === 1 && entries[0].actors.length === 1) {
     // Single roll request - use original format
     const entry = entries[0];
-    ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestReceived', {
+    ui.notifications.info(game.i18n.format('FLASH_ROLLS.notifications.rollRequestReceived', {
       gm: entry.gm,
       rollType: getRollTypeDisplayFn(entry.rollType, entry.rollKey)
     }));
@@ -85,7 +85,7 @@ export function showBatchedNotifications(pendingNotifications, getRollTypeDispla
       messages.push(`${rollTypeDisplay} (${actorNames})`);
     }
     
-    ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestsReceivedMultiple', {
+    ui.notifications.info(game.i18n.format('FLASH_ROLLS.notifications.rollRequestsReceivedMultiple', {
       gm: entries[0].gm,
       requests: messages.join("; ")
     }));
@@ -160,7 +160,7 @@ export function formatMultiActorNotification(actorNames, action) {
   if (actorNames.length === 0) return "";
   if (actorNames.length === 1) return `${actorNames[0]} ${action}`;
   
-  const and = game.i18n.localize("CRLNGN_ROLLS.common.and");
+  const and = game.i18n.localize("FLASH_ROLLS.common.and");
   
   if (actorNames.length === 2) return `${actorNames[0]} ${and} ${actorNames[1]} ${action}`;
   
@@ -396,7 +396,7 @@ export class NotificationManager {
     if (successfulRequests.length === 1) {
       const playerData = Object.values(requestsByPlayer)[0];
       const actorNames = playerData.actors.map(a => a.name).join(", ");
-      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentSingle", { 
+      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.rollRequestsSentSingle", { 
         rollType: rollTypeName,
         actors: actorNames,
         player: playerData.player.name
@@ -407,7 +407,7 @@ export class NotificationManager {
         const actorNames = data.actors.map(a => a.name).join(", ");
         return `${data.player.name} (${actorNames})`;
       });
-      ui.notifications.info(game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.rollRequestsSentMultiple", { 
+      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.rollRequestsSentMultiple", { 
         rollType: rollTypeName,
         count: successfulRequests.length,
         players: playerSummaries.join("; ")
@@ -452,7 +452,7 @@ export function filterActorsForDeathSaves(actors) {
   
   // Notify about actors that don't need death saves
   if (actorsSkippingDeathSaves.length > 0) {
-    NotificationManager.notify('info', game.i18n.format("CRLNGN_ROLL_REQUESTS.notifications.actorsSkippingDeathSave", {
+    NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.notifications.actorsSkippingDeathSave", {
       actors: actorsSkippingDeathSaves.join(", ")
     }));
   }

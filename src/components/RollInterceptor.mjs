@@ -588,7 +588,7 @@ export class RollInterceptor {
     }
     
     // Show notification to GM
-    ui.notifications.info(game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollRequestSent', { 
+    ui.notifications.info(game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', { 
       player: owner.name,
       actor: actor.name 
     }));

@@ -36,7 +36,7 @@ export class SidebarUtil {
     rollRequestIcon.id = "flash-rolls-icon"; 
     rollRequestIcon.setAttribute("data-tooltip-direction", "RIGHT");
     rollRequestIcon.className = `ui-control icon chat-control-icon flash-rolls-icon${rollRequestsEnabled ? ' active' : ''}`;
-    rollRequestIcon.title = game.i18n.localize('CRLNGN_ROLLS.ui.menus.rollRequestsTitle');
+    rollRequestIcon.title = game.i18n.localize('FLASH_ROLLS.ui.menus.rollRequestsTitle');
     rollRequestIcon.innerHTML = `<i class="fas fa-bolt${rollRequestsEnabled ? '' : '-slash'}"></i>`;
     
     // Insert before the d20 dice icon

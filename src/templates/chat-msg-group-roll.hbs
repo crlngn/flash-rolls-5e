@@ -1,26 +1,69 @@
 <div class="flash5e-group-roll">
   <header class="group-roll-header">
     <div class="roll-flavor">
-      {{flavor}} 
-      {{#if showDC}}
-        <span class="dc-indicator">DC {{dc}}</span>
-      {{/if}}
+      {{flavor}}
     </div>
   </header>
   
   <div class="group-roll-list">
     {{#each results}}
     <div class="actor-result {{#if success}}success{{/if}} {{#if failure}}failure{{/if}}" data-actor-id="{{actorId}}">
-      <img class="actor-image" src="{{actorImg}}" alt="{{actorName}}" />
-      <span class="actor-name">{{actorName}}</span>
-      <span class="roll-result">
-        {{#if rolled}}
-          <span class="roll-value">{{total}}</span>
-        {{else}}
-          <span class="dice-btn fas fa-dice-d20" alt="Pending Roll"></span>
-        {{/if}}
-      </span>
+      <div class="actor-summary">
+        <img class="actor-image" src="{{actorImg}}" alt="{{actorName}}" />
+        <span class="actor-name">{{actorName}}</span>
+        <span class="roll-result">
+          {{#if rolled}}
+            <span class="roll-value clickable" title="Click to see roll breakdown">{{total}}</span>
+          {{else}}
+            <span class="dice-btn fas fa-dice-d20 rollable" alt="Pending Roll"></span>
+          {{/if}}
+        </span>
+      </div>
+      {{#if rollBreakdown}}
+      <div class="roll-breakdown">
+        {{{rollBreakdown}}}
+      </div>
+      {{/if}}
     </div>
     {{/each}}
   </div>
+  
+  {{#if allRolled}}
+    {{#if supportsDC}}
+      <div class="group-roll-dc-control" data-show-to-players="{{showDCToPlayers}}">
+        <div class="dc-input-container">
+          <label for="dc-input-{{messageId}}" class="dc-input-label">DC:</label>
+          <input type="number" 
+                 id="dc-input-{{messageId}}" 
+                 class="dc-input dc-input-gm-only" 
+                 placeholder="Set DC" 
+                 value="{{dc}}"
+                 min="1" 
+                 max="99"
+                 data-message-id="{{messageId}}"
+                 data-group-roll-id="{{groupRollId}}">
+        </div>
+      </div>
+      
+      {{#if groupResult.complete}}
+      <div class="group-roll-footer {{#if groupResult.success}}success{{else}}failure{{/if}}">
+        <div class="group-result-summary">
+          <span class="group-result-label">Group Result:</span>
+          {{#if groupResult.success}}
+            <i class="fas fa-check-circle success-icon"></i>
+            <span class="group-result-value success">Success</span>
+          {{else}}
+            <i class="fas fa-times-circle failure-icon"></i>
+            <span class="group-result-value failure">Failure</span>
+          {{/if}}
+        </div>
+        {{#if groupSummary}}
+        <div class="group-result-details">
+          <span class="summary-text">{{groupSummary}}</span>
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+    {{/if}}
+  {{/if}}
 </div>

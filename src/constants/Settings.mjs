@@ -13,20 +13,63 @@ export const SETTING_SCOPE = {
  */
 export const getSettings = () => {
   return {
-    debugMode: {
-      tag: "debug-mode", 
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.debugMode.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.debugMode.hint"),
+    generalSettings: {
+      tag: "flash5e-general-settings", 
+      label: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.label"),
+      title: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.title"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.hint"),
+      propType: Object,
+      fields: [
+        'rollInterceptionEnabled',
+        'useGMTargetTokens',
+        'showOfflineNotifications'
+      ],
+      default: {
+        rollInterceptionEnabled: true,
+        useGMTargetTokens: true,
+        showOfflineNotifications: true
+      },
+      scope: SETTING_SCOPE.world,
+      config: false, 
+      requiresReload: false 
+    },
+
+    groupRollsSettings: {
+      tag: "flash5e-group-rolls-settings", 
+      label: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.label"),
+      title: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.title"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.hint"),
+      propType: Object,
+      fields: [
+        'groupRollsMsgEnabled',
+        'groupRollResultMode',
+        'showGroupDCToPlayers'
+      ],
+      default: {
+        groupRollsMsgEnabled: true,
+        groupRollResultMode: 1,
+        showGroupDCToPlayers: false
+      },
+      scope: SETTING_SCOPE.world,
+      config: false, 
+      requiresReload: false 
+    },
+
+    showGroupDCToPlayers: {
+      tag: "show-group-dc-to-players",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showGroupDCToPlayers.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showGroupDCToPlayers.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
-      scope: SETTING_SCOPE.client,
-      config: true
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
     },
+    
     rollRequestsEnabled: {
-      tag: "flash-rolls-enabled",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.rollRequestsEnabled.hint"),
+      tag: "roll-requests-enabled",
+      label: game.i18n.localize("FLASH_ROLLS.settings.rollRequestsEnabled.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.rollRequestsEnabled.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
@@ -36,26 +79,43 @@ export const getSettings = () => {
     
     groupRollsMsgEnabled: {
       tag: "group-roll-enabled",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.groupRollsMsgEnabled.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.groupRollsMsgEnabled.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.groupRollsMsgEnabled.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.groupRollsMsgEnabled.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.world,
-      config: true
+      config: false
+    },
+
+    groupRollResultMode: {
+      tag: "group-roll-result-mode",
+      label: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.hint"),
+      propType: Number, 
+      inputType: SETTING_INPUT.select,
+      choices: {
+        1: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.choices.1"),
+        2: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.choices.2"),
+        3: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.choices.3"),
+        4: game.i18n.localize("FLASH_ROLLS.settings.groupRollResultMode.choices.4")
+      },
+      default: 1,
+      scope: SETTING_SCOPE.world,
+      config: false
     },
 
     consumptionConfigMode: {
       tag: "consumption-config-mode",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.consumptionConfigMode.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.hint"),
       propType: Number, 
       inputType: SETTING_INPUT.select,
       choices: {
-        1: "Skip dialog for player and GM",
-        2: "Skip dialog for player",
-        3: "Skip dialog for GM",
-        4: "Do not skip dialog"
+        1: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.1"),
+        2: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.2"),
+        3: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.3"),
+        4: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.4")
       },
       default: 1,
       scope: SETTING_SCOPE.world,
@@ -64,8 +124,8 @@ export const getSettings = () => {
 
     skipRollDialog: {
       tag: "skip-roll-dialog",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.skipRollDialog.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.skipRollDialog.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.skipRollDialog.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.skipRollDialog.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,
@@ -74,28 +134,28 @@ export const getSettings = () => {
     },
     useGMTargetTokens: {
       tag: "use-gm-target-tokens",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.useGMTargetTokens.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.useGMTargetTokens.hint"),
-      propType: Boolean,
-      inputType: SETTING_INPUT.checkbox,
-      default: false,
-      scope: SETTING_SCOPE.world,
-      config: true
-    },
-    rollInterceptionEnabled: {
-      tag: "roll-interception-enabled",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.rollInterceptionEnabled.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.rollInterceptionEnabled.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.useGMTargetTokens.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.useGMTargetTokens.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.world,
-      config: true
+      config: false
+    },
+    rollInterceptionEnabled: {
+      tag: "roll-interception-enabled",
+      label: game.i18n.localize("FLASH_ROLLS.settings.rollInterceptionEnabled.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.rollInterceptionEnabled.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
     },
     publicPlayerRolls: {
       tag: "public-player-rolls",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.publicPlayerRolls.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.publicPlayerRolls.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.publicPlayerRolls.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.publicPlayerRolls.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
@@ -105,12 +165,23 @@ export const getSettings = () => {
 
     showOfflineNotifications: {
       tag: "show-offline-notifications",
-      label: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.label"),
-      hint: game.i18n.localize("CRLNGN_ROLLS.settings.showOfflineNotifications.hint"),
+      label: game.i18n.localize("FLASH_ROLLS.settings.showOfflineNotifications.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showOfflineNotifications.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    debugMode: {
+      tag: "debug-mode", 
+      label: game.i18n.localize("FLASH_ROLLS.settings.debugMode.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.debugMode.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.client,
       config: true
     }
   };

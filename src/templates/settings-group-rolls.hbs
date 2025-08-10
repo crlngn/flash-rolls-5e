@@ -1,0 +1,30 @@
+<section
+  class="form-content tab {{#if tab.active}} active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}"
+>
+  <h4><i class="fas fa-globe"></i> {{localize "FLASH_ROLLS.ui.dialogs.worldSettingsLabel"}} <span class="toggle-hint">{{localize 'FLASH_ROLLS.ui.dialogs.toggleHints'}}</span></h4>
+  <hr/>
+  
+  <div class="form-group">
+    <label for="groupRollsMsgEnabled">{{fields.groupRollsMsgEnabled.label}}</label>
+    <input type="checkbox" name="groupRollsMsgEnabled" {{#if groupRollsMsgEnabled}}checked{{/if}} />
+    <p class="hint">{{fields.groupRollsMsgEnabled.hint}}</p> 
+  </div>
+  
+  <div class="form-group">
+    <label for="groupRollResultMode">{{fields.groupRollResultMode.label}}</label>
+    <select name="groupRollResultMode" data-current-value="{{groupRollResultMode}}">
+      {{#each fields.groupRollResultMode.choices}}
+      <option value="{{@key}}">
+        {{this}}
+      </option>
+      {{/each}}
+    </select>
+    <p class="hint">{{{fields.groupRollResultMode.hint}}}</p> 
+  </div>
+  
+  <div class="form-group">
+    <label for="showGroupDCToPlayers">{{fields.showGroupDCToPlayers.label}}</label>
+    <input type="checkbox" name="showGroupDCToPlayers" {{#if showGroupDCToPlayers}}checked{{/if}} />
+    <p class="hint">{{fields.showGroupDCToPlayers.hint}}</p> 
+  </div>
+</section>

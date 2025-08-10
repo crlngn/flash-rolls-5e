@@ -29,9 +29,6 @@ export class RollRequestUtil {
    * @param {RollRequestData} requestData - The roll request data
    */
   static async handleRequest(requestData) {
-    // const SETTINGS = getSettings();
-    // const postRequestToChat = SettingsUtil.get(SETTINGS.postRequestToChat.tag);
-    
     const isMidiRequest = GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol');
     LogUtil.log('handleRequest', [requestData]);
     if (game.user.isGM) return;
@@ -131,13 +128,13 @@ export class RollRequestUtil {
         await handler(actor, handlerRequestData, rollConfig, dialogConfig, messageConfig);
       } else {
         LogUtil.warn(`No handler found for roll type: ${normalizedRollType}`);
-        NotificationManager.notify('warn', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
+        NotificationManager.notify('warn', game.i18n.format('FLASH_ROLLS.notifications.rollError', { 
           actor: actor.name || 'Unknown Actor'
         }));
       }
     } catch (error) {
       LogUtil.error('Error executing roll request:', [error]);
-      NotificationManager.notify('error', game.i18n.format('CRLNGN_ROLL_REQUESTS.notifications.rollError', { 
+      NotificationManager.notify('error', game.i18n.format('FLASH_ROLLS.notifications.rollError', { 
         actor: actor.name || 'Unknown Actor'
       }));
     }

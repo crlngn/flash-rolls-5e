@@ -1,5 +1,5 @@
 {
-  "CRLNGN_ROLL_REQUESTS": {
+  "FLASH_ROLLS": {
     "notifications": {
       "playerOffline": "{player} is offline. Rolling locally",
       "rollRequestSent": "Roll request for {actor} sent to {player}",
@@ -15,9 +15,7 @@
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
-    }
-  },
-  "CRLNGN_ROLLS": {
+    },
     "settings": {
       "debugMode": {
         "label": "Debug Mode",
@@ -30,6 +28,20 @@
       "groupRollsMsgEnabled": {
         "label": "Group Rolls in One Chat Message",
         "hint": "When enabled, multiple rolls triggered at once are condensed into a single group message. When disabled, each roll appears as a separate message."
+      },
+      "showGroupDCToPlayers": {
+        "label": "Show Group DC to Players",
+        "hint": "Enable to show the group DC in the group roll message to players."
+      },
+      "groupRollResultMode": {
+        "label": "Group Roll Result Mode",
+        "hint": "Select how to calculate the result of a group roll:<br/>• <b>Standard Rule</b> - At least half the group must succeed.<br/>• <b>Group Average</b> - Simple average of all rolls, rounded down.<br/>• <b>Leader with help</b> - Result from the actor with highest bonus, minus number of group failures.<br/>• <b>Weakest Link</b> - Result from the actor with the lowest relevant skill modifier, plus number of group successes.",
+        "choices": {
+          "1": "Standard Rule",
+          "2": "Group Average",
+          "3": "Leader with help",
+          "4": "Weakest Link"
+        }
       },
       "useGMTargetTokens": {
         "label": "Use GM Targeted Tokens",
@@ -53,13 +65,48 @@
       },
       "consumptionConfigMode": {
         "label": "Consumption Config Dialog",
-        "hint": "Select if you want to skip the consumption dialog for players, GM or both. This is the dialog where you select concentration, spell slots, etc. When skipped, defaults will be used."
+        "hint": "Select if you want to skip the consumption dialog for players, GM or both. This is the dialog where you select concentration, spell slots, etc. When skipped, defaults will be used.",
+        "choices": {
+          "1": "Skip dialog for player and GM",
+          "2": "Skip dialog for player",
+          "3": "Skip dialog for GM",
+          "4": "Do not skip dialog"
+        }
+      },
+      "moduleSettingsMenu": {
+        "title": "Module Settings",
+        "label": "Configure Options",
+        "hint": "",
+        "tabs": {
+          "groupRolls": "Group Rolls",
+          "generalSettings": "General Settings"
+        }
+      }
+    },
+    "groupRoll": {
+      "standardRule": {
+        "summary": "{successes}/{total} succeeded (needed {threshold})"
+      },
+      "groupAverage": {
+        "summary": "Average: {average} (DC {dc})"
+      },
+      "leaderWithHelp": {
+        "summary": "Leader with help: {leaderRoll} + {bonus} successes - {penalty} failures = {adjustedResult} (DC {dc})"
+      },
+      "weakestLink": {
+        "summary": "Weakest link: {weakestRoll} + {bonus} {successWord} = {adjustedResult} (DC {dc})",
+        "successSingular": "success",
+        "successPlural": "successes"
       }
     },
     "ui": {
       "buttons": {
         "rollRequestsToggleOn": "Roll Requests ON",
-        "rollRequestsToggleOff": "Roll Requests OFF"
+        "rollRequestsToggleOff": "Roll Requests OFF",
+        "reset": "Reset",
+        "save": "Save",
+        "reloadButton": "Reload",
+        "cancelButton": "Cancel"
       },
       "inputs": {
         "selectAll": "Select All",
@@ -81,6 +128,10 @@
         "rollRequestFlavor": "Roll request"
       },
       "dialogs": {
+        "worldSettingsLabel": "World Settings (GM)",
+        "toggleHints": "Toggle Help",
+        "reloadRequiredTitle": "Reload Foundry",
+        "reloadRequiredLabel": "A reload is required. Reload now?",
         "multipleActors": "Multiple Actors",
         "noCombatActive": "There is no active combat encounter. Would you like to create one before rolling initiative?",
         "rerollInitiativeTitle": "Re-roll Initiative?",
