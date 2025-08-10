@@ -476,7 +476,8 @@ export const RollHelpers = {
       };
     }
     
-    const successes = rollResults.filter(r => r.total >= dc).length;
+    // Count successes excluding the weakest actor
+    const successes = rollResults.filter(r => r.actorId !== weakestActorId && r.total >= dc).length;
     const adjustedResult = weakestResult.total + successes;
     
     const successWord = successes === 1 ? 

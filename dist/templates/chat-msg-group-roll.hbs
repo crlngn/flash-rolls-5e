@@ -15,7 +15,19 @@
           {{#if rolled}}
             <span class="roll-value clickable" title="Click to see roll breakdown">{{total}}</span>
           {{else}}
-            <span class="dice-btn fas fa-dice-d20 rollable" alt="Pending Roll"></span>
+            <span class="dice-btn fas fa-dice-d20 rollable" 
+                  data-action="roll"
+                  data-type="{{../rollType}}"
+                  data-roll-key="{{../rollKey}}"
+                  data-actor-id="{{actorId}}"
+                  data-group-roll-id="{{../groupRollId}}"
+                  {{#if ../rollType}}{{#eq ../rollType "skill"}}data-skill="{{../rollKey}}"{{/eq}}{{/if}}
+                  {{#if ../rollType}}{{#eq ../rollType "tool"}}data-tool="{{../rollKey}}"{{/eq}}{{/if}}
+                  {{#if ../rollType}}{{#eq ../rollType "save"}}data-ability="{{../rollKey}}"{{/eq}}{{/if}}
+                  {{#if ../rollType}}{{#eq ../rollType "ability"}}data-ability="{{../rollKey}}"{{/eq}}{{/if}}
+                  {{#if ../dc}}data-dc="{{../dc}}"{{/if}}
+                  title="Click to roll"
+                  alt="Pending Roll"></span>
           {{/if}}
         </span>
       </div>

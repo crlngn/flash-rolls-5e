@@ -156,7 +156,7 @@ export class ActivityUtil {
           try {
             config.message.create = true;
             await activity.use(config.usage, config.dialog, config.message);
-            LogUtil.log('CRLNGN TEST', [config]);
+            LogUtil.log('FLASH_ROLLS TEST', [config]);
             if(isMidiActive) {
               const MidiQOL = ModuleHelpers.getMidiQOL();
               if (MidiQOL) {
@@ -269,6 +269,7 @@ export class ActivityUtil {
         //   // return await item.use({ activity: activity.id }, { skipRollDialog: config.fastForward });
         default:
           LogUtil.log('executeActivityRoll - unknown roll type', [normalizedRollType]);
+          await activity.use(config.usage, config.dialog, config.message);
           return;
       }
     }
@@ -349,13 +350,4 @@ export class ActivityUtil {
     return await MidiQOL.completeItemUse(item, config, defaultOptions);
   }
 
-  // static async replaceDamage(workflow, formula, {ignoreCrit = false, damageType} = {}) {
-  //   formula = String(formula);
-  //   if (workflow.isCritical && !ignoreCrit) formula = await rollUtils.getCriticalFormula(formula, workflow.item.getRollData());
-  //   let roll = await new CONFIG.Dice.DamageRoll(formula).evaluate();
-
-  //   await workflow.setDamageRolls([roll]);
-    
-  //   return roll;
-  // }
 }

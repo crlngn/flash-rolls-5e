@@ -48,6 +48,7 @@ export class HooksUtil {
   static _onReady() {
 
     SettingsUtil.registerSettingsMenu();
+    SidebarUtil.addSidebarControls(ui.sidebar, ui.sidebar?.element);
     if(ModuleHelpers.isModuleActive("midi-qol")){
       LogUtil.log("HooksUtil.initialize", ["midi-qol is active. Awaiting for it to be ready..."]);
       Hooks.once("midi-qol.ready", this._initModule.bind(this));
@@ -351,8 +352,10 @@ export class HooksUtil {
    * Handle render Sidebar
    */
   static _onRenderSidebar(app, html, options) {
-    LogUtil.log("_onRenderSidebar", [app, html, options]);
-    SidebarUtil.addSidebarControls(app, html, options);
+    LogUtil.log("_onRenderSidebar", [app, html]);
+    if(game.ready){
+      SidebarUtil.addSidebarControls(app, html);
+    }
   }
   
   /**

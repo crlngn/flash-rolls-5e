@@ -117,9 +117,9 @@ export const getSettings = () => {
         3: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.3"),
         4: game.i18n.localize("FLASH_ROLLS.settings.consumptionConfigMode.choices.4")
       },
-      default: 1,
+      default: 4,
       scope: SETTING_SCOPE.world,
-      config: true
+      config: false
     },
 
     skipRollDialog: {
@@ -167,6 +167,17 @@ export const getSettings = () => {
       tag: "show-offline-notifications",
       label: game.i18n.localize("FLASH_ROLLS.settings.showOfflineNotifications.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.showOfflineNotifications.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    showRequestNotifications: {
+      tag: "show-request-notifications",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showRequestNotifications.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showRequestNotifications.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,

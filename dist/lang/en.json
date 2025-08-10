@@ -61,7 +61,11 @@
       },
       "showOfflineNotifications": {
         "label": "Show Offline Notifications",
-        "hint": "Enable to notify the GM before rolling when a player is offline"
+        "hint": "Enable to notify the GM before the request when a player is offline. The request will be executed locally."
+      },
+      "showRequestNotifications": {
+        "label": "Show Notifications on Request",
+        "hint": "Enable to notify the GM when a request is successfully sent to the active player"
       },
       "consumptionConfigMode": {
         "label": "Consumption Config Dialog",

@@ -11,13 +11,10 @@ export class SidebarUtil {
    * Add the roll request bolt icon to sidebar
    * @param {SidebarTab} app - The sidebar tab application
    * @param {jQuery} html - The rendered HTML
-   * @param {Object} options - Render options
    */
-  static addSidebarControls(app, html, options) {
-    if (!game.user.isGM || app.id !== "sidebar") return;
-    
-    // const htmlElement = html[0] || html;
-    // document.querySelector("#chat");
+  static addSidebarControls(app, html) {
+    LogUtil.log("addSidebarControls",[app, html]);
+    if (!game.user.isGM || !app || app.id !== "sidebar") return;
     
     // Find the chat controls container
     const chatControls = document.querySelector("#roll-privacy");

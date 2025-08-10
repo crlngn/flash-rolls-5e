@@ -1,10 +1,11 @@
 import { HOOKS_CORE } from "../constants/Hooks.mjs";
-import { MODULE_ID } from "../constants/General.mjs";
+import { MODULE_ID, ROLL_TYPES } from "../constants/General.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { RollHelpers } from "./helpers/RollHelpers.mjs";
+import { RollHandlers } from "./RollHandlers.mjs";
 
 /**
  * Utility class for managing group roll chat messages
@@ -50,11 +51,14 @@ export class ChatMessageUtils {
     const attachGroupRollListeners = (html, message) => {
       html.querySelectorAll('.actor-result').forEach(element => {
         element.addEventListener('click', (event) => {
+          if (event.target.closest('.dice-btn.rollable')) {
+            return;
+          }
+          
           event.preventDefault();
           event.stopPropagation();
           
           const actorResult = element;
-          // const breakdown = actorResult.querySelector('.roll-breakdown');
           
           LogUtil.log('actor-result click', [element]);
 
@@ -62,6 +66,109 @@ export class ChatMessageUtils {
             actorResult.classList.remove('expanded');
           } else {
             actorResult.classList.add('expanded');
+          }
+        });
+      });
+      
+      html.querySelectorAll('.dice-btn.rollable').forEach(diceBtn => {
+        diceBtn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          
+          const dataset = diceBtn.dataset;
+          const actorId = dataset.actorId;
+          const actor = game.actors.get(actorId);
+          
+          if (!actor) {
+            ui.notifications.warn(`Actor not found`);
+            return;
+          }
+          
+          // Check if user has permission to roll for this actor
+          const canRoll = game.user.isGM || actor.isOwner;
+          if (!canRoll) {
+            ui.notifications.warn(`You don't have permission to roll for ${actor.name}`);
+            return;
+          }
+          
+          const rollType = dataset.type?.toLowerCase();
+          const rollKey = dataset.rollKey;
+          const groupRollId = dataset.groupRollId;
+          const dc = dataset.dc ? parseInt(dataset.dc) : null;
+          
+          LogUtil.log('Rollable dice clicked', [rollType, rollKey, actorId, groupRollId]);
+          
+          // Build request data for the roll
+          const requestData = {
+            rollKey: rollKey,
+            groupRollId: groupRollId,
+            config: {
+              advantage: false,
+              disadvantage: false,
+              target: dc,
+              rollMode: game.settings.get("core", "rollMode")
+            }
+          };
+          
+          // Dialog configuration - show dialog for rolls
+          const dialogConfig = {
+            configure: true,
+            isRollRequest: true
+          };
+          
+          // Message configuration
+          const messageConfig = {
+            rollMode: game.settings.get("core", "rollMode"),
+            create: true,
+            isRollRequest: true
+          };
+          
+          // Roll configuration
+          const rollConfig = {
+            parts: [],
+            data: {},
+            options: {}
+          };
+          
+          // Execute the roll using the appropriate handler
+          try {
+            const handler = RollHandlers[rollType];
+            if (handler) {
+              await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
+            } else {
+              // Fallback for standard rolls
+              let rollMethod;
+              switch(rollType) {
+                case ROLL_TYPES.SKILL:
+                  rollMethod = 'rollSkill';
+                  break;
+                case ROLL_TYPES.ABILITY:
+                case ROLL_TYPES.ABILITY_CHECK:
+                  rollMethod = 'rollAbilityTest';
+                  break;
+                case ROLL_TYPES.SAVE:
+                case ROLL_TYPES.SAVING_THROW:
+                  rollMethod = 'rollAbilitySave';
+                  break;
+                case ROLL_TYPES.TOOL:
+                  rollMethod = 'rollToolCheck';
+                  break;
+                default:
+                  ui.notifications.warn(`Unknown roll type: ${rollType}`);
+                  return;
+              }
+              
+              if (rollMethod && actor[rollMethod]) {
+                await actor[rollMethod](rollKey, {
+                  ...requestData.config,
+                  messageOptions: { "flags.flash-rolls-5e.groupRollId": groupRollId }
+                });
+              }
+            }
+          } catch (error) {
+            LogUtil.error('Error executing roll from chat', error);
+            ui.notifications.error(`Failed to execute roll: ${error.message}`);
           }
         });
       });
