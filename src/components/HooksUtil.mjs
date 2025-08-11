@@ -15,12 +15,9 @@ import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
  * Utility class for managing all module hooks in one place
  */
 export class HooksUtil {
-  /**
-   * Registered hook IDs for cleanup
-   * @type {Map<string, number>}
-   */
   static registeredHooks = new Map();
   static midiTimeout = null;
+  static throttleTimers = {};
   
   /**
    * Initialize main module hooks
@@ -87,6 +84,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_CORE.RENDER_CHAT_MESSAGE, this._onRenderChatMessageHTML.bind(this));
     this._registerHook(HOOKS_CORE.CHANGE_SIDEBAR_TAB, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_CORE.COLLAPSE_SIDE_BAR, this._onSidebarUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.REFRESH_MEASURED_TEMPLATE, this.onRefreshTemplate.bind(this)); 
     this._registerHook(HOOKS_DND5E.RENDER_ROLL_CONFIGURATION_DIALOG, this._onRenderRollConfigDialog.bind(this));
     this._registerHook(HOOKS_DND5E.RENDER_SKILL_TOOL_ROLL_DIALOG, this._onRenderSkillToolDialog.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, this._onPreUseActivity.bind(this));
@@ -328,8 +326,61 @@ export class HooksUtil {
    */
   static _onRenderChatMessageHTML(message, html, context) {
     LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
-    // ChatMessageUtils handles hiding and deletion internally
     ChatMessageUtils.interceptRollMessage(message, html, context);
+    
+    this._addSelectTargetsButton(message, html);
+  }
+  
+  /**
+   * Add "Select Targeted" button to damage roll messages with saves
+   * @param {ChatMessage} message - The chat message
+   * @param {jQuery} html - The rendered HTML
+   */
+  static _addSelectTargetsButton(message, html) {
+    LogUtil.log("_addSelectTargetsButton #0", [message, html, html.querySelector('.message-content')]);
+    // const content = html.querySelector('.message-content');
+    if (message.flags?.dnd5e?.roll?.type !== 'damage' || html.querySelector('.select-targeted')) return;
+    
+    const button = document.createElement('button');
+    button.className = 'select-targeted';
+    button.type = 'button';
+    button.setAttribute("data-tooltip-direction", "LEFT");
+    button.setAttribute("data-tooltip", "Select Targeted");
+    button.innerHTML = '<i class="fas fa-crosshairs"></i>';
+    
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      this._selectTargetedTokens(event);
+    });
+    
+    html.querySelector('.message-content').appendChild(button);
+    message.update({
+      content: html
+    });
+  }
+  
+  /**
+   * Select all currently targeted tokens as damage targets
+   * @param {ChatMessage} message - The chat message
+   */
+  static _selectTargetedTokens(event) {
+    const message = event.currentTarget.closest('.chat-message');
+    const targets = message.querySelectorAll("[data-target-uuid]");
+    
+    if (targets.length === 0) {
+      ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.notifications.noTargetedTokens"));
+      return;
+    }
+
+    LogUtil.log("_selectTargetedTokens", [message, targets, canvas.tokens.placeables, game.scenes.active]);
+    for ( let i=0; i < targets.length; i++ ) {
+      const target = targets[i];
+      const actorId = target.dataset.targetUuid.split('Actor.')[1];
+      const token = canvas.tokens.placeables.find(t => {
+        return t.document.actorId === actorId;
+      });
+      token?.control({ releaseOthers: i===0 });
+    }
   }
   
   /**
@@ -641,15 +692,15 @@ export class HooksUtil {
     //   return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
     // });
 
-    if(activity.type === ACTIVITY_TYPES.SAVE){
-      config.create = { measuredTemplate: false };
-      config.hasConsumption = false;
-      config.consume = {
-        action: false,
-        resources: [],
-        spellSlot: false
-      };
-    }
+    // if(activity.type === ACTIVITY_TYPES.SAVE){
+    //   config.create = { measuredTemplate: true };
+    //   config.hasConsumption = false;
+    //   config.consume = {
+    //     action: false,
+    //     resources: [],
+    //     spellSlot: false
+    //   };
+    // }
 
     const actorOwner = GeneralUtil.getActorOwner(actor);
     
@@ -701,6 +752,55 @@ export class HooksUtil {
         }, 50);
       }
     }
+  }
+
+  /**
+   * TEMPLATES
+   */
+  static onRefreshTemplate(template, options) {
+    if(!template.isOwner){ return; }
+    const throttleKey = `refresh-template-${template.id}`;
+    const SETTINGS = getSettings();
+    const targettingSetting = SettingsUtil.get(SETTINGS.templateAutoTarget.tag);
+    
+    if (HooksUtil.throttleTimers[throttleKey]) {
+      clearTimeout(HooksUtil.throttleTimers[throttleKey]);
+    }
+
+    HooksUtil.throttleTimers[throttleKey] = setTimeout(() => {
+      let maxDisposition = 3;
+
+      switch(targettingSetting){
+        case 1:
+          maxDisposition = 3; break;
+        case 2: 
+          maxDisposition = 0; break;
+        default: 
+          return;
+      }
+
+      game.user.targets.forEach(t => t.setTarget(false, { releaseOthers: false }));
+      
+      const tokensToTarget = [];
+      for(let token of canvas.tokens.placeables){
+        if(token.document.disposition <= maxDisposition && template.shape.contains(token.center.x-template.x,token.center.y-template.y)){
+          tokensToTarget.push(token);
+        }
+      }
+      
+      tokensToTarget.forEach((token, i) => {
+        token.setTarget(true, { 
+          releaseOthers: i === 0,  // Only release others on first token
+          groupSelection: true 
+        });
+      });
+      
+      if (tokensToTarget.length > 0) {
+        game.user.broadcastActivity({ targets: game.user.targets.ids });
+      }
+      
+      delete HooksUtil.throttleTimers[throttleKey];
+    }, 50);
   }
   
 }

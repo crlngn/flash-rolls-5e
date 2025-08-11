@@ -11,7 +11,8 @@
       "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
       "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
-      "noHitDice": "No available hit dice for {actor}"
+      "noHitDice": "No available hit dice for {actor}",
+      "noTargetedTokens": "No targeted tokens found for the roll."
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -84,6 +85,21 @@
         "tabs": {
           "groupRolls": "Group Rolls",
           "generalSettings": "General Settings"
+        }
+      },
+      "templateAutoTarget": {
+        "label": "Template Auto Targeting",
+        "hint": "When a template is drawn on canvas, should tokens be automatically targeted / selected?",
+        "choices": {
+          "all": {
+            "label": "Target all tokens"
+          },
+          "notFriendly": {
+            "label": "Target non-friendly"
+          },
+          "none": {
+            "label": "Disable auto targetting"
+          }
         }
       }
     },

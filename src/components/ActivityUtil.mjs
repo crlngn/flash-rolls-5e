@@ -216,6 +216,7 @@ export class ActivityUtil {
                 return;
               }
             }else{
+              LogUtil.log('executeActivityRoll - damage roll', [activity, damageConfig, config]);
               // if(activity?.previousAttack || activity?.damageOnly) {
               await activity.rollDamage(damageConfig, config.dialog, config.message);
               // }

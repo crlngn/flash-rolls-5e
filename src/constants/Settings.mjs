@@ -22,11 +22,13 @@ export const getSettings = () => {
       fields: [
         'rollInterceptionEnabled',
         'useGMTargetTokens',
+        'templateAutoTarget',
         'showOfflineNotifications'
       ],
       default: {
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
+        templateAutoTarget: 1,
         showOfflineNotifications: true
       },
       scope: SETTING_SCOPE.world,
@@ -181,6 +183,22 @@ export const getSettings = () => {
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    templateAutoTarget: { 
+      tag: "template-auto-target", 
+      label: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.hint"),
+      propType: Number,
+      choices: {
+        1: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.choices.all.label"),
+        2: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.choices.notFriendly.label"),
+        3: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.choices.none.label"),
+      },
+      inputType: SETTING_INPUT.select,
+      default: 1,
       scope: SETTING_SCOPE.world,
       config: false
     },

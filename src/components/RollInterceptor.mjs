@@ -155,14 +155,15 @@ export class RollInterceptor {
 
     const owner = GeneralUtil.getActorOwner(actor);   
     LogUtil.log('_handlePreRoll - ownership', [owner]);
-    if (!owner || !owner.active || owner.id === game.user.id || // player owner inexistent or not active 
-      dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) { // config skips the dialog
-      
-      LogUtil.log('_handlePreRoll - skipping interception', [dialog.configure, config.midiOptions]);
-
-      if(!isMidiRequest){ 
-        return;
-      }
+    
+    if (!owner || !owner.active || owner.id === game.user.id) {
+      LogUtil.log('_handlePreRoll - skipping interception (owner unavailable)', [owner?.name, owner?.active]);
+      return;
+    }
+    
+    if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {
+      LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config.midiOptions]);
+      return;
     }
     
     LogUtil.log('_handlePreRoll - intercepting roll #1', [config, message]);
@@ -391,8 +392,8 @@ export class RollInterceptor {
       }
       
       // If sendRequest is false, execute local roll
-      LogUtil.log('_showGMConfigDialog - sending _executeInterceptedRoll', [rollType, config, result]);
       if (!result.sendRequest || !rollRequestsEnabled) {
+        LogUtil.log('_showGMConfigDialog - triggering _executeInterceptedRoll', [rollType, config, result]);
         await this._executeInterceptedRoll(actor, rollType, config, result);
         return;
       }
@@ -414,7 +415,7 @@ export class RollInterceptor {
     } catch (error) {
       LogUtil.error('RollInterceptor._showGMConfigDialog - Error', [error]);
       // Fallback: send request without configuration
-      this._sendRollRequest(actor, owner, rollType, config);
+      // this._sendRollRequest(actor, owner, rollType, config);
     }
   }
   
@@ -633,19 +634,38 @@ export class RollInterceptor {
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
-    
-    if(owner && requestData){
-      SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
 
-      // Show notification to GM
-      ui.notifications.info(game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', { 
-        player: owner?.name || 'Unknown',
-        actor: actor.name || 'Unknown' 
-      }));
-    }else{
+    LogUtil.log('_sendRollRequest - requestData', [owner, requestData]);
+    
+    // Check if owner exists and is active
+    if(!owner || !requestData){
       ui.notifications.warn('Flash Rolls: No owner found for actor ' + actor.name);
       return;
     }
+    
+    if(!owner.active){
+      const SETTINGS = getSettings();
+      if(SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
+        ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.playerOffline", { 
+          player: owner.name 
+        }));
+      }
+      // Execute the roll locally instead
+      await this._executeInterceptedRoll(actor, rollType, config, { 
+        ...config,
+        sendRequest: false 
+      });
+      return;
+    }
+    
+    // Owner is active, send the request
+    SocketUtil.execForUser('handleRollRequest', owner.id, requestData);
+
+    // Show notification to GM
+    ui.notifications.info(game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', { 
+      player: owner?.name || 'Unknown',
+      actor: actor.name || 'Unknown' 
+    }));
     
     
   }

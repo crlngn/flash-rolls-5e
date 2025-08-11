@@ -21,6 +21,18 @@
     <input type="checkbox" name="showOfflineNotifications" {{#if showOfflineNotifications}}checked{{/if}} />
     <p class="hint">{{fields.showOfflineNotifications.hint}}</p> 
   </div>
+
+  <div class="form-group">
+    <label for="templateAutoTarget">{{fields.templateAutoTarget.label}}</label>
+    <select name="templateAutoTarget" data-current-value="{{templateAutoTarget}}">
+      {{#each fields.templateAutoTarget.choices}}
+      <option value="{{@key}}" {{#if (eq @key ../templateAutoTarget)}}selected{{/if}}>
+        {{this}}
+      </option>
+      {{/each}}
+    </select>
+    <p class="hint">{{{fields.templateAutoTarget.hint}}}</p> 
+  </div>
   
   
   {{!-- <div class="form-group">

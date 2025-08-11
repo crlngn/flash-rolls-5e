@@ -207,3 +207,10 @@
     }
   }
 }
+
+.chat-message .message-content .select-targeted {
+  position: absolute;
+  margin-top: -3.25em;
+  right: 0;
+  z-index: 10;
+}

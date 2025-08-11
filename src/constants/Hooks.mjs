@@ -20,7 +20,8 @@ export const HOOKS_CORE = {
   PRE_CREATE_CHAT_MESSAGE: "preCreateChatMessage",
   CREATE_CHAT_MESSAGE: "createChatMessage",
   RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
-  COLLAPSE_SIDE_BAR: "collapseSidebar"
+  COLLAPSE_SIDE_BAR: "collapseSidebar",
+  REFRESH_MEASURED_TEMPLATE: "refreshMeasuredTemplate",
 };
 
 /**

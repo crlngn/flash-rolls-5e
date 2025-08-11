@@ -520,7 +520,9 @@ export const RollHelpers = {
       
       case ROLL_TYPES.SAVE:
       case ROLL_TYPES.SAVING_THROW:
-        return actor.system.abilities[rollKey]?.save || 0;
+        // Support both old and new D&D 5e data structure
+        return actor.system.abilities[rollKey]?.save?.value || 
+               actor.system.abilities[rollKey]?.save || 0;
       
       case ROLL_TYPES.ABILITY:
       case ROLL_TYPES.ABILITY_CHECK:
