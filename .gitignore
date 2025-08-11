@@ -3,6 +3,9 @@ deps/
 flash-rolls-5e.code-workspace
 foundry-config.yaml
 dnd5e-roll-flow-diagram.md
+.claude/
+.claude.local
 CLAUDE.md
 CLAUDE.local.md
 memory_bank/
+ROLL_FLOW.md
