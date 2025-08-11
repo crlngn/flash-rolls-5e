@@ -11,11 +11,12 @@ This is a Foundry VTT module that facilitates rolling for GMs, adding the follow
 
 <img width="320" height="383" alt="image" src="https://github.com/user-attachments/assets/f2f36d65-568e-4907-b362-7b70991a1779" />
 
-Four different modes of calculaton are available in Settings:
+Four different modes of calculation are available in Settings:
   - **Standard Rule:** At least half the characters must pass the DC
   - **Simple Average:** All rolls are summed up and averaged, then checked against the DC
   - **Leader With Help:** (Daggerheart rule) The roll from the character with highest modifiers is considered, then each other success is added and failure subtracted
   - **Weakest Link** The roll from the character with lowest modifiers is considered, then each other success is added (other failures are discarded)
+
 
 ## How to use
 
@@ -30,22 +31,23 @@ Four different modes of calculaton are available in Settings:
     - **Skip Roll Dialog:** ON - Roll Configuration Dialog will be skipped and default options used. / OFF - Roll Config Dialog will apear, with option for DC on applicable rolls
     - **Group Rolls:** ON - Rolls from multiple actors triggered at once will show up in a condensed message, including Group Roll calculation / OFF - Each roll will be posted to an individual message
     - **Select All** ON - Selects all characters on PC or NPC list
+    
   - When Roll Requests are activated, clicking to roll will open a opoup on player side, with all the selected configurations from DM. If you select advantage / disadvantage or situational bonus, the option should appear on player's side
 
 ## Dependencies
 
 Flash Rolls 5e requires the [socketlib](https://github.com/manuelVo/foundryvtt-socketlib) module to be installed and active.
 
-## License
-
-This module is licensed under the MIT License. See the LICENSE file for details.
 
 ## Compatibility
+
+This module works best together with [Carolingian UI](https://foundryvtt.com/packages/crlngn-ui).
 
 I am working to make the module fully compatible with Midi-QOL. At the moment, most rolls should work, but you might have some issues with roll interceptions for activity rolls. 
 While this module is in beta, I suggest unchecking the "Intercept GM Rolls for Players" when using Midi-QOL.
 
 <img width="702" height="667" alt="image" src="https://github.com/user-attachments/assets/1613a2b9-f0cd-4b86-96fa-50ab6a84831d" />
 
-This module works best together with [Carolingian UI](https://foundryvtt.com/packages/crlngn-ui).
+## License
 
+This module is licensed under the MIT License. See the LICENSE file for details.
