@@ -1,51 +1,51 @@
-# Carolingian Roll Requests
+# Flash Rolls 5e
 
-This is a Foundry VTT module that allows GMs to request rolls from players. 
-This is useful for:
-- Requesting skill checks, saving throws, etc. from multiple players and speeding up their response
-- Games using Pixels Dice or other kind of electronic dice rolling, as the roll is automatically skipped to the Roll Resolver window
-- Helping new players who are unfamiliar with Foundry, which might be causing combat to slow down
+This is a Foundry VTT module that facilitates rolling for GMs, adding the following features to core Foundry v13 / DnD5e 5.0.x: 
+- Roll for multiple NPCs or PCs at once
+- Calculate the result of group rolls with 4 different options (see below)
+- Request skill checks, saving throws, etc. from single or multiple player actors, adding DCs and bonuses before the request
+- Help new players who are unfamiliar with Foundry or tend to slow down combat
+- Target tokens from template drawing
 
-## Features
+## Group Roll Calculation
 
-- Request rolls from players:
-  - Skill checks
-  - Tool checks
-  - Ability Checks
-  - Saving Throws
-  - Death Saves
-  - Concentration Check
-  - Initiative Roll
-  - Attack roll
-  - Damage roll
+<img width="320" height="383" alt="image" src="https://github.com/user-attachments/assets/f2f36d65-568e-4907-b362-7b70991a1779" />
 
-**How to use:**
-- Click the lightning bolt on sidebar chat to toggle the "roll requests" behavior
-- Select an actor on the list and a menu will appear for the type of action to roll. You may select multiple actors if wanted.
-- When activated, you can click to roll from the list or from character sheet of a Player Character, and the player will get a popup they can simply click to roll. This should works from modules that make rolls as well.
-- If you select advantage / disadvantage or situational bonus, the option should appear on player's side
+Four different modes of calculaton are available in Settings:
+  - **Standard Rule:** At least half the characters must pass the DC
+  - **Simple Average:** All rolls are summed up and averaged, then checked against the DC
+  - **Leader With Help:** (Daggerheart rule) The roll from the character with highest modifiers is considered, then each other success is added and failure subtracted
+  - **Weakest Link** The roll from the character with lowest modifiers is considered, then each other success is added (other failures are discarded)
 
-<img width="900" alt="image" src="https://github.com/user-attachments/assets/dc674424-8c70-491c-899a-bfd361f0cf9b" />
+## How to use
 
+### For Roll Requests and multi-rolls:
 
-## Installation
-
-### Method 1: FoundryVTT Setup
-
-1. In the FoundryVTT setup screen, go to "Add-on Modules"
-2. Click "Install Module"
-3. Paste the following manifest URL: https://github.com/crlngn/flash-rolls-5e/releases/latest/download/module.json
-
-### Method 2: Manual Installation
-
-1. Download the latest release from the [Releases page](https://github.com/crlngn/flash-rolls-5e/releases)
-2. Extract the zip file to your FoundryVTT Data/modules directory
-3. Restart FoundryVTT
+  <img width="650" alt="image" src="https://github.com/user-attachments/assets/7df899ba-3966-4edb-87c4-0693c17bf36b" />
+  
+  - Click the lightning bolt on sidebar to open the menu
+  - Select one or more actors on the list and a menu will appear for the type of roll
+  - There are a few toggles on top of the actors list, in the settings section:
+    - **Roll Requests:** ON - Requests will be sent to players who own characters if they are online / OFF - All characters will be rolled locally by the GM (no requests)
+    - **Skip Roll Dialog:** ON - Roll Configuration Dialog will be skipped and default options used. / OFF - Roll Config Dialog will apear, with option for DC on applicable rolls
+    - **Group Rolls:** ON - Rolls from multiple actors triggered at once will show up in a condensed message, including Group Roll calculation / OFF - Each roll will be posted to an individual message
+    - **Select All** ON - Selects all characters on PC or NPC list
+  - When Roll Requests are activated, clicking to roll will open a opoup on player side, with all the selected configurations from DM. If you select advantage / disadvantage or situational bonus, the option should appear on player's side
 
 ## Dependencies
 
-This module requires the [socketlib](https://github.com/manuelVo/foundryvtt-socketlib) module to be installed and active.
+Flash Rolls 5e requires the [socketlib](https://github.com/manuelVo/foundryvtt-socketlib) module to be installed and active.
 
 ## License
 
 This module is licensed under the MIT License. See the LICENSE file for details.
+
+## Compatibility
+
+I am working to make the module fully compatible with Midi-QOL. At the moment, most rolls should work, but you might have some issues with roll interceptions for activity rolls. 
+While this module is in beta, I suggest unchecking the "Intercept GM Rolls for Players" when using Midi-QOL.
+
+<img width="702" height="667" alt="image" src="https://github.com/user-attachments/assets/1613a2b9-f0cd-4b86-96fa-50ab6a84831d" />
+
+This module works best together with [Carolingian UI](https://foundryvtt.com/packages/crlngn-ui).
+
