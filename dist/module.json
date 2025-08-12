@@ -45,7 +45,17 @@
         }
       }
     ],
-    "recommends": []
+    "recommends": [
+      {
+        "id": "crlngn-ui",
+        "type": "module",
+        "manifest": "https://github.com/crlngn/crlngn-ui/releases/latest/download/module.json",
+        "compatibility": {
+          "minimum": "2.0.0",
+          "verified": "2.6.11"
+        }
+      }
+    ]
   },
   "socket": true,
   "esmodules": [

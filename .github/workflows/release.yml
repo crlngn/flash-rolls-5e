@@ -31,8 +31,10 @@ jobs:
         run: |
           MIN_VERSION=$(jq -r .compatibility.minimum src/module.json)
           VERIFIED_VERSION=$(jq -r .compatibility.verified src/module.json)
+          MAX_VERSION=$(jq -r .compatibility.maximum src/module.json)
           echo "MIN_VERSION=$MIN_VERSION" >> $GITHUB_ENV
           echo "VERIFIED_VERSION=$VERIFIED_VERSION" >> $GITHUB_ENV
+          echo "MAX_VERSION=$MAX_VERSION" >> $GITHUB_ENV
 
       - name: Prepare Release Artifacts
         run: |
@@ -62,11 +64,12 @@ jobs:
               "id": "'"$REPO_NAME"'",
               "release": {
                 "version": "'"$VERSION"'",
-                "manifest": "https://github.com/${{ github.repository }}/releases/download/v'"$VERSION"'/module.json",
+                "manifest": "https://github.com/${{ github.repository }}/releases/latest/download/module.json",
                 "notes": "https://github.com/${{ github.repository }}/releases/tag/v'"$VERSION"'",
                 "compatibility": {
-                  "minimum": "${{ env.MIN_VERSION }}",
-                  "verified": "${{ env.VERIFIED_VERSION }}"
+                  "minimum": "${{env.MIN_VERSION}}",
+                  "verified": "${{env.VERIFIED_VERSION}}",
+                  "maximum": "${{env.MAX_VERSION}}"
                 }
               }
             }')
@@ -102,7 +105,7 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            **New Release for Carolingian Roll Requests**
+            **New Release for Flash Rolls 5e**
             
             **Repository:** ${{ github.repository }}
             **Version:** ${{ github.ref_name }}
