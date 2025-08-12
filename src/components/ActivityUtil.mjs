@@ -131,9 +131,6 @@ export class ActivityUtil {
     
     // Execute the roll based on type
     if (activity) {
-      // if(!isMidiActive) {
-      //   config.message.create = true;
-      // }
       switch (normalizedRollType) {
         case ROLL_TYPES.ATTACK:
           LogUtil.log('executeActivityRoll - is attack activity', [config]);
@@ -203,16 +200,19 @@ export class ActivityUtil {
               const MidiQOL = ModuleHelpers.getMidiQOL();
               if (MidiQOL) {
                 const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
-                const damageRoll = await workflow.activity.rollDamage({
-                  ...config,
-                  workflow: workflow,
-                  // autoFastAttack: false,
-                  // autoFastDamage: false,
-                  // autoRollAttack: false,
-                  // autoRollDamage: false
-                });
+                LogUtil.log('executeActivityRoll - workflow', [workflow]);
+                if(workflow){
+                  const damageRoll = await workflow.activity.rollDamage({
+                    ...config,
+                    workflow: workflow,
+                    // autoFastAttack: false,
+                    // autoFastDamage: false,
+                    // autoRollAttack: false,
+                    // autoRollDamage: false
+                  });
+                }
+                
                 // await activity.rollDamage(damageConfig, config.dialog, config.message);
-
                 return;
               }
             }else{

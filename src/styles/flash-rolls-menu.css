@@ -44,7 +44,7 @@
 }
 
 #flash-rolls-menu > div > ul,
-#flash-rolls-menu > div > div.visible {
+#flash-rolls-menu > div > .request-types-accordion {
   position:relative;
   pointer-events: all;
   list-style: none;
@@ -67,9 +67,14 @@
   }
 }
 
-/* Hide accordion when no actors selected */
-#flash-rolls-menu > div > .request-types-accordion:not(.visible) {
+/* Hide accordion by default */
+#flash-rolls-menu > div > .request-types-accordion:not(.hover-visible) {
   display: none;
+}
+
+/* Show accordion on hover when it has the hover-visible class */
+#flash-rolls-menu > div > .request-types-accordion.hover-visible {
+  display: flex;
 }
 /*
 #flash-rolls-menu > div > ul.actors {

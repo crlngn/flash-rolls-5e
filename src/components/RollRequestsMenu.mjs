@@ -1,4 +1,5 @@
 import { MODULE, ROLL_TYPES } from '../constants/General.mjs';
+import { HOOKS_CORE } from '../constants/Hooks.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
@@ -118,8 +119,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const selectAllOn = currentActors.length > 0 && 
       currentActors.every(actor => this.selectedActors.has(actor.id));
     
+    const shouldPrepareRequestTypes = this.selectedActors.size > 0;
+    
     const requestTypes = [];
-    if (this.selectedActors.size > 0) {
+    if (shouldPrepareRequestTypes) {
       for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
         const requestType = {
           id: key,
@@ -227,7 +230,15 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       document.addEventListener('click', this._onClickOutside, true);
     }, 100);
     
-    this._tokenControlHook = Hooks.on('controlToken', this._onTokenControlChange.bind(this));
+    this._tokenControlHook = Hooks.on(HOOKS_CORE.CONTROL_TOKEN, this._onTokenControlChange.bind(this));
+    
+    // Listen for actor updates to refresh stats display
+    this._actorUpdateHook = Hooks.on(HOOKS_CORE.UPDATE_ACTOR, this._onActorUpdate.bind(this));
+    
+    // Listen for item changes on actors (equipment changes can affect AC)
+    this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
+    this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
+    this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
     
     // Initialize drag handle event listener only (positioning already done in _renderFrame)
     const dragHandle = this.element.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
@@ -256,6 +267,87 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       
       this._tokenUpdateTimeout = null;
     }, 100); // 100ms debounce
+  }
+  
+  /**
+   * Handle actor updates to refresh stats display
+   */
+  _onActorUpdate(actor, changes, options, userId) {
+    LogUtil.log('_onActorUpdate', [actor.id, changes]);
+    if (!this.rendered) return;
+    
+    // Check if the update affects any stats we display
+    const statsChanged = changes.system?.attributes?.hp || 
+                        changes.system?.attributes?.ac || 
+                        changes.system?.attributes?.spell?.dc ||
+                        changes.system?.skills?.prc ||
+                        changes.system?.abilities ||
+                        changes.system?.attributes?.prof;
+    
+    if (!statsChanged) return;
+    
+    // Check if this actor is currently displayed in the menu
+    const currentTab = this.currentTab;
+    const isPlayerOwned = Object.entries(actor.ownership)
+      .some(([uid, level]) => {
+        const user = game.users.get(uid);
+        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+      });
+    
+    const shouldUpdate = (currentTab === 'pc' && isPlayerOwned) || 
+                         (currentTab === 'npc' && !isPlayerOwned && hasTokenInScene(actor));
+    
+    if (shouldUpdate) {
+      // Debounce updates to avoid excessive re-renders
+      if (this._actorUpdateTimeout) {
+        clearTimeout(this._actorUpdateTimeout);
+      }
+      
+      this._actorUpdateTimeout = setTimeout(() => {
+        this.render();
+        this._actorUpdateTimeout = null;
+      }, 100);
+    }
+  }
+  
+  /**
+   * Handle item updates on actors (for equipment changes that affect AC)
+   */
+  _onItemUpdate(item, changes, options, userId) {
+    if (!this.rendered) return;
+    
+    // Only care about items that could affect AC (armor, shields, etc.)
+    const affectsAC = item.type === 'equipment' || 
+                      changes.system?.equipped !== undefined ||
+                      changes.system?.attunement !== undefined;
+    
+    if (!affectsAC) return;
+    
+    const actor = item.parent;
+    if (!actor || actor.documentName !== 'Actor') return;
+    
+    const currentTab = this.currentTab;
+    const isPlayerOwned = Object.entries(actor.ownership)
+      .some(([uid, level]) => {
+        const user = game.users.get(uid);
+        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
+      });
+    
+    const shouldUpdate = (currentTab === 'pc' && isPlayerOwned) || 
+                         (currentTab === 'npc' && !isPlayerOwned && hasTokenInScene(actor));
+    
+    if (shouldUpdate) {
+      // Debounce updates to avoid excessive re-renders
+      if (this._itemUpdateTimeout) {
+        clearTimeout(this._itemUpdateTimeout);
+      }
+      
+      this._itemUpdateTimeout = setTimeout(() => {
+        LogUtil.log('Refreshing menu due to item change affecting AC', [item.name, actor.name]);
+        this.render();
+        this._itemUpdateTimeout = null;
+      }, 500);
+    }
   }
   
   /**
@@ -312,6 +404,22 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const searchInput = html.querySelector('.search-input');
     if (searchInput) {
       searchInput.addEventListener('input', this._onSearchInput.bind(this));
+    }
+    
+    // Hover to show/hide accordion
+    const accordion = html.querySelector('.request-types-accordion');
+    if (accordion) {
+      // Show accordion on mouse enter
+      html.addEventListener('mouseenter', () => {
+        if (this.selectedActors.size > 0) {
+          accordion.classList.add('hover-visible');
+        }
+      });
+      
+      // Hide accordion on mouse leave
+      html.addEventListener('mouseleave', () => {
+        accordion.classList.remove('hover-visible');
+      });
     }
     
     // Accordion and request type selection - use event delegation for dynamic content
@@ -464,6 +572,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   _initializeFromSelectedTokens() {
     LogUtil.log('_initializeFromSelectedTokens');
+    
     const controlledTokens = canvas.tokens?.controlled || [];
     this.selectedActors.clear();
     
@@ -524,6 +633,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   _toggleActorSelection(actorId) {
     LogUtil.log('_toggleActorSelection');
+    
     // Temporarily disable token control hook to avoid feedback loop
     this._ignoreTokenControl = true;
     
@@ -1255,13 +1365,43 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     document.removeEventListener('click', this._onClickOutside, true);
     
     if (this._tokenControlHook) {
-      Hooks.off('controlToken', this._tokenControlHook);
+      Hooks.off(HOOKS_CORE.CONTROL_TOKEN, this._tokenControlHook);
       this._tokenControlHook = null;
+    }
+    
+    if (this._actorUpdateHook) {
+      Hooks.off(HOOKS_CORE.UPDATE_ACTOR, this._actorUpdateHook);
+      this._actorUpdateHook = null;
+    }
+    
+    if (this._updateItemHook) {
+      Hooks.off(HOOKS_CORE.UPDATE_ITEM, this._updateItemHook);
+      this._updateItemHook = null;
+    }
+    
+    if (this._createItemHook) {
+      Hooks.off(HOOKS_CORE.CREATE_ITEM, this._createItemHook);
+      this._createItemHook = null;
+    }
+    
+    if (this._deleteItemHook) {
+      Hooks.off(HOOKS_CORE.DELETE_ITEM, this._deleteItemHook);
+      this._deleteItemHook = null;
     }
     
     if (this._tokenUpdateTimeout) {
       clearTimeout(this._tokenUpdateTimeout);
       this._tokenUpdateTimeout = null;
+    }
+    
+    if (this._actorUpdateTimeout) {
+      clearTimeout(this._actorUpdateTimeout);
+      this._actorUpdateTimeout = null;
+    }
+    
+    if (this._itemUpdateTimeout) {
+      clearTimeout(this._itemUpdateTimeout);
+      this._itemUpdateTimeout = null;
     }
     
     if (RollRequestsMenu.#instance === this) {

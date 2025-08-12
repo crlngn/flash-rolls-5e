@@ -123,7 +123,7 @@ export const getSettings = () => {
       },
       default: 4,
       scope: SETTING_SCOPE.world,
-      config: false
+      config: true
     },
 
     skipRollDialog: {

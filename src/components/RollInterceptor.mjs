@@ -124,6 +124,7 @@ export class RollInterceptor {
     
     if ( config?.isRollRequest || config.sendRequest===false || 
          dialog?.isRollRequest || message?.isRollRequest) {
+      LogUtil.log('_handlePreRoll - skipping interception (roll request)', [config, dialog, message]);
       return;
     }
 
@@ -159,6 +160,11 @@ export class RollInterceptor {
     if (!owner || !owner.active || owner.id === game.user.id) {
       LogUtil.log('_handlePreRoll - skipping interception (owner unavailable)', [owner?.name, owner?.active]);
       return;
+    }
+
+    const isMidiActive = config.midiOptions !== null && config.midiOptions !== undefined;
+    if(isMidiActive){
+      // config.midiOptions
     }
     
     if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {

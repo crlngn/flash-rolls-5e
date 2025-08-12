@@ -1,9 +1,10 @@
 import { LogUtil } from "../../LogUtil.mjs";
 import { MODULE_ID } from "../../../constants/General.mjs";
+import { HOOKS_CORE } from "../../../constants/Hooks.mjs";
 import { GeneralUtil } from "../../helpers/GeneralUtil.mjs";
 
 // Check if required D&D5e classes exist
-Hooks.once("ready", () => {
+Hooks.once(HOOKS_CORE.READY, () => {
   if (!dnd5e.applications.dice.DamageRollConfigurationDialog) {
     LogUtil.warn("DamageRollConfigurationDialog not found in dnd5e.applications.dice");
   }

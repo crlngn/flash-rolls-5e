@@ -1,4 +1,4 @@
-import { HOOKS_CORE, HOOKS_DND5E } from "../constants/Hooks.mjs";
+import { HOOKS_CORE, HOOKS_DND5E, HOOKS_MIDI_QOL } from "../constants/Hooks.mjs";
 import { getSettings } from "../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { DiceConfigUtil } from "./DiceConfigUtil.mjs";
@@ -48,7 +48,7 @@ export class HooksUtil {
     SidebarUtil.addSidebarControls(ui.sidebar, ui.sidebar?.element);
     if(ModuleHelpers.isModuleActive("midi-qol")){
       LogUtil.log("HooksUtil.initialize", ["midi-qol is active. Awaiting for it to be ready..."]);
-      Hooks.once("midi-qol.ready", this._initModule.bind(this));
+      Hooks.once(HOOKS_MIDI_QOL.READY, this._initModule.bind(this));
     }else{
       LogUtil.log("HooksUtil.initialize", ["midi-qol is NOT active. Starting..."]);
       this._initModule();
@@ -112,7 +112,7 @@ export class HooksUtil {
     
     this._registerHook(HOOKS_DND5E.PRE_ROLL_ATTACK_V2, this._onPreRollAttackV2.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_DAMAGE_V2, this._onPreRollDamageV2.bind(this));
-    Hooks.on("dnd5e.preRollAbilityCheckV2", (config, dialog, message) => {
+    Hooks.on(HOOKS_DND5E.PRE_ROLL_ABILITY_CHECK, (config, dialog, message) => {
       LogUtil.log("_onPreRollAbilityCheckV2", [config, dialog, message]);
       if (config.isRollRequest) {
         dialog.configure = true;

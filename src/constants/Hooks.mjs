@@ -22,6 +22,11 @@ export const HOOKS_CORE = {
   RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
   COLLAPSE_SIDE_BAR: "collapseSidebar",
   REFRESH_MEASURED_TEMPLATE: "refreshMeasuredTemplate",
+  CONTROL_TOKEN: "controlToken",
+  UPDATE_ACTOR: "updateActor",
+  UPDATE_ITEM: "updateItem",
+  CREATE_ITEM: "createItem",
+  DELETE_ITEM: "deleteItem"
 };
 
 /**
@@ -29,6 +34,13 @@ export const HOOKS_CORE = {
  */
 export const HOOKS_SOCKET = {
   READY: "socketlib.ready"
+}
+
+/**
+ * Midi-QOL hooks
+ */
+export const HOOKS_MIDI_QOL = {
+  READY: "midi-qol.ready"
 }
 
 /**
