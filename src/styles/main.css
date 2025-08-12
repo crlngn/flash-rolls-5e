@@ -63,6 +63,13 @@ body.flash5e {
     background-color: var(--color-warm-3);
     justify-self: flex-start;
   }
+
+  #chat-notifications #roll-privacy {
+    z-index: 2;
+  }
+  #chat-notifications #flash-rolls-menu {
+    z-index: 1;
+  }
 }
 
 
