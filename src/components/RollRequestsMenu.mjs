@@ -170,9 +170,33 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _renderFrame(options) {
     const frame = await super._renderFrame(options);
     
-    const chatNotifications = document.querySelector('#chat-notifications');
-    if (chatNotifications && frame) {
-      chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+    // Apply custom position BEFORE inserting into DOM to prevent flicker
+    const customPosition = this.customPosition || RollMenuDragUtil.loadCustomPosition();
+    if (customPosition?.isCustom && frame) {
+      frame.style.position = 'fixed';
+      frame.style.top = `${customPosition.y}px`;
+      frame.style.left = `${customPosition.x}px`;
+      frame.style.right = 'auto';
+      frame.style.bottom = 'auto';
+      frame.classList.add('custom-position');
+      
+      // Check if close to left edge
+      const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
+      if (customPosition.x < remInPixels) {
+        frame.classList.add('left-edge');
+      }
+      
+      document.body.appendChild(frame);
+      
+      GeneralUtil.addCSSVars('--flash-rolls-menu-offset', '0px');
+      this.isCustomPosition = true;
+      this.customPosition = customPosition;
+    } else {
+      // Default position - insert into chat notifications
+      const chatNotifications = document.querySelector('#chat-notifications');
+      if (chatNotifications && frame) {
+        chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+      }
     }
     
     return frame;
@@ -193,6 +217,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (this.optionsExpanded) {
       const optionsToggle = this.element.querySelector('.options-toggle');
       const optionsElement = this.element.querySelector('li.options');
+      const toggleBtn = this.element.querySelector('.options-toggle-btn');
+      
       optionsToggle?.classList.add('expanded');
       optionsElement?.classList.add('expanded');
     }
@@ -203,10 +229,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     this._tokenControlHook = Hooks.on('controlToken', this._onTokenControlChange.bind(this));
     
-    // Initialize drag functionality with a small delay to ensure DOM is ready
-    setTimeout(() => {
-      RollMenuDragUtil.initializeDrag(this);
-    }, 100);
+    // Initialize drag handle event listener only (positioning already done in _renderFrame)
+    const dragHandle = this.element.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
+    if (dragHandle) {
+      dragHandle.addEventListener('mousedown', (e) => {
+        RollMenuDragUtil.handleDragStart(e, this);
+      });
+    }
   }
   
   /**
@@ -261,8 +290,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Lock toggle
     html.querySelector('#flash5e-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
     
-    // Options toggle
-    html.querySelector('.options-toggle')?.addEventListener('click', this._onToggleOptions.bind(this));
+    // Options toggle button (not the whole container since it now contains the select all switch)
+    html.querySelector('.options-toggle-btn')?.addEventListener('click', this._onToggleOptions.bind(this));
     
     // Tab switching
     const tabs = html.querySelectorAll('.actor-tab');
@@ -408,6 +437,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _onToggleOptions(event) {
     LogUtil.log('_onToggleOptions');
     event.preventDefault();
+    event.stopPropagation();
     
     // Toggle the state
     this.optionsExpanded = !this.optionsExpanded;
@@ -415,10 +445,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Save state to user flag
     await game.user.setFlag(MODULE.ID, 'menuOptionsExpanded', this.optionsExpanded);
     
-    // Toggle expanded class on the clicked element
-    const optionsToggle = event.currentTarget || event.target.closest('.options-toggle');
-    if (optionsToggle) {
-      optionsToggle.classList.toggle('expanded', this.optionsExpanded);
+    // Find the options-toggle container (parent li) and toggle expanded class
+    const optionsToggleContainer = this.element.querySelector('.options-toggle');
+    if (optionsToggleContainer) {
+      optionsToggleContainer.classList.toggle('expanded', this.optionsExpanded);
     }
     
     // Find the li.options sibling and toggle expanded class on it

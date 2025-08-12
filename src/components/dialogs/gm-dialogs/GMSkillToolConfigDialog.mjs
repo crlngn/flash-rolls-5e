@@ -247,6 +247,10 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
           title: GMRollConfigDialog._getRollTitle(normalizedRollType, rollKey, actor),
           subtitle: GMRollConfigDialog._getSubtitle(actors)
         },
+        position: {
+          width: 420,
+          height: "auto"
+        },
         ...options
       }
     };

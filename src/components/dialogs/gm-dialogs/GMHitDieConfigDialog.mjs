@@ -255,6 +255,10 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
           title: game.i18n.localize("DND5E.HitDice"),
           subtitle: GMRollConfigDialog._getSubtitle(actors)
         },
+        position: {
+          width: 420,
+          height: "auto"
+        },
         ...options
       }
     };

@@ -232,6 +232,10 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
           title: GMRollConfigDialog._getRollTitle(normalizedRollType, rollKey, actor),
           subtitle: GMRollConfigDialog._getSubtitle(actors)
         },
+        position: {
+          width: 420,
+          height: "auto"
+        },
         ...options
       }
     };
