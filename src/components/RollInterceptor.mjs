@@ -162,18 +162,6 @@ export class RollInterceptor {
       return;
     }
 
-    const isMidiActive = config.midiOptions !== null && config.midiOptions !== undefined;
-    if(isMidiActive){
-      // config.midiOptions
-    }
-    
-    if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {
-      LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config.midiOptions]);
-      return;
-    }
-    
-    LogUtil.log('_handlePreRoll - intercepting roll #1', [config, message]);
-    
     // For attack rolls, if a usage message is created, ensure it's public
     if (rollType === ROLL_TYPES.ATTACK) {
       message = {
@@ -182,7 +170,19 @@ export class RollInterceptor {
       };
     }
 
-    LogUtil.log('_handlePreRoll - intercepting roll #2', [config, message]); 
+    const isMidiActive = config.midiOptions !== null && config.midiOptions !== undefined;
+    if(isMidiActive && game.user.isGM){
+      LogUtil.log('_handlePreRoll - isMidiActive', [isMidiActive]);
+      this._showGMConfigDialog(actor, owner, rollType, config, dialog, message); 
+      return false;
+    }
+    
+    if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {
+      LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config]);
+      return;
+    }
+    
+    LogUtil.log('_handlePreRoll - intercepting roll #1', [config, message]);
     this._showGMConfigDialog(actor, owner, rollType, config, dialog, message); 
     
     return false;
@@ -406,9 +406,10 @@ export class RollInterceptor {
       
       // Send the roll request to the player with the configured settings
       // Exclude the event object as it can't be serialized
-      const { event, ...configWithoutEvent } = config;
+      // const { event, ...configWithoutEvent } = config;
+      delete config.event;
       const finalConfig = {
-        ...configWithoutEvent,
+        ...config,
         ...result,
         rolls: result.rolls,
         requestedBy: game.user.name,
@@ -416,6 +417,7 @@ export class RollInterceptor {
         ...(rollType === ROLL_TYPES.ATTACK && { chatMessage: false })
       };
       
+      LogUtil.log('_showGMConfigDialog - triggering _sendRollRequest', [rollType, finalConfig]);
       this._sendRollRequest(actor, owner, rollType, finalConfig);
       
     } catch (error) {
