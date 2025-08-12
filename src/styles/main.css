@@ -69,6 +69,14 @@ body.flash5e {
   }
   #chat-notifications #flash-rolls-menu {
     z-index: 1;
+
+    margin-right: 15px;
+    margin-bottom: 15px;
+  }
+
+  &.crlngn-ui #chat-notifications #flash-rolls-menu{
+    margin-right: 0px;
+    margin-bottom: 0px;
   }
 }
 

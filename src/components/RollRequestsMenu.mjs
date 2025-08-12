@@ -37,6 +37,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this.selectedRequestType = null;
     this.isLocked = false; 
     this.optionsExpanded = game.user.getFlag(MODULE.ID, 'menuOptionsExpanded') ?? false;
+    this.accordionStates = game.user.getFlag(MODULE.ID, 'menuAccordionStates') ?? {};
     
     // Initialize with actors from selected tokens
     this._initializeFromSelectedTokens();
@@ -116,7 +117,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           name: game.i18n.localize(`FLASH_ROLLS.rollTypes.${option.name}`) || option.label,
           rollable: option.subList == null,
           hasSubList: !!option.subList,
-          selected: this.selectedRequestType === key,
+          selected: this.selectedRequestType === key, 
+          expanded: this.accordionStates[key] ?? false,
           subItems: []
         };
         
@@ -617,12 +619,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   /**
    * Handle accordion toggle
    */
-  _onAccordionToggle(event) {
+  async _onAccordionToggle(event) {
     LogUtil.log('_onAccordionToggle');
     event.stopPropagation();
     
     const requestHeader = event.target.closest('.request-type-header');
     const requestItem = requestHeader.closest('.request-type-item');
+    const requestId = requestItem.dataset.id;
     const accordionToggle = requestItem.querySelector('.accordion-toggle');
     const nestedList = requestItem.querySelector('.roll-types-nested');
     
@@ -634,6 +637,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     // Toggle nested list visibility
     nestedList.style.display = isExpanded ? 'none' : 'block';
+    
+    // Update saved state
+    this.accordionStates[requestId] = !isExpanded;
+    await game.user.setFlag(MODULE.ID, 'menuAccordionStates', this.accordionStates);
   }
 
   /**
@@ -893,6 +900,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           actors = filteredActorIds
             .map(id => game.actors.get(id));
             // .filter(actor => actor);
+          
+          const initiateCombat = SettingsUtil.get(SETTINGS.initiateCombatOnRequest.tag);
+          if (initiateCombat) {
+            game.combat.startCombat();
+          }
         }
         break;
       case ROLL_TYPES.DEATH_SAVE:

@@ -92,7 +92,7 @@
         <li data-id="{{ requestType.id }}" class="request-type-item {{#if requestType.rollable}}rollable{{/if}} {{#if requestType.hasSubList}}has-subitems{{/if}}">
           <div class="request-type-header {{#if requestType.hasSubList}}accordion-header{{else if requestType.rollable}}toggle{{/if}}">
             {{#if requestType.hasSubList}}
-              <i class="icon fas fa-chevron-right accordion-toggle"></i>
+              <i class="icon fas fa-chevron-right accordion-toggle{{#if requestType.expanded}} expanded{{/if}}"></i>
             {{else}}
               <i class="icon fas fa-dice-d20"></i>
             {{/if}}
@@ -100,7 +100,7 @@
           </div>
           
           {{#if requestType.hasSubList}}
-            <ul class="roll-types-nested" style="display: none;">
+            <ul class="roll-types-nested" style="display: {{#if requestType.expanded}}block{{else}}none{{/if}};">
               {{#each requestType.subItems as |subItem|}}
                 <li data-id="{{ subItem.id }}" data-parent="{{ ../id }}" class="rollable sub-item">
                   <i class="icon fas fa-dice-d20"></i>

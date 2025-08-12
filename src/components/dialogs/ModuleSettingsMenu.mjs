@@ -295,7 +295,7 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
       }
     });
 
-    ui.notifications.info(game.i18n.localize('FLASH_ROLLS.ui.notifications.settingsUpdated'));
+    ui.notifications.info(game.i18n.localize('FLASH_ROLLS.notifications.settingsUpdated'));
     return confirmReload;
   }
 

@@ -23,6 +23,12 @@
   </div>
 
   <div class="form-group">
+    <label for="initiateCombatOnRequest">{{fields.initiateCombatOnRequest.label}}</label>
+    <input type="checkbox" name="initiateCombatOnRequest" {{#if initiateCombatOnRequest}}checked{{/if}} />
+    <p class="hint">{{fields.initiateCombatOnRequest.hint}}</p> 
+  </div>
+
+  <div class="form-group">
     <label for="templateAutoTarget">{{fields.templateAutoTarget.label}}</label>
     <select name="templateAutoTarget" data-current-value="{{templateAutoTarget}}">
       {{#each fields.templateAutoTarget.choices}}

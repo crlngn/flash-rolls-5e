@@ -217,7 +217,7 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     
     // Validate the formula
     if (!this.validateFormula(this.formula)) {
-      ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {
+      ui.notifications.error(game.i18n.format("FLASH_ROLLS.notifications.invalidFormula", {
         formula: this.formula || "empty"
       }));
       return;

@@ -23,13 +23,15 @@ export const getSettings = () => {
         'rollInterceptionEnabled',
         'useGMTargetTokens',
         'templateAutoTarget',
-        'showOfflineNotifications'
+        'showOfflineNotifications',
+        'initiateCombatOnRequest'
       ],
       default: {
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
         templateAutoTarget: 1,
-        showOfflineNotifications: true
+        showOfflineNotifications: true,
+        initiateCombatOnRequest: true
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -187,6 +189,17 @@ export const getSettings = () => {
       config: false
     },
 
+    initiateCombatOnRequest: {
+      tag: "initiate-combat-on-request",
+      label: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
     templateAutoTarget: { 
       tag: "template-auto-target", 
       label: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.label"),
@@ -204,12 +217,12 @@ export const getSettings = () => {
     },
 
     debugMode: {
-      tag: "debug-mode", 
+      tag: "debug-mode-on", 
       label: game.i18n.localize("FLASH_ROLLS.settings.debugMode.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.debugMode.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
+      default: false,
       scope: SETTING_SCOPE.client,
       config: true
     }

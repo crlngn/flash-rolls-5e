@@ -12,7 +12,9 @@
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
       "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
       "noHitDice": "No available hit dice for {actor}",
-      "noTargetedTokens": "No targeted tokens found for the roll."
+      "noTargetedTokens": "No targeted tokens found for the roll.",
+      "settingsUpdated": "Settings updated",
+      "invalidFormula": "Invalid formula: {formula}"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -87,6 +89,10 @@
           "generalSettings": "General Settings"
         }
       },
+      "initiateCombatOnRequest": {
+        "label": "Initiate Combat when Requesting Initiative",
+        "hint": "Enable to automatically initiate the a combat encounter when using the menu to request initiative rolls."
+      },
       "templateAutoTarget": {
         "label": "Template Auto Targeting",
         "hint": "When a template is drawn on canvas, should tokens be automatically targeted / selected?",
@@ -141,11 +147,6 @@
         "pixelsRollTitle": "Pixels Dice - Roll Resolver",
         "pixelsWaitingTitle": "Waiting for Roll",
         "dcFieldLabel": "DC"
-      },
-      "notifications": {
-        "socketlibMissing": "SocketLib module is required by Roll Requests, but is not active. The module will not work as intended until you enable socketlib.",
-        "rollRequestSent": "Roll Request sent to ",
-        "invalidFormula": "Invalid roll formula: {formula}"
       },
       "cards": {
         "rollRequestFlavor": "Roll request"
