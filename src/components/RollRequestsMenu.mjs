@@ -14,6 +14,10 @@ import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/
 import { GeneralUtil } from './helpers/GeneralUtil.mjs';
 import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
 import { ChatMessageUtils } from './ChatMessageUtils.mjs';
+import { RollMenuActorUtil } from './utils/RollMenuActorUtil.mjs';
+import { RollMenuConfigUtil } from './utils/RollMenuConfigUtil.mjs';
+import { RollMenuOrchestrationUtil } from './utils/RollMenuOrchestrationUtil.mjs';
+import { RollMenuDragUtil } from './utils/RollMenuDragUtil.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -38,6 +42,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this.isLocked = false; 
     this.optionsExpanded = game.user.getFlag(MODULE.ID, 'menuOptionsExpanded') ?? false;
     this.accordionStates = game.user.getFlag(MODULE.ID, 'menuAccordionStates') ?? {};
+    
+    // Drag state
+    this.isDragging = false;
+    this.isCustomPosition = false;
+    this.customPosition = RollMenuDragUtil.loadCustomPosition();
     
     // Initialize with actors from selected tokens
     this._initializeFromSelectedTokens();
@@ -78,7 +87,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         name: actor.name,
         img: actor.img,
         selected: this.selectedActors.has(actor.id),
-        crlngnStats: this._getActorStats(actor)
+        crlngnStats: RollMenuActorUtil.getActorStats(actor)
       };
       
       // Check if owned by a player (not GM)
@@ -147,53 +156,12 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       hasSelectedActors: this.selectedActors.size > 0,
       requestTypes,
       rollTypes,
-      showNames: true, // You can make this configurable later
+      showNames: true,
       actorsLocked: this.isLocked,
       optionsExpanded: this.optionsExpanded
     };
   }
 
-  /**
-   * Get formatted stats for an actor
-   */
-  _getActorStats(actor) {
-    LogUtil.log('_getActorStats');
-    const system = actor.system;
-    const stats = [];
-    
-    // HP
-    if (system.attributes?.hp) {
-      stats.push({
-        abbrev: 'HP',
-        value: system.attributes.hp.value
-      });
-    }
-    
-    // AC
-    if (system.attributes?.ac) {
-      stats.push({
-        abbrev: 'AC',
-        value: system.attributes.ac.value
-      });
-    }
-    
-    const spellDC = system.attributes?.spell?.dc;
-    if (spellDC) {
-      stats.push({
-        abbrev: 'DC',
-        value: spellDC
-      });
-    }
-    
-    if (system.skills?.prc?.passive) {
-      stats.push({
-        abbrev: 'PRC',
-        value: system.skills.prc.passive
-      });
-    }
-    
-    return stats;
-  }
 
   /**
    * Override _renderFrame to control where the element is inserted in the DOM
@@ -234,6 +202,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }, 100);
     
     this._tokenControlHook = Hooks.on('controlToken', this._onTokenControlChange.bind(this));
+    
+    // Initialize drag functionality with a small delay to ensure DOM is ready
+    setTimeout(() => {
+      RollMenuDragUtil.initializeDrag(this);
+    }, 100);
   }
   
   /**
@@ -683,30 +656,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this._triggerRoll(requestType, rollKey);
   }
 
-  /**
-   * Get valid actor IDs based on current tab
-   * @param {Array<string>} selectedActorIds - Array of selected actor IDs
-   * @returns {Array<string>} Filtered array of valid actor IDs
-   */
-  _getValidActorIds(selectedActorIds) {
-    return selectedActorIds.filter(actorId => {
-      const actor = game.actors.get(actorId);
-      if (!actor) return false;
-      const isPC = isPlayerOwned(actor);
-      const isNPC = !isPC && hasTokenInScene(actor);
-      
-      return (this.currentTab === 'pc' && isPC) || (this.currentTab === 'npc' && isNPC);
-    });
-  }
 
-  /**
-   * Handle custom roll dialog
-   * @returns {Promise<string|null>} The roll formula or null if cancelled
-   */
-  async _handleCustomRoll() {
-    const formula = await this._showCustomRollDialog();
-    return formula; // Will be null if cancelled
-  }
 
   /**
    * Get roll configuration from dialog or create default
@@ -857,7 +807,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
     // Validate and filter actors
-    const validActorIds = this._getValidActorIds(selectedActorIds);
+    const validActorIds = RollMenuActorUtil.getValidActorIds(selectedActorIds, this.currentTab);
     let actors = validActorIds
       .map(id => game.actors.get(id));
       // .filter(actor => actor);
@@ -867,7 +817,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     switch(rollMethodName) {
       case ROLL_TYPES.CUSTOM:
-        rollKey = await this._handleCustomRoll();
+        rollKey = await RollMenuConfigUtil.handleCustomRoll();
         if (!rollKey) return;
         break;
       case ROLL_TYPES.INITIATIVE:
@@ -920,13 +870,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     const { pcActors, npcActors } = categorizeActorsByOwnership(actors);
-    const config = await this._getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors);
+    const config = await RollMenuConfigUtil.getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors);
     
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
     
     // Pass event to orchestrate rolls for local GM rolls
-    await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
+    await RollMenuOrchestrationUtil.orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
     setTimeout(() => this.close(), 500);
   }
   
@@ -1249,6 +1199,25 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   async _onClose(options) {
     LogUtil.log('_onClose',[options]);
+
+    if(!this.element) { return; }
+    
+    // If menu is in custom position (in body), move it back to chat notifications before closing
+    if (this.isCustomPosition && this.element.parentElement === document.body) {
+      const chatNotifications = document.querySelector('#chat-notifications');
+      if (chatNotifications) {
+        chatNotifications.insertBefore(this.element, chatNotifications.firstChild);
+      }
+      // Clear custom positioning styles
+      this.element.style.position = '';
+      this.element.style.inset = '';
+      this.element.style.top = '';
+      this.element.style.left = '';
+      this.element.style.right = '';
+      this.element.style.bottom = '';
+      this.element.classList.remove('custom-position');
+    }
+    
     await super._onClose(options);
     
     this.selectedActors.clear();
@@ -1297,6 +1266,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   static toggle() {
     LogUtil.log('RollRequestsMenu.toggle');
+    
+    // Clean up orphaned menu, if present
+    const existingMenus = document.querySelectorAll('#flash-rolls-menu');
+    existingMenus.forEach(menu => {
+      LogUtil.log('Removing orphaned menu element');
+      menu.remove();
+    });
+    
     if (!this.#instance) {
       this.#instance = new RollRequestsMenu();
       this.#instance.render(true);

@@ -9,6 +9,9 @@ body{
 
 /* SWITCH */
 body.flash5e {
+  #sidebar{
+    z-index: 1;
+  }
   .flash5e-switch {
     display: flex;
     position: relative;

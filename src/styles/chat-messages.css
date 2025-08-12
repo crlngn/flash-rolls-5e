@@ -168,7 +168,8 @@
   margin-top: 0.5rem;
   padding: .25rem;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px dotted rgba(255, 255, 255, 0.25);
   color: inherit;
   border: 1px solid transparent;
   
@@ -203,6 +204,7 @@
       &::placeholder {
         color: rgba(255, 255, 255, 0.4);
         font-style: italic;
+        font-size: 0.8rem;
       }
     }
   }

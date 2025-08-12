@@ -16,7 +16,7 @@ export class LogUtil {
    */
   static log(ref="", data=[], bypassSettings=false) {
     try {
-      const debugSetting = game.settings.get(MODULE_ID, "debug-mode") || LogUtil.debugOn;
+      const debugSetting = game.settings.get(MODULE_ID, "debug-mode-on") || LogUtil.debugOn;
       const isDebugModeOn = bypassSettings || debugSetting;
       if(!isDebugModeOn) { return; }
       
