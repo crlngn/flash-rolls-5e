@@ -1017,7 +1017,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     // Pass event to orchestrate rolls for local GM rolls
     await RollMenuOrchestrationUtil.orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
-    setTimeout(() => this.close(), 500);
+    
+    // Only close if not locked
+    if (!this.isLocked) {
+      setTimeout(() => this.close(), 500);
+    }
   }
   
   /**

@@ -126,6 +126,7 @@
       }
     },
     "ui": {
+      
       "search": {
         "placeholder": "Find a roll type..."
       },
@@ -188,7 +189,8 @@
         }
       },
       "menus": {
-        "rollRequestsTitle": "Roll Requests"
+        "rollRequestsTitle": "Roll Requests",
+        "dragHandleTooltip": "Drag menu"
       }
     },
     "common": {

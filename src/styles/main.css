@@ -78,7 +78,7 @@ body.flash5e {
   }
 
   &.crlngn-ui #chat-notifications #flash-rolls-menu{
-    margin-right: 0px;
+    margin-right: -2px;
     margin-bottom: 0px;
   }
 }
