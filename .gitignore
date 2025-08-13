@@ -2,8 +2,7 @@ node_modules/
 dnd5e/
 foundry/
 deps/
+local/
 flash-rolls-5e.code-workspace
 foundry-config.yaml
-dnd5e-roll-flow-diagram.md
 *.local.md
-ROLL_FLOW.md
