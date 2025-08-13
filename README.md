@@ -7,6 +7,9 @@ This is a Foundry VTT module that facilitates rolling for GMs, adding the follow
 - Help new players who are unfamiliar with Foundry or tend to slow down combat
 - Target tokens from template drawing
 
+https://github.com/user-attachments/assets/c2cae279-e2e0-43a5-91ff-d1bf5fc21458
+
+
 ## Group Roll Calculation
 
 <img width="320" height="383" alt="image" src="https://github.com/user-attachments/assets/f2f36d65-568e-4907-b362-7b70991a1779" />
