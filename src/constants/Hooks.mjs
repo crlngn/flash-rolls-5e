@@ -26,7 +26,8 @@ export const HOOKS_CORE = {
   UPDATE_ACTOR: "updateActor",
   UPDATE_ITEM: "updateItem",
   CREATE_ITEM: "createItem",
-  DELETE_ITEM: "deleteItem"
+  DELETE_ITEM: "deleteItem",
+  UPDATE_SETTING: "updateSetting"
 };
 
 /**

@@ -24,14 +24,16 @@ export const getSettings = () => {
         'useGMTargetTokens',
         'templateAutoTarget',
         'showOfflineNotifications',
-        'initiateCombatOnRequest'
+        'initiateCombatOnRequest',
+        'showOnlyPCsWithToken'
       ],
       default: {
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
         templateAutoTarget: 1,
         showOfflineNotifications: true,
-        initiateCombatOnRequest: true
+        initiateCombatOnRequest: true,
+        showOnlyPCsWithToken: true
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -193,6 +195,17 @@ export const getSettings = () => {
       tag: "initiate-combat-on-request",
       label: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    showOnlyPCsWithToken: {
+      tag: "show-only-pcs-with-token",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showOnlyPCsWithToken.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showOnlyPCsWithToken.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,

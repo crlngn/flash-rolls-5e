@@ -85,7 +85,6 @@ export class ChatMessageUtils {
             return;
           }
           
-          // Check if user has permission to roll for this actor
           const canRoll = game.user.isGM || actor.isOwner;
           if (!canRoll) {
             ui.notifications.warn(`You don't have permission to roll for ${actor.name}`);
@@ -99,7 +98,6 @@ export class ChatMessageUtils {
           
           LogUtil.log('Rollable dice clicked', [rollType, rollKey, actorId, groupRollId]);
           
-          // Build request data for the roll
           const requestData = {
             rollKey: rollKey,
             groupRollId: groupRollId,
@@ -117,27 +115,23 @@ export class ChatMessageUtils {
             isRollRequest: true
           };
           
-          // Message configuration
           const messageConfig = {
             rollMode: game.settings.get("core", "rollMode"),
             create: true,
             isRollRequest: true
           };
           
-          // Roll configuration
           const rollConfig = {
             parts: [],
             data: {},
             options: {}
           };
           
-          // Execute the roll using the appropriate handler
           try {
             const handler = RollHandlers[rollType];
             if (handler) {
               await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
             } else {
-              // Fallback for standard rolls
               let rollMethod;
               switch(rollType) {
                 case ROLL_TYPES.SKILL:
@@ -223,7 +217,7 @@ export class ChatMessageUtils {
             
             debounceTimer = setTimeout(() => {
               handleDCChange();
-            }, 500);
+            }, 1000);
           });
           
           dcInput.addEventListener('keypress', (e) => {

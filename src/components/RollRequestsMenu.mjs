@@ -99,7 +99,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         });
       
       if (isPlayerOwned) {
-        pcActors.push(actorData);
+        const SETTINGS = getSettings();
+        const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
+        
+        if (showOnlyPCsWithToken) {
+          const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
+          if (hasTokenInScene) {
+            pcActors.push(actorData);
+          }
+        } else {
+          pcActors.push(actorData);
+        }
       } else {
         const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
         if (hasTokenInScene) {// Only include NPCs if they have a token in the current scene
@@ -113,6 +123,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
+    const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken.tag);
     
     // Check if all actors in current tab are selected
     const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
@@ -232,15 +243,15 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     this._tokenControlHook = Hooks.on(HOOKS_CORE.CONTROL_TOKEN, this._onTokenControlChange.bind(this));
     
-    // Listen for actor updates to refresh stats display
     this._actorUpdateHook = Hooks.on(HOOKS_CORE.UPDATE_ACTOR, this._onActorUpdate.bind(this));
     
-    // Listen for item changes on actors (equipment changes can affect AC)
     this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
     this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
     this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
     
-    // Initialize drag handle event listener only (positioning already done in _renderFrame)
+    this._updateSettingHook = Hooks.on(HOOKS_CORE.UPDATE_SETTING, this._onSettingUpdate.bind(this));
+    this._updateSceneHook = Hooks.on(HOOKS_CORE.UPDATE_SCENE, this._onSceneUpdate.bind(this));
+    
     const dragHandle = this.element.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
     if (dragHandle) {
       dragHandle.addEventListener('mousedown', (e) => {
@@ -351,6 +362,32 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
   
   /**
+   * Handle setting updates to refresh menu when relevant settings change
+   */
+  _onSettingUpdate(setting, value, options, userId) {
+    if (!this.rendered) return;
+    
+    const SETTINGS = getSettings();
+    if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}`) {
+      this.render();
+    }
+  }
+  
+  /**
+   * Handle scene updates to refresh menu when active scene changes
+   */
+  _onSceneUpdate(scene, changes, options, userId) {
+    if (!this.rendered) return;
+    
+    if (changes.active === true) {
+      const SETTINGS = getSettings();
+      const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
+      
+      this.render();
+    }
+  }
+  
+  /**
    * Handle clicks outside the menu
    */
   _onClickOutside = (event) => {
@@ -389,6 +426,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const tabs = html.querySelectorAll('.actor-tab');
     tabs.forEach(tab => {
       tab.addEventListener('click', this._onTabClick.bind(this));
+      tab.addEventListener('dblclick', this._onTabDoubleClick.bind(this));
     });
     
     // Actor selection - handle clicks on actor rows or select buttons
@@ -503,8 +541,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const selectAll = event.target.checked;
     this._ignoreTokenControl = true; // To avoid loop
     
+    // Get the setting for filtering PCs
+    const SETTINGS = getSettings();
+    const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
+    
     const actors = this.currentTab === 'pc' ? 
-      game.actors.contents.filter(a => isPlayerOwned(a)) :
+      game.actors.contents.filter(a => {
+        if (!isPlayerOwned(a)) return false;
+        if (showOnlyPCsWithToken) {
+          const currentScene = game.scenes.active;
+          return currentScene?.tokens.some(token => token.actorId === a.id) || false;
+        }
+        return true;
+      }) :
       game.actors.contents.filter(a => !isPlayerOwned(a) && hasTokenInScene(a));
     
     actors.forEach(actor => {
@@ -564,7 +613,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (optionsElement) {
       optionsElement.classList.toggle('expanded', this.optionsExpanded);
     }
-    
   }
   
   /**
@@ -586,10 +634,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         }
       }
     }
-    
+
+    LogUtil.log('_initializeFromSelectedTokens', [this.selectedActors]);
+
   }
   
-
   /**
    * Handle tab click
    */
@@ -598,12 +647,33 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const tab = event.currentTarget.dataset.tab;
     if (tab === this.currentTab) return;
     
-    this.selectedActors.clear();
-    canvas.tokens?.releaseAll();
+    // this.selectedActors.clear();
+    // canvas.tokens?.releaseAll();
     this.selectedRequestType = null;
     
     this.currentTab = tab;
     await this.render();
+  }
+
+  /**
+   * Handle tab double-click to clear all selections
+   */
+  async _onTabDoubleClick(event) {
+    LogUtil.log('_onTabDoubleClick');
+    event.preventDefault();
+    event.stopPropagation();
+    
+    this._ignoreTokenControl = true;
+    this.selectedActors.clear();
+    canvas.tokens?.releaseAll();
+    this.selectedRequestType = null;
+    
+    setTimeout(() => {
+      this._ignoreTokenControl = false;
+    }, 200);
+    
+    await this.render();
+    this._updateRequestTypesVisibility();
   }
 
   /**
@@ -946,11 +1016,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const selectedActorIds = Array.from(this.selectedActors);
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
-    // Validate and filter actors
-    const validActorIds = RollMenuActorUtil.getValidActorIds(selectedActorIds, this.currentTab);
-    let actors = validActorIds
-      .map(id => game.actors.get(id));
-      // .filter(actor => actor);
+    let actors = selectedActorIds
+      .map(id => game.actors.get(id))
+      .filter(actor => actor);
     
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
@@ -964,10 +1032,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       case ROLL_TYPES.INITIATIVE_DIALOG:
         const combatReady = await ensureCombatForInitiative();
         if (combatReady) {
-          LogUtil.log("_triggerRoll - initiative", [validActorIds]);
+          LogUtil.log("_triggerRoll - initiative", [selectedActorIds]);
           
           // Ensure all actors are combatants before filtering
-          for (const actorId of validActorIds) {
+          for (const actorId of selectedActorIds) {
             const actor = game.actors.get(actorId);
             if (actor) {
               const combatants = game.combat.getCombatantsByActor(actorId);
@@ -982,14 +1050,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             }
           }
           
-          const filteredActorIds = await filterActorsForInitiative(validActorIds, game);
+          const filteredActorIds = await filterActorsForInitiative(selectedActorIds, game);
 
           LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
           if (!filteredActorIds.length) return;
 
           actors = filteredActorIds
-            .map(id => game.actors.get(id));
-            // .filter(actor => actor);
+            .map(id => game.actors.get(id))
+            .filter(actor => actor);
           
           const initiateCombat = SettingsUtil.get(SETTINGS.initiateCombatOnRequest.tag);
           if (initiateCombat) {

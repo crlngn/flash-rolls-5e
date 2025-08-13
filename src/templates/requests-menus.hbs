@@ -54,6 +54,11 @@
 
     <li class="actor-list">
       <ul>
+      {{#unless actors}}
+        <li class="actor-lit-empty">
+          {{localize "FLASH_ROLLS.ui.menus.noActors"}}
+        </li>
+      {{/unless}}
       {{#each actors as |actor|}}
         <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
           {{!-- <div class="actor-select" data-id="{{actor.id}}">

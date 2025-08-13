@@ -39,6 +39,12 @@
     </select>
     <p class="hint">{{{fields.templateAutoTarget.hint}}}</p> 
   </div>
+
+  <div class="form-group">
+    <label for="showOnlyPCsWithToken">{{fields.showOnlyPCsWithToken.label}}</label>
+    <input type="checkbox" name="showOnlyPCsWithToken" {{#if showOnlyPCsWithToken}}checked{{/if}} />
+    <p class="hint">{{{fields.showOnlyPCsWithToken.hint}}}</p> 
+  </div>
   
   {{!-- <div class="form-group">
     <label for="groupRollResultMode">{{fields.groupRollResultMode.label}}</label>

@@ -76,11 +76,11 @@
 #flash-rolls-menu > div > .request-types-accordion.hover-visible {
   display: flex;
 }
-/*
-#flash-rolls-menu > div > ul.actors {
-  background: transparent;
+
+#flash-rolls-menu ul.actors {
+  padding-right: 0.5em;
 }
-  */
+
 
 #flash-rolls-menu > div > ul.actors > li.options-toggle {
   display: flex;
@@ -158,6 +158,8 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  max-height: calc(60vh - 10em);
+  min-height: 6em;
   margin: 0 0 0.5em 0;
   padding: 0;
   
@@ -169,7 +171,8 @@
 }
 
 #flash-rolls-menu > div > ul.actors > li.actor-list > ul > li.actor,
-#flash-rolls-menu > div > ul.actors > li.actor {
+#flash-rolls-menu > div > ul.actors > li.actor,
+#flash-rolls-menu > div > ul.actors > li.actor-list-empty {
   align-items: flex-start;
   display: flex;
   flex-direction: row;

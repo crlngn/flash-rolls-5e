@@ -93,6 +93,10 @@
         "label": "Initiate Combat when Requesting Initiative",
         "hint": "Enable to automatically initiate the a combat encounter when using the menu to request initiative rolls."
       },
+      "showOnlyPCsWithToken": {
+        "label": "Show Only PCs with Tokens",
+        "hint": "When enabled, the PC tab in the roll menu will only show player characters that have tokens in the current scene."
+      },
       "templateAutoTarget": {
         "label": "Template Auto Targeting",
         "hint": "When a template is drawn on canvas, should tokens be automatically targeted / selected?",
@@ -190,7 +194,8 @@
       },
       "menus": {
         "rollRequestsTitle": "Roll Requests",
-        "dragHandleTooltip": "Drag menu"
+        "dragHandleTooltip": "Drag menu",
+        "noActors": "No actors in this list."
       }
     },
     "common": {
