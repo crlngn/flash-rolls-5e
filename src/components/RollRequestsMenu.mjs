@@ -246,7 +246,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     adjustMenuOffset();
     
-    // Expand options if applicable
     if (this.optionsExpanded) {
       const optionsToggle = this.element.querySelector('.options-toggle');
       const optionsElement = this.element.querySelector('li.options');
@@ -1544,6 +1543,37 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       } else {
         this.#instance._initializeFromSelectedTokens();
         this.#instance.render(true);
+      }
+    }
+  }
+
+  /**
+   * Show the menu automatically if setting is enabled
+   * Called during module initialization
+   * @static
+   */
+  static showOnLoadIfEnabled() {
+    LogUtil.log('RollRequestsMenu.showOnLoadIfEnabled');
+    const SETTINGS = getSettings();
+    const showOnLoad = SettingsUtil.get(SETTINGS.showMenuOnLoad.tag);
+    
+    if (showOnLoad && game.user.isGM) {
+      const existingMenus = document.querySelectorAll('#flash-rolls-menu');
+      existingMenus.forEach(menu => {
+        LogUtil.log('Removing orphaned menu element');
+        menu.remove();
+      });
+      
+      if (!this.#instance) {
+        this.#instance = new RollRequestsMenu();
+        this.#instance.render(true);
+        // Set menu to locked state when shown on load
+        this.#instance.isLocked = true;
+      } else if (!this.#instance.rendered) {
+        this.#instance._initializeFromSelectedTokens();
+        this.#instance.render(true);
+        // Set menu to locked state when shown on load
+        this.#instance.isLocked = true;
       }
     }
   }

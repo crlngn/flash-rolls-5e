@@ -5,6 +5,12 @@
   <hr/>
 
   <div class="form-group">
+    <label for="showMenuOnLoad">{{fields.showMenuOnLoad.label}}</label>
+    <input type="checkbox" name="showMenuOnLoad" {{#if showMenuOnLoad}}checked{{/if}} />
+    <p class="hint">{{fields.showMenuOnLoad.hint}}</p> 
+  </div>
+
+  <div class="form-group">
     <label for="rollInterceptionEnabled">{{fields.rollInterceptionEnabled.label}}</label>
     <input type="checkbox" name="rollInterceptionEnabled" {{#if rollInterceptionEnabled}}checked{{/if}} />
     <p class="hint">{{fields.rollInterceptionEnabled.hint}}</p> 

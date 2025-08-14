@@ -10,6 +10,7 @@ import { ACTIVITY_TYPES, MODULE_ID } from "../constants/General.mjs";
 import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 import { ModuleHelpers } from "./helpers/ModuleHelpers.mjs";
 import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
+import RollRequestsMenu from "./RollRequestsMenu.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -67,6 +68,8 @@ export class HooksUtil {
     if (game.user.isGM) {
       RollInterceptor.initialize();
       this._registerGMHooks();
+      // Show menu automatically if setting is enabled
+      RollRequestsMenu.showOnLoadIfEnabled();
     }else{
       DiceConfigUtil.getDiceConfig();
       this._registerPlayerHooks();

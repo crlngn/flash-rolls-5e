@@ -20,6 +20,7 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.hint"),
       propType: Object,
       fields: [
+        'showMenuOnLoad',
         'rollInterceptionEnabled',
         'useGMTargetTokens',
         'templateAutoTarget',
@@ -28,6 +29,7 @@ export const getSettings = () => {
         'showOnlyPCsWithToken'
       ],
       default: {
+        showMenuOnLoad: false,
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
         templateAutoTarget: 1,
@@ -233,6 +235,17 @@ export const getSettings = () => {
       tag: "debug-mode-on", 
       label: game.i18n.localize("FLASH_ROLLS.settings.debugMode.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.debugMode.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
+      scope: SETTING_SCOPE.client,
+      config: true
+    },
+
+    showMenuOnLoad: {
+      tag: "show-menu-on-load",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showMenuOnLoad.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showMenuOnLoad.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,

@@ -97,6 +97,10 @@
         "label": "Show Only PCs with Tokens",
         "hint": "When enabled, the PC tab in the roll menu will only show player characters that have tokens in the current scene."
       },
+      "showMenuOnLoad": {
+        "label": "Show Menu on Load",
+        "hint": "When enabled, the roll requests menu will automatically be visible when you reload Foundry."
+      },
       "templateAutoTarget": {
         "label": "Template Auto Targeting",
         "hint": "When a template is drawn on canvas, should tokens be automatically targeted / selected?",
