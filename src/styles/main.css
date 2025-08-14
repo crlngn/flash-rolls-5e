@@ -1,6 +1,10 @@
 body{
   --current-sidebar-width: 0px;
-  --flash-rolls-menu-offset: 36px;
+  --flash-rolls-menu-offset: 40px;
+
+  &.crlngn-ui {
+    --flash-rolls-menu-offset: 36px;
+  }
 
   &.flash5e-sidebar-expanded{
     --current-sidebar-width: var(--sidebar-width, 200px);

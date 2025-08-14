@@ -142,7 +142,6 @@ export class HooksUtil {
    * Handle data before creating chat message for requested rolls
    */
   static _onPreCreateChatMessage(chatMessage, data, options, userId) {
-    // Handle requested by text
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
       const requestedText = game.i18n.format('FLASH_ROLLS.chat.requestedBy', { gm: requestedBy });
@@ -151,21 +150,17 @@ export class HooksUtil {
       data.flavor = currentFlavor ? `${currentFlavor} ${requestedText}` : requestedText;
     }
     
-    // Check if we have groupRollId in the message data flags that needs to be preserved
     if (data.flags?.[MODULE_ID]?.groupRollId) {
       LogUtil.log('_onPreCreateChatMessage - Found groupRollId in data flags', [data]);
     }
     
-    // Check if this is a roll message that should be part of a group
     if (data.rolls?.length > 0 || data.flags?.core?.initiativeRoll) {
       const speaker = data.speaker;
       const actorId = speaker?.actor;
       
       if (actorId) {
-        // Get the actor - could be a token actor
         let actor = game.actors.get(actorId);
         
-        // For initiative rolls, the speaker might reference a token
         if (!actor && speaker?.token) {
           const token = canvas.tokens.get(speaker.token);
           if (token?.actor) {
@@ -180,8 +175,6 @@ export class HooksUtil {
         }
         
         if (game.user.isGM) {
-          // GM: Check pending group rolls
-          // Need to check both the token actor ID and base actor ID
           const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
           const checkIds = [actorId, baseActorId].filter(id => id);
           
@@ -196,7 +189,6 @@ export class HooksUtil {
             }
           }
         } else {
-          // Player: Check if we have a stored groupRollId for this roll
           let storedGroupRollId = actor.getFlag(MODULE_ID, 'tempGroupRollId');
           if (!storedGroupRollId && actor.isToken) {
             const baseActor = game.actors.get(actor.actor?.id);
@@ -216,10 +208,8 @@ export class HooksUtil {
             }
           }
           
-          // Also check for initiative-specific stored config
           let storedInitConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');
           
-          // For token actors, also check the base actor
           if (!storedInitConfig && actor.isToken) {
             const baseActor = game.actors.get(actor.actor?.id);
             if (baseActor) {

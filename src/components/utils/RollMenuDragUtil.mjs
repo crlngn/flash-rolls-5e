@@ -42,6 +42,8 @@ export class RollMenuDragUtil {
     if(!menu.element){return}
     menu.element.classList.add('dragging');
     
+    menu.element.classList.remove('docked-right');
+    
     const menuRect = menu.element.getBoundingClientRect();
     const startX = event.clientX;
     const startY = event.clientY;
@@ -61,7 +63,6 @@ export class RollMenuDragUtil {
     
     menu.element.offsetHeight;
     
-    // Store drag data
     const dragData = {
       startX,
       startY,
@@ -71,11 +72,9 @@ export class RollMenuDragUtil {
       currentTop: initialTop
     };
     
-    // Create move and up handlers
     const handleMove = (e) => this.handleDragMove(e, menu, dragData);
     const handleUp = (e) => this.handleDragEnd(e, menu, dragData, handleMove, handleUp);
     
-    // Add document-level listeners
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleUp);
   }
@@ -102,7 +101,6 @@ export class RollMenuDragUtil {
     menu.element.style.top = `${dragData.currentTop}px`;
     menu.element.style.left = `${dragData.currentLeft}px`;
     
-    // Check if close to left edge
     const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
     if (dragData.currentLeft < remInPixels) {
       menu.element.classList.add('left-edge');
@@ -112,8 +110,8 @@ export class RollMenuDragUtil {
     
     const computed = window.getComputedStyle(menu.element);
 
-    const distance = this.calculateSnapDistance(menu);
-    if (distance < this.SNAP_DISTANCE) {
+    const snapInfo = this.calculateSnapDistance(menu);
+    if (snapInfo.type !== 'none') {
       menu.element.classList.add('near-snap');
     } else {
       menu.element.classList.remove('near-snap');
@@ -140,28 +138,34 @@ export class RollMenuDragUtil {
     
     menu.element.style.zIndex = '';
     
-    const distance = this.calculateSnapDistance(menu);
+    const snapInfo = this.calculateSnapDistance(menu);
     
-    if (distance < this.SNAP_DISTANCE) {
+    if (snapInfo.type === 'both-edges') {
       const chatNotifications = document.querySelector('#chat-notifications');
       if (chatNotifications) {
         chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
       }
       await this.snapToDefault(menu);
+    } else if (snapInfo.type === 'right-edge') {
+      const chatNotifications = document.querySelector('#chat-notifications');
+      if (chatNotifications) {
+        chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+      }
+      await this.snapToRightEdge(menu, dragData.currentTop);
     } else {
       menu.isCustomPosition = true;
       menu.customPosition = {
         x: dragData.currentLeft,
         y: dragData.currentTop,
-        isCustom: true
+        isCustom: true,
+        dockedRight: false
       };
-      
-      GeneralUtil.addCSSVars('--flash-rolls-menu-offset', '0px');
+      const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
+      GeneralUtil.addCSSVars('--flash-rolls-menu-offset', isCrlngnUIOn ? '0px' : '16px');
       
       await this.saveCustomPosition(menu.customPosition);
       menu.element.classList.add('custom-position');
       
-      // Check if close to left edge after drag end
       const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
       if (dragData.currentLeft < remInPixels) {
         menu.element.classList.add('left-edge');
@@ -170,24 +174,63 @@ export class RollMenuDragUtil {
   }
   
   /**
-   * Check if menu should snap to default position
+   * Check if menu should snap and determine snap type
    * @param {RollRequestsMenu} menu 
-   * @returns {boolean} True if within snap zone
+   * @returns {{type: string, distance: number}} Snap information
    */
   static calculateSnapDistance(menu) {
     const lightningBolt = document.querySelector(this.LIGHTNING_BOLT_SELECTOR);
-    if (!lightningBolt) return Infinity;
+    if (!lightningBolt) return { type: 'none', distance: Infinity };
     
     const menuRect = menu.element.getBoundingClientRect();
     const boltRect = lightningBolt.getBoundingClientRect();
     
     const horizontalDistance = Math.abs(boltRect.left - menuRect.right);
-    const distanceFromBottom = window.innerHeight - menuRect.bottom;
+    const verticalDistance = window.innerHeight - menuRect.bottom;
     
-    return Math.max(
-      horizontalDistance > 50 ? Infinity : horizontalDistance,
-      distanceFromBottom > 50 ? Infinity : distanceFromBottom
-    );
+    if (horizontalDistance <= this.SNAP_DISTANCE) {
+      if (verticalDistance <= this.SNAP_DISTANCE) {
+        return { type: 'both-edges', distance: 0 };
+      }
+      return { type: 'right-edge', distance: 0 };
+    }
+    
+    return { type: 'none', distance: Infinity };
+  }
+  
+  /**
+   * Snap menu to right edge with custom vertical position
+   * @param {RollRequestsMenu} menu 
+   * @param {number} currentTop - The vertical position to maintain
+   */
+  static async snapToRightEdge(menu, currentTop) {
+    LogUtil.log('RollMenuDragUtil.snapToRightEdge', [currentTop]);
+    
+    menu.isCustomPosition = true;
+    menu.customPosition = {
+      y: currentTop,
+      isCustom: true,
+      dockedRight: true
+    };
+    
+    menu.element.classList.remove('custom-position', 'left-edge');
+    menu.element.classList.add('docked-right', 'snapping');
+    
+    menu.element.style.position = 'fixed';
+    menu.element.style.inset = '';
+    menu.element.style.left = '';
+    menu.element.style.right = '';
+    menu.element.style.bottom = '';
+    menu.element.style.top = `${currentTop}px`;
+    menu.element.style.zIndex = '';
+    
+    adjustMenuOffset();
+    
+    await this.saveCustomPosition(menu.customPosition);
+    
+    setTimeout(() => {
+      menu.element.classList.remove('snapping');
+    }, 300);
   }
   
   /**
@@ -234,23 +277,43 @@ export class RollMenuDragUtil {
     menu.isCustomPosition = true;
     menu.customPosition = position;
     
-    document.body.appendChild(menu.element);
-    
-    menu.element.style.position = 'fixed';
-    menu.element.style.inset = '';  // Clear inset first
-    menu.element.style.top = `${position.y}px`;
-    menu.element.style.left = `${position.x}px`;
-    menu.element.style.right = 'auto';
-    menu.element.style.bottom = 'auto';
-    
-    GeneralUtil.addCSSVars('--flash-rolls-menu-offset', '0px');
-    
-    menu.element.classList.add('custom-position');
-    
-    // Check if close to left edge when applying saved position
-    const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
-    if (position.x < remInPixels) {
-      menu.element.classList.add('left-edge');
+    if (position.dockedRight) {
+      const chatNotifications = document.querySelector('#chat-notifications');
+      if (chatNotifications) {
+        chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+      }
+      
+      menu.element.style.position = 'fixed';
+      menu.element.style.inset = '';
+      menu.element.style.top = `${position.y}px`;
+      menu.element.style.left = '';
+      menu.element.style.right = '';
+      menu.element.style.bottom = '';
+      
+      menu.element.classList.add('docked-right');
+      menu.element.classList.remove('custom-position', 'left-edge');
+      
+      adjustMenuOffset();
+    } else {
+      document.body.appendChild(menu.element);
+      
+      menu.element.style.position = 'fixed';
+      menu.element.style.inset = '';
+      menu.element.style.top = `${position.y}px`;
+      menu.element.style.left = `${position.x}px`;
+      menu.element.style.right = 'auto';
+      menu.element.style.bottom = 'auto';
+      
+      const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
+      GeneralUtil.addCSSVars('--flash-rolls-menu-offset', isCrlngnUIOn ? '0px' : '16px');
+      
+      menu.element.classList.add('custom-position');
+      menu.element.classList.remove('docked-right');
+      
+      const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
+      if (position.x < remInPixels) {
+        menu.element.classList.add('left-edge');
+      }
     }
   }
   

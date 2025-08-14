@@ -499,5 +499,7 @@ export function addHDUpdate(updates, newUpdate){
 export function adjustMenuOffset(isExpanded=true){
   const rollPrivacyVertical = document.querySelector('#chat-notifications #roll-privacy');
   const controlsWidth = rollPrivacyVertical ? GeneralUtil.getFullWidth(rollPrivacyVertical) : 36;
-  GeneralUtil.addCSSVars('--flash-rolls-menu-offset', controlsWidth + 'px');
+  const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
+  
+  GeneralUtil.addCSSVars('--flash-rolls-menu-offset', (isCrlngnUIOn ? controlsWidth : controlsWidth + 16) + 'px');
 }

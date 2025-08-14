@@ -187,24 +187,43 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Apply custom position BEFORE inserting into DOM to prevent flicker
     const customPosition = this.customPosition || RollMenuDragUtil.loadCustomPosition();
     if (customPosition?.isCustom && frame) {
-      frame.style.position = 'fixed';
-      frame.style.top = `${customPosition.y}px`;
-      frame.style.left = `${customPosition.x}px`;
-      frame.style.right = 'auto';
-      frame.style.bottom = 'auto';
-      frame.classList.add('custom-position');
-      
-      // Check if close to left edge
-      const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
-      if (customPosition.x < remInPixels) {
-        frame.classList.add('left-edge');
+      if (customPosition.dockedRight) {
+        frame.style.position = 'fixed';
+        frame.style.top = `${customPosition.y}px`;
+        frame.style.left = '';
+        frame.style.right = '';
+        frame.style.bottom = '';
+        frame.classList.add('docked-right');
+        
+        const chatNotifications = document.querySelector('#chat-notifications');
+        if (chatNotifications) {
+          chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+        }
+        
+        adjustMenuOffset();
+        this.isCustomPosition = true;
+        this.customPosition = customPosition;
+      } else {
+        frame.style.position = 'fixed';
+        frame.style.top = `${customPosition.y}px`;
+        frame.style.left = `${customPosition.x}px`;
+        frame.style.right = 'auto';
+        frame.style.bottom = 'auto';
+        frame.classList.add('custom-position');
+        
+        // Check if close to left edge
+        const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
+        if (customPosition.x < remInPixels) {
+          frame.classList.add('left-edge');
+        }
+        
+        document.body.appendChild(frame);
+        const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
+        
+        GeneralUtil.addCSSVars('--flash-rolls-menu-offset', isCrlngnUIOn ? '0px' : '16px');
+        this.isCustomPosition = true;
+        this.customPosition = customPosition;
       }
-      
-      document.body.appendChild(frame);
-      
-      GeneralUtil.addCSSVars('--flash-rolls-menu-offset', '0px');
-      this.isCustomPosition = true;
-      this.customPosition = customPosition;
     } else {
       // Default position - insert into chat notifications
       const chatNotifications = document.querySelector('#chat-notifications');
