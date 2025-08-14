@@ -86,7 +86,6 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     context = await super._preparePartContext(partId, context, options);
     
     if (partId === "configuration") {
-      // Add DC field data
       context.showDC = this.showDC;
       context.dcValue = this.dcValue;
       context.sendRequest = this.sendRequest;
@@ -109,25 +108,15 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     LogUtil.log('_onRender', [context, options]);
     super._onRender(context, options);
     
-    
-    // Check if we've already injected our fields
+    GeneralUtil.preventDialogFlicker(this.element);
+
     if (this.element.querySelector('.gm-roll-config-fields')) {
       return;
     }
     
-    // Inject our custom fields into the configuration section
-    // Try multiple selectors to find the configuration section
     let configSection = this.element.querySelector('.rolls .formulas');
-    // if (!configSection) {
-    //   configSection = this.element.querySelector('.formulas fieldset');
-    // }
-    // if (!configSection) {
-    //   configSection = this.element.querySelector('fieldset').parentNode;
-    // }
-    
-    
+
     if (configSection && (this.showDC || this.actors.length > 0)) {
-      // Render the template
       const templateData = {
         showDC: this.showDC,
         dcValue: this.dcValue,
@@ -137,16 +126,13 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
       
       const template = await GeneralUtil.renderTemplate(`modules/${MODULE_ID}/templates/gm-roll-config-fields.hbs`, templateData);
       
-      // Wrap in a container div to make it easy to check if already injected
       const wrapper = document.createElement('div');
       wrapper.className = 'gm-roll-config-fields';
       wrapper.innerHTML = template;
       
-      // Insert at the beginning of the config section
       configSection.parentNode.insertBefore(wrapper, configSection);
     }
     
-    // Add event listeners for advantage/disadvantage buttons
     this._attachButtonListeners();
   }
   
@@ -188,32 +174,23 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     const actor = actors[0];
     LogUtil.log('GMSkillToolConfigDialog, initConfiguration', []);
     
-    // Normalize rollType to lowercase for consistent comparisons
     const normalizedRollType = rollType?.toLowerCase();
-    
-    // Determine roll mode based on settings
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
     const rollMode = RollHelpers.determineRollMode(isPublicRollsOn);
     
-    // Determine if we should show DC field
     const showDC = RollHelpers.shouldShowDC(normalizedRollType);
-    
-    // Skills and tools always use D20Roll
     const rollClass = CONFIG.Dice.D20Roll;
     
-    // Get the default ability for the skill or tool
     let defaultAbility = null;
     if (normalizedRollType === ROLL_TYPES.SKILL) {
       const skill = actor.system.skills[rollKey];
       defaultAbility = skill?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
     } else if (normalizedRollType === ROLL_TYPES.TOOL) {
-      // For tools, check if the actor has a specific ability set for this tool
       const tool = actor.system.tools?.[rollKey];
       defaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
     }
     
-    // Build roll configuration
     const rollConfig = {
       data: actor.getRollData(),
       subject: actor,
@@ -234,7 +211,6 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
     
     const messageConfig = RollHelpers.createMessageConfig(actor, rollMode);
     
-    // Dialog configuration following D&D5e pattern
     const dialogConfig = {
       options: {
         actors,
@@ -255,19 +231,15 @@ export class GMSkillToolConfigDialog extends GMRollConfigMixin(dnd5e.application
       }
     };
     
-    // Execute the dialog
     const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
     
-    // Process the dialog result
     const rollProcessConfig = RollHelpers.processDialogResult(result, actors, rollType, rollKey, options);
     if (!rollProcessConfig) return null;
     
-    // Add ability if it was selected
     if (result.config?.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
       rollProcessConfig.ability = result.config.ability;
     }
     
-    // Store additional metadata that handlers might need
     rollProcessConfig.rollTitle = dialogConfig.options.window.title;
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;

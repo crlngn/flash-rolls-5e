@@ -89,17 +89,17 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   async _onRender(context, options) {
     await super._onRender(context, options);
     
-    // Check if we've already injected our fields
+    GeneralUtil.preventDialogFlicker(this.element);
+    
     if (this.element.querySelector('.gm-roll-config-fields')) {
       return;
     }
     
-    // Find the configuration section
     let configSection = this.element.querySelector('.rolls .formulas');
     
     if (configSection && this.actors.length > 0) {
       const templateData = {
-        showDC: false, // Attack rolls don't use DC
+        showDC: false,
         showSendRequest: this.actors.length > 0,
         sendRequest: this.sendRequest
       };
@@ -122,13 +122,9 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @override
    */
   _finalizeRolls(action) {
-    // Store send request preference before calling parent
     this.config.sendRequest = this.sendRequest;
     
-    // For attack dialogs, we need to ensure we handle the case properly
-    // when sendRequest is false to prevent re-rendering
     if (!this.sendRequest && this.config.isRollRequest) {
-      // Reset isRollRequest to prevent interception
       this.config.isRollRequest = false;
     }
     
@@ -159,17 +155,15 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
     
-    // Normalize rollType
     const normalizedRollType = rollType?.toLowerCase();
     
-    // Build roll configuration - only include what we need
     const rollConfig = {
-      subject: originalConfig.subject || actor, // Preserve the activity reference
+      subject: originalConfig.subject || actor,
       data: actor.getRollData(),
       rolls: [{
         parts: [],
         data: actor.getRollData(),
-        options: {}  // Let the dialog handle attack options
+        options: {}
       }]
     };
 
@@ -178,13 +172,12 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     const messageConfig = RollHelpers.createMessageConfig(actor, rollMode);
     
     const { position, ...dialogOptions } = originalDialog?.options || {};
-    // Dialog configuration - merge with original dialog options to preserve attack-specific options
     const dialogConfig = {
       options: {
         actors,
         sendRequest: actors.some(a => RollHelpers.isPlayerOwned(a)),
         rollKey,
-        rollType: CONFIG.Dice.D20Roll,  // Attack rolls use D20
+        rollType: CONFIG.Dice.D20Roll,
         rollTypeString: normalizedRollType,
         window: {
           title: game.i18n.localize("DND5E.Attack"),
@@ -195,14 +188,11 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       }
     };
     
-    // Execute the dialog
     const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
     LogUtil.log('GMAttackConfigDialog, initConfiguration', [result?.sendRequest]);
     
-    // If no rolls or user cancelled
     if (!result?.rolls || result.rolls.length === 0) return null;
     
-    // Extract advantage mode from the finalized rolls
     const firstRoll = result.rolls[0];
     let advantage = false;
     let disadvantage = false;
@@ -212,11 +202,9 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       disadvantage = firstRoll.options.advantageMode === CONFIG.Dice.D20Roll.ADV_MODE.DISADVANTAGE;
     }
     
-    // Extract roll configuration from the first roll
     const situational = firstRoll?.data?.situational || "";
     const target = firstRoll?.options?.target;
     
-    // Build a proper BasicRollProcessConfiguration (matching ability check pattern)
     const rollProcessConfig = {
       rolls: [{
         parts: [],
@@ -229,22 +217,19 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
           ...(firstRoll?.options?.mastery !== undefined && { mastery: firstRoll.options.mastery })
         }
       }],
-      subject: originalConfig.subject || actor, // Preserve the original activity
+      subject: originalConfig.subject || actor,
       advantage,
       disadvantage,
       target,
-      // Custom flags for our module
       sendRequest: result.sendRequest,
       isRollRequest: result.sendRequest,
       skipDialog: options.skipDialogs || false,
       chatMessage: !GeneralUtil.isModuleOn('midi-qol') || true
     };
     
-    // Add roll mode - use the one from dialog result to respect user changes
     const finalRollMode = RollHelpers.determineRollMode(isPublicRollsOn, result.message?.rollMode);
     rollProcessConfig.rollMode = finalRollMode;
     
-    // Store additional metadata that handlers might need
     rollProcessConfig.rollTitle = dialogConfig.options.window.title;
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;

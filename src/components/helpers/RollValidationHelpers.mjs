@@ -70,6 +70,10 @@ export async function filterActorsForInitiative(actorIds, game) {
         title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.rerollInitiativeTitle"),
         classes: ["flash5e-dialog"]
       },
+      position: {
+        width: 420,
+        height: "auto"
+      },
       content: "<p>" + game.i18n.format("FLASH_ROLLS.ui.dialogs.rerollInitiative", {
         actors: actorsNamesWithInitiative.join(", ")
       }) + "</p>",

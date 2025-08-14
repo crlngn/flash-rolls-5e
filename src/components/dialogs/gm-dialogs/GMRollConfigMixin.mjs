@@ -20,17 +20,14 @@ export function GMRollConfigMixin(Base) {
     constructor(config = {}, message = {}, options = {}) {
       super(config, message, options);
       
-      // Store GM-specific options
       this.actors = options.actors || [];
       this.sendRequest = options.sendRequest ?? options.sendRequest ?? true;
       this.showDC = options.showDC || false;
       this.dcValue = options.dcValue || null;
       
-      // Store roll type and key for re-renders
       this.rollKey = options.rollKey || config.skill || config.ability || null;
       this.rollTypeString = options.rollTypeString || null;
       
-      // Store original window title and subtitle
       this.windowTitle = options.window?.title || "";
       this.windowSubtitle = options.window?.subtitle || "";
     }
@@ -68,7 +65,6 @@ export function GMRollConfigMixin(Base) {
       
       const result = super._buildConfig(config, formData, index);
       
-      // Apply DC if we have one
       if (dcFromForm) {
         const dcValue = parseInt(dcFromForm);
         if (!isNaN(dcValue)) {
@@ -95,8 +91,6 @@ export function GMRollConfigMixin(Base) {
       LogUtil.log(`_onChangeForm`, [event.target.value]);
       super._onChangeForm(formConfig, event);
 
-      
-      // Capture the current state of our custom fields before re-render
       const sendRequestCheckbox = this.element.querySelector('input[name="flash5e-send-request"]');
       if (sendRequestCheckbox) {
         this.sendRequest = sendRequestCheckbox.checked;
@@ -120,14 +114,12 @@ export function GMRollConfigMixin(Base) {
       const finalizedRolls = super._finalizeRolls(action);
       LogUtil.log(`_finalizeRolls #1`, [finalizedRolls, this.sendRequest]);
       
-      // Apply DC if we have one stored
       if (this.dcValue !== undefined && this.dcValue !== null) {
         for (const roll of finalizedRolls) {
           roll.options.target = this.dcValue;
         }
       }
       
-      // Store our custom properties
       this.config.sendRequest = this.sendRequest;
       
       return finalizedRolls;
@@ -145,10 +137,8 @@ export function GMRollConfigMixin(Base) {
     async _onRender(context, options) {
       await super._onRender(context, options);
       
-      // If we have initial situational bonus, trigger a rebuild to update the formula
       if (this.config.rolls?.[0]?.data?.situational || this.config.situational) {
         LogUtil.log(`${this.constructor.name}._onRender`, ['Triggering rebuild for initial situational bonus']);
-        // Use a small delay to ensure the form is fully rendered
         setTimeout(() => {
           this.rebuild();
         }, 100);

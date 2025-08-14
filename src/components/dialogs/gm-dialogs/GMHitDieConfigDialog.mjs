@@ -24,9 +24,8 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    *   @param {boolean} [options.sendRequest] - Override for sendRequest default
    */
   constructor(config = {}, message = {}, options = {}) {
-    // Ensure rollType is set to BasicRoll for hit die
     options.rollType = CONFIG.Dice.BasicRoll || Roll;
-    options.showDC = false; // No DC for hit die rolls
+    options.showDC = false;
     
     super(config, message, options);
     
@@ -62,7 +61,6 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     LogUtil.log('GMHitDieConfigDialog._prepareConfigurationData', [data]);
     
-    // Override the formula display for hit die
     data.formula = "Hit Die (varies by actor)";
     data.sendRequest = this.sendRequest;
     data.actorCount = this.actors.length;
@@ -86,7 +84,6 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     if (partId === "configuration") {
       context.sendRequest = this.sendRequest;
       context.actorCount = this.actors.length;
-      // Override formula display
       context.formula = "Hit Die (varies by actor)";
     }
     
@@ -105,12 +102,12 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   async _onRender(context, options) {
     super._onRender(context, options);
     
-    // Check if we've already injected our fields
+    GeneralUtil.preventDialogFlicker(this.element);
+    
     if (this.element.querySelector('.gm-roll-config-fields')) {
       return;
     }
     
-    // Inject send request toggle
     let configSection = this.element.querySelector('.rolls .formulas');
     
     if (configSection && this.actors.length > 0) {
@@ -142,7 +139,6 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    */
   async _processSubmitData(event, form, formData) {
     await super._processSubmitData(event, form, formData);
-    // Store send request preference
     this.sendRequest = formData.get("flash5e-send-request") !== "false";
     
     LogUtil.log('_processSubmitData', [formData, this.config]);
@@ -160,49 +156,7 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   _finalizeRolls(action) {
     const finalizedRolls = super._finalizeRolls(action);
     this.config.sendRequest = this.sendRequest;
-    
-    LogUtil.log('GMHitDieConfigDialog._finalizeRolls - before merge', [finalizedRolls]);
-    
-    // // Check if we have multiple rolls (main roll + situational bonus roll)
-    // if (finalizedRolls.length > 1) {
-    //   // Look for a roll that only contains @situational
-    //   const situationalRollIndex = finalizedRolls.findIndex(roll => {
-    //     const parts = roll.terms || roll._formula?.split(/[\+\-]/) || [];
-    //     return parts.length === 1 && parts[0]?.toString().trim() === '@situational';
-    //   });
-      
-    //   if (situationalRollIndex !== -1) {
-    //     // Extract the situational value
-    //     const situationalRoll = finalizedRolls[situationalRollIndex];
-    //     const situationalValue = situationalRoll.data?.situational;
-        
-    //     if (situationalValue && finalizedRolls[0]) {
-    //       // Get the base roll formula
-    //       const baseRoll = finalizedRolls[0];
-    //       let baseFormula = baseRoll._formula || baseRoll.formula;
-          
-    //       LogUtil.log('GMHitDieConfigDialog._finalizeRolls - merging', [baseFormula, situationalValue]);
-          
-    //       // Append the situational bonus to the end of the formula
-    //       // This will result in "max(0, 1d10 + 4) + 3" format
-    //       baseFormula = `${baseFormula} + ${situationalValue}`;
-          
-    //       // Update the base roll's formula
-    //       baseRoll._formula = baseFormula;
-    //       if (baseRoll.terms) {
-    //         // Re-parse the formula to update terms
-    //         const newRoll = new Roll(baseFormula, baseRoll.data);
-    //         baseRoll.terms = newRoll.terms;
-    //       }
-          
-    //       LogUtil.log('GMHitDieConfigDialog._finalizeRolls - merged formula', [baseFormula]);
-          
-    //       // Remove the separate situational roll
-    //       finalizedRolls.splice(situationalRollIndex, 1);
-    //     }
-    //   }
-    // }
-    
+
     return finalizedRolls;
   }
   
@@ -218,19 +172,16 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @static
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}) {
-    // Validate and normalize actors
     actors = RollHelpers.validateActors(actors);
     if (!actors) return null;
     
     const actor = actors[0];
     LogUtil.log('GMHitDieConfigDialog, initConfiguration', []);
     
-    // Determine roll mode based on settings
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
     const rollMode = RollHelpers.determineRollMode(isPublicRollsOn);
     
-    // Build basic roll configuration
     const rollConfig = {
       data: actor.getRollData(),
       subject: actor,
@@ -263,18 +214,14 @@ export class GMHitDieConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
       }
     };
     
-    // Execute the dialog
     const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
-    
     if (!result?.rolls || result.rolls.length === 0) return null;
     
     LogUtil.log('GMHitDieConfigDialog - dialog result', [result.rolls]);
     
-    // Process the dialog result
     const rollProcessConfig = RollHelpers.processDialogResult(result, actors, rollType, rollKey, options);
     if (!rollProcessConfig) return null;
     
-    // Add ability if it was selected
     if (result.config?.ability) {
       rollProcessConfig.ability = result.config.ability;
     }

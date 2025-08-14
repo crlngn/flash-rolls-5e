@@ -86,13 +86,11 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     const validationMessage = htmlElement.querySelector('#formula-validation-message');
     
     if (formulaInput && !this.readonly) {
-      // Update internal formula on input change and validate
       formulaInput.addEventListener('input', (event) => {
         this.formula = event.target.value.trim();
         this.updateValidationMessage(validationMessage);
       });
       
-      // Validate on initial load if there's a formula
       if (this.formula) {
         this.updateValidationMessage(validationMessage);
       }
@@ -133,19 +131,15 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
   addDie(event, target) {
     const die = target.dataset.die;
     
-    // Get current formula from input field
     const formulaInput = this.element.querySelector('#custom-roll-formula');
     if (!formulaInput) return;
     
     const currentFormula = formulaInput.value.trim();
     
-    // Parse the current formula to consolidate dice
     if (currentFormula) {
-      // Regular expression to find dice expressions (e.g., 2d6, d8, 1d20)
       const diceRegex = /(\d*)d(\d+)/g;
       const diceMap = new Map();
       
-      // Parse existing dice in the formula
       let remainingFormula = currentFormula;
       let match;
       
@@ -166,24 +160,18 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
         diceParts.push(`${count}d${dieType}`);
       }
       
-      // Clean up remaining formula (remove extra + signs)
       remainingFormula = remainingFormula.replace(/^\+\s*|\s*\+\s*$|\s*\+\s*\+/g, '').trim();
       
-      // Combine dice and remaining formula
       if (remainingFormula && remainingFormula !== '+') {
         this.formula = `${diceParts.join(' + ')} + ${remainingFormula}`;
       } else {
         this.formula = diceParts.join(' + ');
       }
     } else {
-      // If empty, just add the die
       this.formula = `1${die}`;
     }
-    
-    // Update the input field
     formulaInput.value = this.formula;
     
-    // Trigger input event to update validation
     formulaInput.dispatchEvent(new Event('input'));
   }
 
@@ -196,10 +184,8 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     if (!formula || formula.trim() === "") return false;
     
     try {
-      // Use Roll.validate to check if the formula is valid
       return Roll.validate(formula);
     } catch (error) {
-      // If Roll.validate doesn't exist or throws, try creating a roll
       try {
         new Roll(formula, this.actor?.getRollData() || {});
         return true;
@@ -214,8 +200,6 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
    */
   async rollDice() {
     LogUtil.log('rollDice');
-    
-    // Validate the formula
     if (!this.validateFormula(this.formula)) {
       ui.notifications.error(game.i18n.format("FLASH_ROLLS.notifications.invalidFormula", {
         formula: this.formula || "empty"
@@ -223,7 +207,6 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       return;
     }
     
-    // Call the callback if provided
     if (this.callback) {
       await this.callback(this.formula);
     }
@@ -251,7 +234,6 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       });
       
       dialog.addEventListener("close", () => {
-        // If closed without a formula, resolve with null
         if (!dialog._resolved) {
           resolve(null);
         }

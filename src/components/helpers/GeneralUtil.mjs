@@ -38,6 +38,24 @@ export class GeneralUtil {
   }
 
   /**
+   * Prevents dialog flicker by applying opacity transition
+   * @param {HTMLElement} element - The dialog element to apply the transition to
+   * @param {number} delay - Delay in milliseconds before fading in (default: 100)
+   */
+  static preventDialogFlicker(element, delay = 100) {
+    if (!element) return;
+    
+    element.style.opacity = '0';
+    element.style.transition = 'opacity 0.15s ease-in';
+    
+    setTimeout(() => {
+      if (element) {
+        element.style.opacity = '1';
+      }
+    }, delay);
+  }
+
+  /**
    * Adds CSS variables to a style element
    * @param {string} varName 
    * @param {string} varValue 
@@ -282,7 +300,13 @@ export class GeneralUtil {
     options = {}) {
     
     const dialogConfig = {
-      title,
+      window: {
+        title
+      },
+      position: {
+        width: 420,
+        height: "auto"
+      },
       content,
       yes: {
         label: game.i18n.localize("FLASH_ROLLS.ui.reloadButton"),
@@ -494,7 +518,13 @@ export class GeneralUtil {
     options = {}) {
     
     const dialogConfig = {
-      title,
+      window: {
+        title
+      },
+      position: {
+        width: 420,
+        height: "auto"
+      },
       content,
       yes: {
         label: game.i18n.localize("FLASH_ROLLS.ui.buttons.reloadButton"),

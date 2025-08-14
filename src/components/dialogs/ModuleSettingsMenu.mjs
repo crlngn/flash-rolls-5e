@@ -217,7 +217,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     const SETTINGS = getSettings();
     ModuleSettingsMenu.#element = this.element;
 
-    // add listener to .toggle-hint 
     const hintToggles = ModuleSettingsMenu.#element.querySelectorAll('.toggle-hint');
     LogUtil.log("_onRender", [context, options, this.element]);
     hintToggles.forEach(toggle => {
@@ -226,7 +225,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
       });
     });
     
-    // Set the selected value for select elements based on data-current-value
     const selects = ModuleSettingsMenu.#element.querySelectorAll('select[data-current-value]');
     selects.forEach(select => {
       const currentValue = String(select.dataset.currentValue);
@@ -236,7 +234,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
       }
     });
 
-    // const controlSettings = SettingsUtil.get(SETTINGS.moduleSettingsMenu.tag);
     LogUtil.log("_onRender", [context, options]);
   }
 
@@ -320,7 +317,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     const activeTab = activeContent.dataset.tab;
     const menuKey = ModuleSettingsMenu.PARTS[activeTab].menuKey;
     const defaults = SETTINGS[menuKey].default;
-    // SettingsUtil.get(SETTINGS[menuKey].tag)
 
     const inputs = activeContent.querySelectorAll("input, select");
     inputs.forEach(inputField => {

@@ -77,7 +77,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     LogUtil.log('_prepareConfigurationData', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     
-    // Add GM-specific data
     data.showDC = this.showDC;
     data.dcValue = this.dcValue;
     data.sendRequest = this.sendRequest;
@@ -106,7 +105,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     context = await super._preparePartContext(partId, context, options);
     
     if (partId === "configuration") {
-      // Add DC field data
       context.showDC = this.showDC;
       context.dcValue = this.dcValue;
       context.sendRequest = this.sendRequest;
@@ -130,20 +128,14 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     LogUtil.log('_onRender', [context, options]);
     super._onRender(context, options);
     
-    
-    // Check if we've already injected our fields
+    GeneralUtil.preventDialogFlicker(this.element);
     if (this.element.querySelector('.gm-roll-config-fields')) {
       return;
     }
     
-    // Inject our custom fields into the configuration section
     let configSection = this.element.querySelector('.rolls .formulas');
-    // if (!configSection) {
-    //   configSection = this.element.querySelector('.formulas').parentNode;
-    // }
     
     if (configSection && (this.showDC || this.actors.length > 0)) {
-      // Render the template
       const templateData = {
         showDC: this.showDC,
         dcValue: this.dcValue,
@@ -153,16 +145,14 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
       
       const template = await GeneralUtil.renderTemplate(`modules/${MODULE_ID}/templates/gm-roll-config-fields.hbs`, templateData);
       
-      // Wrap in a container div to make it easy to check if already injected
       const wrapper = document.createElement('div');
       wrapper.className = 'gm-roll-config-fields';
       wrapper.innerHTML = template;
       
-      // Insert at the beginning of the config section
+      configSection.parentNode.insertBefore(wrapper, configSection);
       configSection.parentNode.insertBefore(wrapper, configSection);
     }
     
-    // Add event listeners for advantage/disadvantage buttons
     this._attachButtonListeners();
   }
   
@@ -200,7 +190,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
    * @static
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}) {
-    // Validate and normalize actors
     actors = RollHelpers.validateActors(actors);
     if (!actors) return null;
     
@@ -209,7 +198,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     
     const normalizedRollType = rollType?.toLowerCase();
     
-    // Determine roll mode based on settings
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
     const rollMode = RollHelpers.determineRollMode(isPublicRollsOn);
@@ -219,7 +207,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     const rollConfig = RollHelpers.createBaseRollConfig(actor, rollType, rollKey);
     const messageConfig = RollHelpers.createMessageConfig(actor, rollMode);
     
-    // Dialog configuration following D&D5e pattern
     const dialogConfig = {
       options: {
         actors,
@@ -239,14 +226,11 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
         ...options
       }
     };
-    // Execute the dialog
     const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
     
-    // Process the dialog result
     const rollProcessConfig = RollHelpers.processDialogResult(result, actors, rollType, rollKey, options);
     if (!rollProcessConfig) return null;
     
-    // Handle special case for skills/tools ability selection
     if (result.config?.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
       const defaultAbility = actor.system.skills?.[rollKey]?.ability || CONFIG.DND5E.skills?.[rollKey]?.ability;
       if (result.config.ability !== defaultAbility) {
@@ -254,8 +238,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
       }
     }
     
-    // Store additional metadata that handlers might need
-    // For skills/tools, regenerate the title with the selected ability
     let finalTitle = dialogConfig.options.window.title;
     if (result.config.ability && [ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(normalizedRollType)) {
       const selectedAbilityLabel = CONFIG.DND5E.abilities[result.config.ability]?.label || result.config.ability;
@@ -295,24 +277,10 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
    * @returns {string} The formatted title
    */
   static _getRollTitle(rollType, rollKey, actor) {
-    LogUtil.log('GMRollConfigDialog._getRollTitle', [rollType, rollKey, actor]);
-    
-    // Log detailed information about title generation
-    LogUtil.log('GMRollConfigDialog._getRollTitle - Detailed', {
-      rollType,
-      rollKey,
-      actorName: actor?.name,
-      actorAbilities: actor?.system?.abilities ? Object.keys(actor.system.abilities) : [],
-      actorSkills: actor?.system?.skills ? Object.keys(actor.system.skills) : [],
-      actorInitAbility: actor?.system?.attributes?.init?.ability
-    });
-    
     let title = "";
     
-    // Convert rollType to lowercase for comparison
     const normalizedRollType = rollType?.toLowerCase();
     
-    // Log if rollKey is missing for certain types
     if ([ROLL_TYPES.SAVE, ROLL_TYPES.ABILITY, ROLL_TYPES.ABILITY_CHECK].includes(normalizedRollType) && !rollKey) {
       LogUtil.warn('Missing rollKey for roll type', [normalizedRollType, rollKey]);
     }
@@ -320,11 +288,9 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
     switch (normalizedRollType) {
       case ROLL_TYPES.SKILL:
         const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
-        // Get the default ability for this skill
         const skill = actor?.system.skills?.[rollKey];
         const defaultAbility = skill?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
         const abilityLabel = CONFIG.DND5E.abilities[defaultAbility]?.label || defaultAbility;
-        // D&D5e format: "Wisdom (Arcana) Check"
         title = game.i18n.format("DND5E.SkillPromptTitle", { 
           skill: skillLabel,
           ability: abilityLabel 
@@ -350,7 +316,6 @@ export class GMRollConfigDialog extends GMRollConfigMixin(dnd5e.applications.dic
           const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
           toolLabel = toolItem?.name || rollKey;
         }
-        // Get the default ability for this tool
         const tool = actor?.system.tools?.[rollKey];
         const toolDefaultAbility = tool?.ability || CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey]?.ability || 'int';
         const toolAbilityLabel = CONFIG.DND5E.abilities[toolDefaultAbility]?.label || toolDefaultAbility;

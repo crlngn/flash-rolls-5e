@@ -1,6 +1,7 @@
 import { LogUtil } from "../../LogUtil.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
 import { SettingsUtil } from "../../SettingsUtil.mjs";
+import { GeneralUtil } from "../../helpers/GeneralUtil.mjs";
 import { RollHelpers } from "../../helpers/RollHelpers.mjs";
 import { GMRollConfigMixin } from "./GMRollConfigMixin.mjs";
 import { GMRollConfigDialog } from "./GMRollConfigDialog.mjs";
@@ -73,6 +74,9 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
   async _onRender(context, options) {
     await super._onRender(context, options);
     
+    // Prevent dialog flicker
+    GeneralUtil.preventDialogFlicker(this.element);
+    
     // Inject send request checkbox if we have actors
     if (this.actors.length > 0) {
       const buttonGroup = this.element.querySelector('.rolls + .dialog-buttons');
@@ -106,14 +110,11 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
    * @static
    */
   static async initConfiguration(actors, rollType, rollKey, options = {}, originalConfig = {}, originalDialog = {}) {
-    // Validate and normalize actors
     actors = RollHelpers.validateActors(actors);
     LogUtil.log('GMDamageConfigDialog, initConfiguration actors', [actors]);
     if (!actors) return null;
     
     const actor = actors[0];
-    LogUtil.log('GMDamageConfigDialog, initConfiguration #0', [originalConfig]);
-    
     const SETTINGS = getSettings();
     const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
     const rollMode = RollHelpers.determineRollMode(isPublicRollsOn, originalConfig.rollMode);
@@ -152,14 +153,10 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
         ...options
       }
     };
-    LogUtil.log('GMDamageConfigDialog, initConfiguration #3', [dialogConfig]);
     
-    // Execute the dialog
     const result = await RollHelpers.triggerRollDialog(this, rollConfig, messageConfig, dialogConfig.options);
-    LogUtil.log('GMDamageConfigDialog, initConfiguration #4', [result]); 
     
     if (!result?.rolls || result.rolls.length === 0) return null;
-    LogUtil.log('GMDamageConfigDialog, initConfiguration #5', [result]); 
     
     const firstRoll = result.rolls[0];
     
@@ -175,10 +172,9 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
           isCritical: firstRoll?.options?.isCritical || firstRoll?.isCritical || false
         }
       }],
-      subject: originalConfig.subject || actor, // Preserve the original activity
+      subject: originalConfig.subject || actor,
       target,
       isCritical: firstRoll?.options?.isCritical || firstRoll?.isCritical || false,
-      // Custom flags for the module
       sendRequest: result.sendRequest,
       isRollRequest: result.sendRequest,
       skipRollDialog: options.skipRollDialog || false,
@@ -186,11 +182,9 @@ export class GMDamageConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     };
     LogUtil.log('GMDamageConfigDialog, initConfiguration #6', [rollProcessConfig]); 
     
-    // Add roll mode - use the one from dialog result to respect user changes
     const finalRollMode = RollHelpers.determineRollMode(isPublicRollsOn, result.message?.rollMode);
     rollProcessConfig.rollMode = finalRollMode;
     
-    // Store additional metadata that handlers might need
     rollProcessConfig.rollTitle = dialogConfig.options.window.title;
     rollProcessConfig.rollType = normalizedRollType;
     rollProcessConfig.rollKey = rollKey;
