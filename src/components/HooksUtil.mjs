@@ -11,6 +11,7 @@ import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 import { ModuleHelpers } from "./helpers/ModuleHelpers.mjs";
 import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
+import { FavoriteActorsUtil } from "./FavoriteActorsUtil.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -26,6 +27,27 @@ export class HooksUtil {
   static initialize() {
     Hooks.once(HOOKS_CORE.INIT, this._onInit.bind(this));
     Hooks.once(HOOKS_CORE.READY, this._onReady.bind(this));
+    
+    Hooks.once(HOOKS_CORE.GET_ACTOR_CONTEXT_OPTIONS, (html, contextOptions) => {
+      LogUtil.log("getActorContextOptions hook", [html, contextOptions]);
+      
+      if (!game.user.isGM) return;
+      
+      contextOptions.push({
+        name: "FLASH_ROLLS.contextMenu.toggleFavorite",
+        icon: '<i class="fas fa-bolt"></i>',
+        callback: li => {
+          LogUtil.log("Context menu callback li:", [li]);
+          const data = li.dataset;
+          const actorId = data.entryId;
+          LogUtil.log("Actor ID from context menu:", [actorId]);
+          if (actorId) {
+            FavoriteActorsUtil.toggleFavorite(actorId);
+          }
+        },
+        condition: li => game.user.isGM
+      });
+    });
   }
   
   /**
@@ -62,7 +84,7 @@ export class HooksUtil {
     if (isDebugOn) {
       CONFIG.debug.hooks = true;
     }
-
+    
     await ChatMessageUtils.initialize();
 
     if (game.user.isGM) {
@@ -102,6 +124,7 @@ export class HooksUtil {
   static _registerGMHooks() {
     this._registerHook(HOOKS_CORE.USER_CONNECTED, this._onUserConnected.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageGM.bind(this));
+    // this._registerHook(HOOKS_CORE.GET_ACTOR_DIRECTORY_ENTRY_CONTEXT, this._onGetActorDirectoryEntryContext.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_V2, this._onPreRoll.bind(this));
 
     game.users.forEach(user => {

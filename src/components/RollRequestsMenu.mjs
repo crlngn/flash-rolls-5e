@@ -19,6 +19,7 @@ import { RollMenuActorUtil } from './utils/RollMenuActorUtil.mjs';
 import { RollMenuConfigUtil } from './utils/RollMenuConfigUtil.mjs';
 import { RollMenuOrchestrationUtil } from './utils/RollMenuOrchestrationUtil.mjs';
 import { RollMenuDragUtil } from './utils/RollMenuDragUtil.mjs';
+import { FavoriteActorsUtil } from './FavoriteActorsUtil.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -73,6 +74,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   
   async _prepareContext(options) {
     LogUtil.log('_prepareContext');
+    const SETTINGS = getSettings();
     const context = await super._prepareContext(options);
     const actors = game.actors.contents;
     const pcActors = [];
@@ -99,10 +101,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         });
       
       if (isPlayerOwned) {
-        const SETTINGS = getSettings();
         const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
+        const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
+        const isFavorite = favoriteActorsList.some(fav => fav.actorId === actor.id);
         
-        if (showOnlyPCsWithToken) {
+        if (isFavorite) {
+          actorData.isFavorite = true;
+          pcActors.push(actorData);
+        } else if (showOnlyPCsWithToken) {
           const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
           if (hasTokenInScene) {
             pcActors.push(actorData);
@@ -111,15 +117,21 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           pcActors.push(actorData);
         }
       } else {
-        const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
-        if (hasTokenInScene) {// Only include NPCs if they have a token in the current scene
+        const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
+        const isFavorite = favoriteActorsList.some(fav => fav.actorId === actor.id);
+        
+        if (isFavorite) {
+          actorData.isFavorite = true;
           npcActors.push(actorData);
+        } else {
+          const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
+          if (hasTokenInScene) {
+            npcActors.push(actorData);
+          }
         }
       }
     }
     
-    // Get current settings
-    const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
@@ -563,16 +575,29 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const SETTINGS = getSettings();
     const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
     
+    const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
+    
     const actors = this.currentTab === 'pc' ? 
       game.actors.contents.filter(a => {
         if (!isPlayerOwned(a)) return false;
+        
+        const isFavorite = favoriteActorsList.some(fav => fav.actorId === a.id);
+        if (isFavorite) return true;
+        
         if (showOnlyPCsWithToken) {
           const currentScene = game.scenes.active;
           return currentScene?.tokens.some(token => token.actorId === a.id) || false;
         }
         return true;
       }) :
-      game.actors.contents.filter(a => !isPlayerOwned(a) && hasTokenInScene(a));
+      game.actors.contents.filter(a => {
+        if (isPlayerOwned(a)) return false;
+        
+        const isFavorite = favoriteActorsList.some(fav => fav.actorId === a.id);
+        if (isFavorite) return true;
+        
+        return hasTokenInScene(a);
+      });
     
     actors.forEach(actor => {
       if (selectAll) {
@@ -1059,10 +1084,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
               const combatants = game.combat.getCombatantsByActor(actorId);
               if (!combatants || combatants.length === 0) {
                 LogUtil.log("_triggerRoll - adding actor to combat", actor.name);
-                // Add the actor to combat
+                // Add the actor to combat (tokenId can be null for favorited actors without tokens)
+                const tokenId = actor.getActiveTokens()?.[0]?.id || null;
                 await game.combat.createEmbeddedDocuments("Combatant", [{
                   actorId: actorId,
-                  tokenId: actor.getActiveTokens()?.[0]?.id
+                  tokenId: tokenId
                 }]);
               }
             }
@@ -1544,6 +1570,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         this.#instance._initializeFromSelectedTokens();
         this.#instance.render(true);
       }
+    }
+  }
+
+  /**
+   * Refresh the menu if it's currently open
+   * @static
+   */
+  static refreshIfOpen() {
+    if (this.#instance && this.#instance.rendered) {
+      LogUtil.log('RollRequestsMenu.refreshIfOpen - refreshing menu');
+      this.#instance.render();
     }
   }
 

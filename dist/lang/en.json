@@ -14,7 +14,14 @@
       "noHitDice": "No available hit dice for {actor}",
       "noTargetedTokens": "No targeted tokens found for the roll.",
       "settingsUpdated": "Settings updated",
-      "invalidFormula": "Invalid formula: {formula}"
+      "invalidFormula": "Invalid formula: {formula}",
+      "actorAddedToFavorites": "{actor} added to Flash Rolls favorites",
+      "actorRemovedFromFavorites": "{actor} removed from Flash Rolls favorites"
+    },
+    "contextMenu": {
+      "addToFavorites": "Add to Flash Rolls Menu",
+      "removeFromFavorites": "Remove from Flash Rolls Menu",
+      "toggleFavorite": "Toggle on Flash Rolls Menu"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -96,6 +103,10 @@
       "showOnlyPCsWithToken": {
         "label": "Show Only PCs with Tokens",
         "hint": "When enabled, the PC tab in the roll menu will only show player characters that have tokens in the current scene."
+      },
+      "favoriteActorsList": {
+        "label": "Favorite Actors List",
+        "hint": "List of favorite actors that will always appear in the roll menu regardless of token presence."
       },
       "showMenuOnLoad": {
         "label": "Show Menu on Load",

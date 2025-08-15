@@ -13,6 +13,8 @@ export class SettingsUtil {
    */
   static registerSettings() {
     const SETTINGS = getSettings();
+    var isDebugOn = SettingsUtil.get(SETTINGS.debugMode.tag);
+    if(isDebugOn){CONFIG.debug.hooks = true};
 
     /* Register each of the settings defined in the SETTINGS constant */
     const settingsList = Object.entries(SETTINGS);
@@ -39,7 +41,6 @@ export class SettingsUtil {
       try {
         game.settings.register(MODULE_ID, setting.tag, settingObj);
       } catch (error) {
-        // Setting might already be registered, that's ok
         LogUtil.log(`Setting ${setting.tag} already registered or error:`, error);
       }
     });

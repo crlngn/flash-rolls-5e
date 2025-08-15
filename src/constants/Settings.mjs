@@ -215,6 +215,17 @@ export const getSettings = () => {
       config: false
     },
 
+    favoriteActorsList: {
+      tag: "favorite-actors-list",
+      label: game.i18n.localize("FLASH_ROLLS.settings.favoriteActorsList.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.favoriteActorsList.hint"),
+      propType: Array,
+      inputType: SETTING_INPUT.text,
+      default: [],
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
     templateAutoTarget: { 
       tag: "template-auto-target", 
       label: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.label"),
