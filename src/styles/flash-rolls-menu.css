@@ -1,7 +1,8 @@
 #flash-rolls-menu {
   box-sizing: border-box;
   border-radius: 0;
-  color: var(--color-text-light-highlight, var(--color-light-1));
+  /*color: var(--color-text-light-highlight, var(--color-light-1));*/
+  color: inherit;
   display: block;
   font-size: 0.75rem;
   position: fixed;
@@ -33,6 +34,13 @@
   }
 }
 
+body.theme-dark #flash-rolls-menu{
+  color: var(--color-text-light-highlight, var(--color-light-1));
+}
+body.theme-light #flash-rolls-menu{
+  color: var(--color-text-dark-highlight, var(--color-dark-1));
+}
+
 #flash-rolls-menu > div {
   display: flex;
   flex-direction: row-reverse;
@@ -56,7 +64,7 @@
   max-height: 100%;
   height: auto;
   overflow-y: hidden;
-  border: 1px solid rgba(0, 0, 0, 1);
+  border: 1px solid var(--control-bg-color, rgba(20, 20, 20, 0.9));
   font-size: var(--font-size-13);
   display: flex;
   flex-direction: column;
@@ -194,7 +202,7 @@
     outline: 0;
   }
   &.selected {
-    background: var(--color-highlights-50, var(--color-warm-2));
+    background: var(--color-highlights-75, var(--color-warm-2));
     color: var(--color-light-1);
   }
 
@@ -266,7 +274,7 @@
   button {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 0;
-    color: rgba(160,160,160, 1);
+    color: inherit;
     border: 1px solid transparent;
     cursor: pointer;
     box-shadow: none;
@@ -274,14 +282,19 @@
     line-height: 1.5;
     width: 4em;
     margin: -1px 0 0 0;
+    border-color: transparent;
+    outline: 0;
 
-    &:hover, &.active{
-      border-color: #000;
-      background: rgba(0, 0, 0, 0.35);
+
+    &:hover{
+      background: rgba(0, 0, 0, 0.6);
+      color: var(--color-light-1);
+      border-color: transparent;
     }
     &.active{
-      background: rgba(0, 0, 0, 0.5);
+      background: var(--color-warm-2);
       color: var(--color-light-1);
+      border-color: transparent;
     }
   }
 }
@@ -555,7 +568,7 @@
   right: 0;
   height: 1.2em;
   background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
-  border: 1px solid rgba(0, 0, 0, 1);
+  border: 1px solid var(--control-bg-color, rgba(20, 20, 20, 0.9));
   border-bottom: none;
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;

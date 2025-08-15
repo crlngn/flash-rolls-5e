@@ -96,6 +96,7 @@
   .roll-result {
     width: 25%;
     flex-basis: 25%;
+    flex-shrink: 0;
     height: 2.2em;
     display: flex;
     align-items: center;

@@ -19,21 +19,22 @@ body.flash5e {
   .flash5e-switch {
     display: flex;
     position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+
     > .track{
       display: inline-block;
       font-size: var(--font-size-12);
       height: 0.86rem;
       width: 1.6rem;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.5);
       border-radius: 1.5em;
       border: 0;
       z-index: 0;
     }
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 4px;
   }
   .flash5e-switch > input[type="checkbox"] {
     left: 0;
