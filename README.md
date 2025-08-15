@@ -1,11 +1,17 @@
 # Flash Rolls 5e
 
+[![alt-text](https://img.shields.io/badge/-Discord-%235662f6?style=for-the-badge)](https://discord.gg/cAuTaTYda3) 
+![GitHub Downloads (specific asset, all releases)](https://img.shields.io/github/downloads/crlngn/flash-rolls-5e/module.zip?color=2b82fc&label=DOWNLOADS&style=for-the-badge)
+
 This is a Foundry VTT module that facilitates rolling for GMs, adding the following features to core Foundry v13 / DnD5e 5.0.x: 
 - Roll for multiple NPCs or PCs at once
 - Calculate the result of group rolls with 4 different options (see below)
 - Request skill checks, saving throws, etc. from single or multiple player actors, adding DCs and bonuses before the request
 - Help new players who are unfamiliar with Foundry or tend to slow down combat
 - Target tokens from template drawing
+
+
+https://github.com/user-attachments/assets/725e73c7-ffc0-415d-be37-bf07a9877040
 
 https://github.com/user-attachments/assets/c2cae279-e2e0-43a5-91ff-d1bf5fc21458
 
