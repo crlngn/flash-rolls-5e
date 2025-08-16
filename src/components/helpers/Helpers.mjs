@@ -203,19 +203,22 @@ export function hasTokenInScene(actor) {
  * @param {string} actorId - The actor ID
  * @param {boolean} selected - Whether to select or deselect
  */
-export function updateCanvasTokenSelection(actorId, selected) {
+export function updateCanvasTokenSelection(actorId, selected, tokenId = null) {
   const scene = game.scenes.active;
   if (!scene) return;
   
-  // Find all tokens for this actor in the current scene
-  const tokens = canvas.tokens.placeables.filter(t => t.actor?.id === actorId);
+  let tokens;
+  if (tokenId) {
+    const specificToken = canvas.tokens.placeables.find(t => t.id === tokenId);
+    tokens = specificToken ? [specificToken] : [];
+  } else {
+    tokens = canvas.tokens.placeables.filter(t => t.actor?.id === actorId);
+  }
   
   for (const token of tokens) {
     if (selected) {
-      // Add to selection without clearing others
       token.control({ releaseOthers: false });
     } else {
-      // Release this token
       token.release();
     }
   }
@@ -261,7 +264,7 @@ export function updateSidebarClass(isExpanded) {
 export function buildRollTypes(selectedRequestType, selectedActors) {
   const rollTypes = [];
   
-  if (!selectedRequestType || selectedActors.size === 0) {
+  if (!selectedRequestType) {
     return rollTypes;
   }
   
@@ -270,27 +273,21 @@ export function buildRollTypes(selectedRequestType, selectedActors) {
     return rollTypes;
   }
   
-  // Get first selected actor as reference for available options
-  const firstActorId = Array.from(selectedActors)[0];
-  const actor = game.actors.get(firstActorId);
+  // Use CONFIG.DND5E directly for standard roll types
+  const configData = CONFIG.DND5E[selectedOption.subList];
   
-  // Special handling for tools - show all available tools
-  if (selectedOption.subList === 'tools') {
-    // Get all tools from CONFIG.DND5E.tools or enrichmentLookup
-    const allTools = CONFIG.DND5E.enrichmentLookup?.tools || CONFIG.DND5E.tools || {};
-    
-    for (const [key, toolData] of Object.entries(allTools)) {
-      let label = key;
+  if (configData) {
+    // For abilities, skills, and other standard types
+    for (const [key, data] of Object.entries(configData)) {
+      let label = data.label || data.name || key;
       
-      // Use enrichmentLookup to get tool UUID and then fetch the name
-      if (toolData?.id) {
-        // Get the tool name using Trait.getBaseItem
-        const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
-        label = toolItem?.name || key;
-      }
-      // Fallback - format the key
-      else {
-        label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+      // Special handling for tools using enrichmentLookup
+      if (selectedOption.subList === 'tools' && CONFIG.DND5E.enrichmentLookup?.tools?.[key]) {
+        const toolData = CONFIG.DND5E.enrichmentLookup.tools[key];
+        if (toolData?.id) {
+          const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+          label = toolItem?.name || label;
+        }
       }
       
       rollTypes.push({
@@ -300,43 +297,8 @@ export function buildRollTypes(selectedRequestType, selectedActors) {
       });
     }
     
-    // Sort tools alphabetically by name
+    // Sort alphabetically by name
     rollTypes.sort((a, b) => a.name.localeCompare(b.name));
-  }
-  // For other types, use actor data
-  else if (actor && selectedOption.actorPath) {
-    const rollData = foundry.utils.getProperty(actor, selectedOption.actorPath) || {};
-    
-    // Check if we should use CONFIG.DND5E for enrichment
-    const configData = CONFIG.DND5E[selectedOption.subList];
-    
-    for (const [key, data] of Object.entries(rollData)) {
-      let label = '';
-      
-      // For skills, use CONFIG.DND5E.skills for full names
-      if (selectedOption.subList === 'skills' && configData?.[key]) {
-        label = configData[key].label;
-      }
-      // For abilities (saving throws), use the label from data
-      else if (selectedOption.subList === 'abilities' && configData?.[key]) {
-        label = configData[key].label;
-      }
-      // Default fallback
-      else {
-        label = data.label || game.i18n.localize(data.name || key) || key;
-      }
-      
-      rollTypes.push({
-        id: key,
-        name: label,
-        rollable: true
-      });
-    }
-    
-    // Sort skills alphabetically by name
-    if (selectedOption.subList === 'skills') {
-      rollTypes.sort((a, b) => a.name.localeCompare(b.name));
-    }
   }
   
   return rollTypes;

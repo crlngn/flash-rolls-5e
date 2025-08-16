@@ -181,7 +181,7 @@ body.theme-light #flash-rolls-menu{
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 1em;
+    gap: 0.5em;
   }
 }
 
@@ -204,6 +204,7 @@ body.theme-light #flash-rolls-menu{
   &.selected {
     background: var(--color-highlights-75, var(--color-warm-2));
     color: var(--color-light-1);
+    border-radius: 3px;
   }
 
   > .actor-select{

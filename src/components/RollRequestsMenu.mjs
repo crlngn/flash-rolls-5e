@@ -461,6 +461,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (requestTypesContainer) {
       requestTypesContainer.addEventListener('click', (event) => {
         const requestHeader = event.target.closest('.request-type-header');
+        
         if (requestHeader) {
           const requestItem = requestHeader.closest('.request-type-item');
           
@@ -560,6 +561,16 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     this.render();
     this._updateRequestTypesVisibility();
+    
+    // Show/hide request types accordion based on selection
+    const accordion = this.element.querySelector('.request-types-accordion');
+    if (accordion) {
+      if (this.selectedActors.size > 0) {
+        accordion.classList.add('hover-visible');
+      } else {
+        accordion.classList.remove('hover-visible');
+      }
+    }
   }
   
   /**
@@ -667,32 +678,52 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (event.target.closest('.actor-select')) return;
     
     const actorElement = event.currentTarget;
-    const actorId = actorElement.dataset.id;
-    this._toggleActorSelection(actorId);
+    const uniqueId = actorElement.dataset.id;
+    const actorId = actorElement.dataset.actorId;
+    const tokenId = actorElement.dataset.tokenId;
+    this._toggleActorSelection(uniqueId, actorId, tokenId);
   }
   
   /**
    * Toggle actor selection state
    */
-  _toggleActorSelection(actorId) {
+  _toggleActorSelection(uniqueId, actorId, tokenId) {
     LogUtil.log('_toggleActorSelection');
     this._ignoreTokenControl = true;
     
-    if (this.selectedActors.has(actorId)) {
-      this.selectedActors.delete(actorId);
-      updateCanvasTokenSelection(actorId, false);
+    if (this.selectedActors.has(uniqueId)) {
+      this.selectedActors.delete(uniqueId);
+      if (tokenId) {
+        updateCanvasTokenSelection(actorId, false, tokenId);
+      } else {
+        updateCanvasTokenSelection(actorId, false);
+      }
     } else {
-      this.selectedActors.add(actorId);
-      updateCanvasTokenSelection(actorId, true);
+      this.selectedActors.add(uniqueId);
+      if (tokenId) {
+        updateCanvasTokenSelection(actorId, true, tokenId);
+      } else {
+        updateCanvasTokenSelection(actorId, true);
+      }
     }
     
     setTimeout(() => {
       this._ignoreTokenControl = false;
     }, 100);
     
-    this._updateActorSelectionUI(actorId);
+    this._updateActorSelectionUI(uniqueId);
     this._updateSelectAllState();
     this._updateRequestTypesVisibilityNoRender();
+    
+    // Show request types accordion if we have selected actors
+    const accordion = this.element.querySelector('.request-types-accordion');
+    if (accordion) {
+      if (this.selectedActors.size > 0) {
+        accordion.classList.add('hover-visible');
+      } else {
+        accordion.classList.remove('hover-visible');
+      }
+    }
   }
   
   /**

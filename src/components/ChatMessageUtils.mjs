@@ -397,7 +397,7 @@ export class ChatMessageUtils {
         flavor = config?.flavor || "Damage Roll";
         break;
       default:
-        flavor = config?.flavor || "Roll Request";
+        flavor = config?.flavor || "";
     }
     
     return flavor;
