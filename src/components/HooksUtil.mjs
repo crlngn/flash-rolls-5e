@@ -90,7 +90,6 @@ export class HooksUtil {
     if (game.user.isGM) {
       RollInterceptor.initialize();
       this._registerGMHooks();
-      // Show menu automatically if setting is enabled
       RollRequestsMenu.showOnLoadIfEnabled();
     }else{
       DiceConfigUtil.getDiceConfig();
@@ -124,8 +123,16 @@ export class HooksUtil {
   static _registerGMHooks() {
     this._registerHook(HOOKS_CORE.USER_CONNECTED, this._onUserConnected.bind(this));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, this._onPreCreateChatMessageGM.bind(this));
-    // this._registerHook(HOOKS_CORE.GET_ACTOR_DIRECTORY_ENTRY_CONTEXT, this._onGetActorDirectoryEntryContext.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_V2, this._onPreRoll.bind(this));
+    
+    // Token hooks for updating roll requests menu
+    this._registerHook(HOOKS_CORE.CREATE_TOKEN, this._onTokenChange.bind(this));
+    this._registerHook(HOOKS_CORE.DELETE_TOKEN, this._onTokenChange.bind(this));
+    
+    // Hooks for updating roll requests menu when data changes
+    this._registerHook(HOOKS_CORE.UPDATE_SETTING, this._onSettingUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_SCENE, this._onSceneUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_ACTOR, this._onActorUpdate.bind(this));
 
     game.users.forEach(user => {
       this._onUserConnected(user);
@@ -205,7 +212,8 @@ export class HooksUtil {
           const checkIds = [actorId, baseActorId].filter(id => id);
           
           for (const [groupRollId, pendingData] of ChatMessageUtils.pendingRolls.entries()) {
-            if (checkIds.some(id => pendingData.actors.includes(id))) {
+            const actorEntries = pendingData.actorEntries || (pendingData.actors ? pendingData.actors.map(id => ({ actorId: id })) : []);
+            if (checkIds.some(id => actorEntries.some(entry => entry.actorId === id))) {
               // This actor is part of a group roll, add the flag
               data.flags = data.flags || {};
               data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
@@ -334,14 +342,14 @@ export class HooksUtil {
    * Intercept group roll message creation (GM only) - currently unused
    */
   static _onPreCreateChatMessageGM(message, data, options, userId) {
-    LogUtil.log("_onPreCreateChatMessageGM", [message, data, options, userId]);
+    // LogUtil.log("_onPreCreateChatMessageGM", [message, data, options, userId]);
   }
   
   /**
    * Intercept rendered chat messages to handle group rolls
    */
   static _onRenderChatMessageHTML(message, html, context) {
-    LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
+    // LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
     ChatMessageUtils.interceptRollMessage(message, html, context);
     
     this._addSelectTargetsButton(message, html);
@@ -406,6 +414,62 @@ export class HooksUtil {
     if (user.active && user.id !== game.user.id) {
       DiceConfigUtil.requestDiceConfigFromUser(user.id);
     }
+  }
+
+  /**
+   * Handle token create/delete events to refresh roll requests menu
+   * @param {Token} token - The token document
+   * @param {Object} options - Creation/deletion options  
+   * @param {string} userId - The user ID who performed the action
+   */
+  static _onTokenChange(token, options, userId) {
+    if (this._tokenChangeTimeout) {
+      clearTimeout(this._tokenChangeTimeout);
+    }
+    
+    this._tokenChangeTimeout = setTimeout(() => {
+      LogUtil.log('HooksUtil._onTokenChange - Re-rendering roll requests menu due to token create/delete');
+      RollRequestsMenu.refreshIfOpen();
+      this._tokenChangeTimeout = null;
+    }, 200);
+  }
+
+  static _onSettingUpdate(setting, value, options, userId) {
+    const SETTINGS = getSettings();
+    const MODULE = { ID: 'flash-rolls-5e' };
+    
+    if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}` ||
+        setting.key === `${MODULE.ID}.${SETTINGS.favoriteActorsList.tag}`) {
+      
+      LogUtil.log('HooksUtil._onSettingUpdate - Re-rendering roll requests menu due to setting change', [setting.key]);
+      RollRequestsMenu.refreshIfOpen();
+    }
+  }
+
+  static _onSceneUpdate(scene, changes, options, userId) {
+    if (changes.active === true) {
+      LogUtil.log('HooksUtil._onSceneUpdate - Re-rendering roll requests menu due to active scene change');
+      RollRequestsMenu.refreshIfOpen();
+    }
+  }
+
+  static _onActorUpdate(actor, changes, options, userId) {
+    const ownershipChanged = changes['==ownership'] !== undefined;
+    const statsChanged = changes.system?.attributes?.hp || 
+                        changes.system?.attributes?.ac || 
+                        changes.system?.attributes?.spell?.dc ||
+                        changes.system?.skills?.prc ||
+                        changes.system?.abilities ||
+                        changes.system?.attributes?.prof;
+
+    if (!statsChanged && !ownershipChanged) return;
+    if (this._actorUpdateTimeout) {
+      clearTimeout(this._actorUpdateTimeout);
+    }
+    this._actorUpdateTimeout = setTimeout(() => {
+      RollRequestsMenu.refreshIfOpen();
+      this._actorUpdateTimeout = null;
+    }, 100);
   }
 
   /**
@@ -481,10 +545,8 @@ export class HooksUtil {
     LogUtil.log("_onPreRollHitDieV2 triggered", [config, dialogOptions, messageOptions]);
     
     if (config.rolls && config.rolls.length > 1) {
-      // Collect all situational bonuses from ALL rolls
       const allSituationalBonuses = [];
       
-      // Check all rolls for situational bonuses
       for(let i = 0; i < config.rolls.length; i++){
         const roll = config.rolls[i];
         if (roll && roll.data && roll.data.situational) {
@@ -492,16 +554,13 @@ export class HooksUtil {
         }
       }
       
-      // If we have situational bonuses to consolidate
       if (allSituationalBonuses.length > 0) {
         if (!config.rolls[0].data) {
           config.rolls[0].data = {};
         }
         
-        // Combine all unique situational bonuses
         const uniqueBonuses = [...new Set(allSituationalBonuses)];
         
-        // Format and combine the bonuses
         config.rolls[0].data.situational = uniqueBonuses.map(bonus => {
           const trimmedBonus = bonus.toString().trim();
           if (trimmedBonus.startsWith('-')) {
@@ -513,15 +572,12 @@ export class HooksUtil {
           }
         }).join(' + ');
         
-        // Ensure @situational is in parts array only once
         if(game.user.isGM && !config.rolls[0].parts.find(p => p.includes("@situational"))){
           config.rolls[0].parts.push("@situational");
         }
       }
       
-      // Keep only the first valid roll
       config.rolls = config.rolls.slice(0, 1);
-      
       LogUtil.log("Cleaned up hit die rolls", config.rolls);
     }
   }
@@ -530,14 +586,10 @@ export class HooksUtil {
    * Handle pre-roll initiative dialog hook to add situational bonus
    */
   static _onPreRollInitiativeDialog(config, dialogOptions, messageOptions) {
-    
-    // Check if actor has stored situational bonus
     const actor = config.subject;
     const storedConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');
 
-
     LogUtil.log("_onPreRollInitiativeDialog triggered", [config, storedConfig, dialogOptions, messageOptions]);
-    // Apply advantage/disadvantage to the app config
     config.advantage = storedConfig?.advantage || config.advantage || false;
     config.disadvantage = storedConfig?.disadvantage || config.disadvantage || false;
     

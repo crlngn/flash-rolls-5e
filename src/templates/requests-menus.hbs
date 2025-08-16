@@ -60,12 +60,17 @@
         </li>
       {{/unless}}
       {{#each actors as |actor|}}
-        <li class="actor{{#if actor.selected}} selected{{/if}}" data-id="{{actor.id}}" data-selected="{{actor.selected}}">
-          {{!-- <div class="actor-select" data-id="{{actor.id}}">
-            <i class="icon fas fa-{{#if actor.selected}}circle-dot{{else}}circle{{/if}}"></i>
-          </div> --}}
+        <li class="actor{{#if actor.selected}} selected{{/if}}" 
+          data-id="{{actor.uniqueId}}" data-actor-id="{{actor.id}}" 
+          {{#if actor.tokenId}}data-token-id="{{actor.tokenId}}"{{/if}} 
+          data-selected="{{actor.selected}}">
           <div class="actor-data">
-            {{#if ../showNames}}<span class="actor-name">{{ actor.name }}</span>{{/if}}
+            {{#if ../showNames}}<span class="actor-name">
+              {{#if actor.isFavorite}}
+              <i class="fas fa-bolt" title="Favorite"></i>
+              {{/if}}{{ actor.name }}
+              </span>
+            {{/if}}
             <ul class="actor-stats">
               {{#each actor.crlngnStats as |prop|}}
                 <li class="actor-stat">

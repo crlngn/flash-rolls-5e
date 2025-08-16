@@ -30,7 +30,7 @@
         "manifest": "https://raw.githubusercontent.com/foundryvtt/dnd5e/master/system.json",
         "compatibility": {
           "minimum": "5.0.0",
-          "verified": "5.0.4"
+          "verified": "5.1.1"
         }
       }
     ],
@@ -45,17 +45,7 @@
         }
       }
     ],
-    "recommends": [
-      {
-        "id": "crlngn-ui",
-        "type": "module",
-        "manifest": "https://github.com/crlngn/crlngn-ui/releases/latest/download/module.json",
-        "compatibility": {
-          "minimum": "2.0.0",
-          "verified": "2.6.11"
-        }
-      }
-    ]
+    "recommends": []
   },
   "socket": true,
   "esmodules": [

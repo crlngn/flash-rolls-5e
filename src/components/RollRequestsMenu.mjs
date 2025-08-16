@@ -84,14 +84,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     for (const actor of actors) {
       if (actor.type !== 'character' && actor.type !== 'npc') continue;
       
-      const actorData = {
+      const createActorData = (token = null) => ({
         id: actor.id,
         uuid: actor.uuid,
-        name: actor.name,
+        name: token ? token.name : actor.name,
         img: actor.img,
-        selected: this.selectedActors.has(actor.id),
-        crlngnStats: RollMenuActorUtil.getActorStats(actor)
-      };
+        selected: this.selectedActors.has(token?.id || actor.id),
+        crlngnStats: RollMenuActorUtil.getActorStats(actor),
+        tokenId: token?.id || null,
+        isToken: !!token,
+        uniqueId: token?.id || actor.id
+      });
       
       // Check if owned by a player (not GM)
       const isPlayerOwned = Object.entries(actor.ownership)
@@ -103,30 +106,68 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       if (isPlayerOwned) {
         const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
         const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
-        const isFavorite = favoriteActorsList.some(fav => fav.actorId === actor.id);
+        const favorite = favoriteActorsList.find(fav => fav.actorId === actor.id);
+        const isFavorite = !!favorite;
+        
+        const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
         
         if (isFavorite) {
-          actorData.isFavorite = true;
-          pcActors.push(actorData);
-        } else if (showOnlyPCsWithToken) {
-          const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
-          if (hasTokenInScene) {
+          if (tokensInScene.length > 0) {
+            tokensInScene.forEach(tokenDoc => {
+              const actorData = createActorData(tokenDoc);
+              actorData.isFavorite = true;
+              pcActors.push(actorData);
+            });
+          } else {
+            const actorData = createActorData();
+            actorData.isFavorite = true;
+            actorData.tokenId = favorite.tokenId || null;
             pcActors.push(actorData);
           }
+        } else if (showOnlyPCsWithToken) {
+          if (tokensInScene.length > 0) {
+            tokensInScene.forEach(tokenDoc => {
+              const actorData = createActorData(tokenDoc);
+              pcActors.push(actorData);
+            });
+          }
         } else {
-          pcActors.push(actorData);
+          if (tokensInScene.length > 0) {
+            tokensInScene.forEach(tokenDoc => {
+              const actorData = createActorData(tokenDoc);
+              pcActors.push(actorData);
+            });
+          } else {
+            const actorData = createActorData();
+            pcActors.push(actorData);
+          }
         }
       } else {
         const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
-        const isFavorite = favoriteActorsList.some(fav => fav.actorId === actor.id);
+        const favorite = favoriteActorsList.find(fav => fav.actorId === actor.id);
+        const isFavorite = !!favorite;
+        
+        const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
         
         if (isFavorite) {
-          actorData.isFavorite = true;
-          npcActors.push(actorData);
-        } else {
-          const hasTokenInScene = currentScene?.tokens.some(token => token.actorId === actor.id) || false;
-          if (hasTokenInScene) {
+          if (tokensInScene.length > 0) {
+            tokensInScene.forEach(tokenDoc => {
+              const actorData = createActorData(tokenDoc);
+              actorData.isFavorite = true;
+              npcActors.push(actorData);
+            });
+          } else {
+            const actorData = createActorData();
+            actorData.isFavorite = true;
+            actorData.tokenId = favorite.tokenId || null;
             npcActors.push(actorData);
+          }
+        } else {
+          if (tokensInScene.length > 0) {
+            tokensInScene.forEach(tokenDoc => {
+              const actorData = createActorData(tokenDoc);
+              npcActors.push(actorData);
+            });
           }
         }
       }
@@ -140,35 +181,32 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Check if all actors in current tab are selected
     const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
     const selectAllOn = currentActors.length > 0 && 
-      currentActors.every(actor => this.selectedActors.has(actor.id));
+      currentActors.every(actor => this.selectedActors.has(actor.uniqueId));
     
-    const shouldPrepareRequestTypes = this.selectedActors.size > 0;
-    
+    // Always prepare request types, they're just disabled when no actors are selected
     const requestTypes = [];
-    if (shouldPrepareRequestTypes) {
-      for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
-        const requestType = {
-          id: key,
-          name: game.i18n.localize(`FLASH_ROLLS.rollTypes.${option.name}`) || option.label,
-          rollable: option.subList == null,
-          hasSubList: !!option.subList,
-          selected: this.selectedRequestType === key, 
-          expanded: this.accordionStates[key] ?? false,
-          subItems: []
-        };
-        
-        // Build sub-items for accordion
-        if (option.subList) {
-          requestType.subItems = buildRollTypes(key, this.selectedActors);
-        }
-        
-        requestTypes.push(requestType);
+    for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
+      const requestType = {
+        id: key,
+        name: game.i18n.localize(`FLASH_ROLLS.rollTypes.${option.name}`) || option.label,
+        rollable: option.subList == null,
+        hasSubList: !!option.subList,
+        selected: this.selectedRequestType === key, 
+        expanded: this.accordionStates[key] ?? false,
+        subItems: []
+      };
+      
+      // Build sub-items for accordion
+      if (option.subList) {
+        requestType.subItems = buildRollTypes(key, this.selectedActors);
       }
+      
+      requestTypes.push(requestType);
     }
 
     const rollTypes = buildRollTypes(this.selectedRequestType, this.selectedActors);
     
-    return {
+    const preparedContext = {
       ...context,
       actors: currentActors,
       currentTab: this.currentTab,
@@ -186,6 +224,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       actorsLocked: this.isLocked,
       optionsExpanded: this.optionsExpanded
     };
+    
+    // Store the context for use in select all
+    this._lastPreparedContext = preparedContext;
+    
+    return preparedContext;
   }
 
 
@@ -272,15 +315,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }, 100);
     
     this._tokenControlHook = Hooks.on(HOOKS_CORE.CONTROL_TOKEN, this._onTokenControlChange.bind(this));
-    
-    this._actorUpdateHook = Hooks.on(HOOKS_CORE.UPDATE_ACTOR, this._onActorUpdate.bind(this));
-    
     this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
     this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
     this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
-    
-    this._updateSettingHook = Hooks.on(HOOKS_CORE.UPDATE_SETTING, this._onSettingUpdate.bind(this));
-    this._updateSceneHook = Hooks.on(HOOKS_CORE.UPDATE_SCENE, this._onSceneUpdate.bind(this));
     
     const dragHandle = this.element.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
     if (dragHandle) {
@@ -303,67 +340,36 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     this._tokenUpdateTimeout = setTimeout(() => {
-      this._initializeFromSelectedTokens();
-      this.render();
+      const previousSelection = new Set(this.selectedActors);
       
-      this._tokenUpdateTimeout = null;
-    }, 100); // 100ms debounce
-  }
-  
-  /**
-   * Handle actor updates to refresh stats display
-   */
-  _onActorUpdate(actor, changes, options, userId) {
-    LogUtil.log('_onActorUpdate', [actor.id, changes]);
-    if (!this.rendered) return;
-    
-    // Check if the update affects any stats we display
-    const statsChanged = changes.system?.attributes?.hp || 
-                        changes.system?.attributes?.ac || 
-                        changes.system?.attributes?.spell?.dc ||
-                        changes.system?.skills?.prc ||
-                        changes.system?.abilities ||
-                        changes.system?.attributes?.prof;
-    
-    if (!statsChanged) return;
-    
-    // Check if this actor is currently displayed in the menu
-    const currentTab = this.currentTab;
-    const isPlayerOwned = Object.entries(actor.ownership)
-      .some(([uid, level]) => {
-        const user = game.users.get(uid);
-        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-      });
-    
-    const shouldUpdate = (currentTab === 'pc' && isPlayerOwned) || 
-                         (currentTab === 'npc' && !isPlayerOwned && hasTokenInScene(actor));
-    
-    if (shouldUpdate) {
-      // Debounce updates to avoid excessive re-renders
-      if (this._actorUpdateTimeout) {
-        clearTimeout(this._actorUpdateTimeout);
+      this._initializeFromSelectedTokens();
+      
+      const allActorIds = new Set([...previousSelection, ...this.selectedActors]);
+      for (const actorId of allActorIds) {
+        this._updateActorSelectionUI(actorId);
       }
       
-      this._actorUpdateTimeout = setTimeout(() => {
-        this.render();
-        this._actorUpdateTimeout = null;
-      }, 100);
-    }
+      this._updateSelectAllState();
+      this._updateRequestTypesVisibilityNoRender();
+      
+      this._tokenUpdateTimeout = null;
+    }, 100);
   }
   
+  // Note: _onActorUpdate method removed - now handled by HooksUtil
+  
   /**
-   * Handle item updates on actors (for equipment changes that affect AC)
+   * Handle item updates on actors
+   * Re-renders the menu if the item affects character AC
    */
   _onItemUpdate(item, changes, options, userId) {
     if (!this.rendered) return;
     
-    // Only care about items that could affect AC (armor, shields, etc.)
     const affectsAC = item.type === 'equipment' || 
                       changes.system?.equipped !== undefined ||
                       changes.system?.attunement !== undefined;
-    
     if (!affectsAC) return;
-    
+
     const actor = item.parent;
     if (!actor || actor.documentName !== 'Actor') return;
     
@@ -378,45 +384,21 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
                          (currentTab === 'npc' && !isPlayerOwned && hasTokenInScene(actor));
     
     if (shouldUpdate) {
-      // Debounce updates to avoid excessive re-renders
       if (this._itemUpdateTimeout) {
         clearTimeout(this._itemUpdateTimeout);
       }
       
       this._itemUpdateTimeout = setTimeout(() => {
-        LogUtil.log('Refreshing menu due to item change affecting AC', [item.name, actor.name]);
         this.render();
         this._itemUpdateTimeout = null;
       }, 500);
     }
   }
   
-  /**
-   * Handle setting updates to refresh menu when relevant settings change
-   */
-  _onSettingUpdate(setting, value, options, userId) {
-    if (!this.rendered) return;
-    
-    const SETTINGS = getSettings();
-    if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}`) {
-      this.render();
-    }
-  }
+  // Note: _onSettingUpdate method removed - now handled by HooksUtil
   
-  /**
-   * Handle scene updates to refresh menu when active scene changes
-   */
-  _onSceneUpdate(scene, changes, options, userId) {
-    if (!this.rendered) return;
-    
-    if (changes.active === true) {
-      const SETTINGS = getSettings();
-      const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
-      
-      this.render();
-    }
-  }
-  
+  // Note: _onSceneUpdate method removed - now handled by HooksUtil
+
   /**
    * Handle clicks outside the menu
    */
@@ -440,72 +422,53 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     const html = this.element;
     
-    // Settings toggles
     html.querySelector('#flash-rolls-toggle')?.addEventListener('change', this._onToggleRollRequests.bind(this));
     html.querySelector('#flash5e-skip-dialogs')?.addEventListener('change', this._onToggleSkipDialogs.bind(this));
     html.querySelector('#flash5e-group-rolls-msg')?.addEventListener('change', this._onToggleGroupRollsMsg.bind(this));
     html.querySelector('#flash5e-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
-    
-    // Lock toggle
     html.querySelector('#flash5e-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
-    
-    // Options toggle button (not the whole container since it now contains the select all switch)
     html.querySelector('.options-toggle-btn')?.addEventListener('click', this._onToggleOptions.bind(this));
     
-    // Tab switching
     const tabs = html.querySelectorAll('.actor-tab');
     tabs.forEach(tab => {
       tab.addEventListener('click', this._onTabClick.bind(this));
       tab.addEventListener('dblclick', this._onTabDoubleClick.bind(this));
     });
     
-    // Actor selection - handle clicks on actor rows or select buttons
     html.querySelectorAll('.actor').forEach(actor => {
       actor.addEventListener('click', this._onActorClick.bind(this));
     });
     
-    html.querySelectorAll('.actor-select').forEach(selectBtn => {
-      selectBtn.addEventListener('click', this._onActorSelectClick.bind(this));
-    });
-    
-    // Search functionality
     const searchInput = html.querySelector('.search-input');
     if (searchInput) {
       searchInput.addEventListener('input', this._onSearchInput.bind(this));
     }
     
-    // Hover to show/hide accordion
     const accordion = html.querySelector('.request-types-accordion');
     if (accordion) {
-      // Show accordion on mouse enter
       html.addEventListener('mouseenter', () => {
         if (this.selectedActors.size > 0) {
           accordion.classList.add('hover-visible');
         }
       });
       
-      // Hide accordion on mouse leave
       html.addEventListener('mouseleave', () => {
         accordion.classList.remove('hover-visible');
       });
     }
     
-    // Accordion and request type selection - use event delegation for dynamic content
     const requestTypesContainer = html.querySelector('.request-types');
     if (requestTypesContainer) {
       requestTypesContainer.addEventListener('click', (event) => {
-        // Handle request type header click
         const requestHeader = event.target.closest('.request-type-header');
         if (requestHeader) {
           const requestItem = requestHeader.closest('.request-type-item');
           
-          // If it's an accordion header (has sublist), toggle accordion
           if (requestHeader.classList.contains('accordion-header')) {
             this._onAccordionToggle(event);
             return;
           }
           
-          // If it's toggle (rollable without sublist), trigger the roll
           if (requestHeader.classList.contains('toggle') && requestItem && requestItem.classList.contains('rollable')) {
             const customEvent = {
               ...event,
@@ -516,7 +479,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           }
         }
         
-        // Handle sub-item click
         const subItem = event.target.closest('.sub-item');
         if (subItem && subItem.dataset.id) {
           const customEvent = {
@@ -538,7 +500,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const enabled = event.target.checked;
     await SettingsUtil.set(SETTINGS.rollRequestsEnabled.tag, enabled);
     
-    // Update the icon in the chat controls
     SidebarUtil.updateRollRequestsIcon(enabled);
     
   }
@@ -569,43 +530,27 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   _onToggleSelectAll(event) {
     LogUtil.log('_onToggleSelectAll');
     const selectAll = event.target.checked;
-    this._ignoreTokenControl = true; // To avoid loop
+    this._ignoreTokenControl = true;
     
-    // Get the setting for filtering PCs
-    const SETTINGS = getSettings();
-    const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
+    const context = this._lastPreparedContext || {};
+    const currentActors = context.actors || [];
     
-    const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
-    
-    const actors = this.currentTab === 'pc' ? 
-      game.actors.contents.filter(a => {
-        if (!isPlayerOwned(a)) return false;
-        
-        const isFavorite = favoriteActorsList.some(fav => fav.actorId === a.id);
-        if (isFavorite) return true;
-        
-        if (showOnlyPCsWithToken) {
-          const currentScene = game.scenes.active;
-          return currentScene?.tokens.some(token => token.actorId === a.id) || false;
-        }
-        return true;
-      }) :
-      game.actors.contents.filter(a => {
-        if (isPlayerOwned(a)) return false;
-        
-        const isFavorite = favoriteActorsList.some(fav => fav.actorId === a.id);
-        if (isFavorite) return true;
-        
-        return hasTokenInScene(a);
-      });
-    
-    actors.forEach(actor => {
+    currentActors.forEach(actorData => {
+      const uniqueId = actorData.uniqueId;
       if (selectAll) {
-        this.selectedActors.add(actor.id);
-        updateCanvasTokenSelection(actor.id, true);
+        this.selectedActors.add(uniqueId);
+        if (actorData.tokenId) {
+          updateCanvasTokenSelection(actorData.id, true, actorData.tokenId);
+        } else {
+          updateCanvasTokenSelection(actorData.id, true);
+        }
       } else {
-        this.selectedActors.delete(actor.id);
-        updateCanvasTokenSelection(actor.id, false);
+        this.selectedActors.delete(uniqueId);
+        if (actorData.tokenId) {
+          updateCanvasTokenSelection(actorData.id, false, actorData.tokenId);
+        } else {
+          updateCanvasTokenSelection(actorData.id, false);
+        }
       }
     });
     
@@ -625,7 +570,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     event.preventDefault();
     this.isLocked = !this.isLocked;
     
-    // Update the icon - the currentTarget IS the icon element
     const lockIcon = event.currentTarget;
     lockIcon.classList.remove('fa-lock-keyhole', 'fa-lock-keyhole-open');
     lockIcon.classList.add(this.isLocked ? 'fa-lock-keyhole' : 'fa-lock-keyhole-open');
@@ -639,19 +583,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     event.preventDefault();
     event.stopPropagation();
     
-    // Toggle the state
     this.optionsExpanded = !this.optionsExpanded;
-    
-    // Save state to user flag
     await game.user.setFlag(MODULE.ID, 'menuOptionsExpanded', this.optionsExpanded);
     
-    // Find the options-toggle container (parent li) and toggle expanded class
     const optionsToggleContainer = this.element.querySelector('.options-toggle');
     if (optionsToggleContainer) {
       optionsToggleContainer.classList.toggle('expanded', this.optionsExpanded);
     }
     
-    // Find the li.options sibling and toggle expanded class on it
     const optionsElement = this.element.querySelector('li.options');
     if (optionsElement) {
       optionsElement.classList.toggle('expanded', this.optionsExpanded);
@@ -669,7 +608,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     for (const token of controlledTokens) {
       if (token.actor) {
-        this.selectedActors.add(token.actor.id);
+        // For tokens on the scene, we need to use the token ID as the unique ID
+        // This matches how the actor list is rendered with uniqueId
+        const uniqueId = token.id;
+        this.selectedActors.add(uniqueId);
         
         if (this.selectedActors.size === 1) {
           const isPC = isPlayerOwned(token.actor);
@@ -686,7 +628,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * Handle tab click
    */
   async _onTabClick(event) {
-    LogUtil.log('_onTabClick');
     const tab = event.currentTarget.dataset.tab;
     if (tab === this.currentTab) return;
     
@@ -723,7 +664,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * Handle click on actor row
    */
   _onActorClick(event) {
-    LogUtil.log('_onActorClick');
     if (event.target.closest('.actor-select')) return;
     
     const actorElement = event.currentTarget;
@@ -732,22 +672,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
   
   /**
-   * Handle click on actor select button
-   */
-  _onActorSelectClick(event) {
-    LogUtil.log('_onActorSelectClick');
-    event.stopPropagation();
-    const actorId = event.currentTarget.dataset.id;
-    this._toggleActorSelection(actorId);
-  }
-  
-  /**
    * Toggle actor selection state
    */
   _toggleActorSelection(actorId) {
     LogUtil.log('_toggleActorSelection');
-    
-    // Temporarily disable token control hook to avoid feedback loop
     this._ignoreTokenControl = true;
     
     if (this.selectedActors.has(actorId)) {
@@ -762,11 +690,28 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       this._ignoreTokenControl = false;
     }, 100);
     
-    // Re-render to update the UI
-    this.render();
-    
-    this._updateRequestTypesVisibility();
+    this._updateActorSelectionUI(actorId);
     this._updateSelectAllState();
+    this._updateRequestTypesVisibilityNoRender();
+  }
+  
+  /**
+   * Update the visual state of an actor element without re-rendering
+   */
+  _updateActorSelectionUI(actorId) {
+    const actorElement = this.element.querySelector(`.actor[data-id="${actorId}"]`);
+    if (!actorElement) return;
+    
+    const checkbox = actorElement.querySelector('.actor-select');
+    const isSelected = this.selectedActors.has(actorId);
+    
+    if (checkbox) {
+      checkbox.checked = isSelected;
+    }
+    
+    // Update both the class and the data-selected attribute
+    actorElement.classList.toggle('selected', isSelected);
+    actorElement.dataset.selected = isSelected.toString();
   }
   
 
@@ -775,8 +720,26 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   _updateRequestTypesVisibility() {
     LogUtil.log('_updateRequestTypesVisibility');
-    // re-render when actor selection changes
     this.render();
+  }
+  
+  /**
+   * Update request types visibility without re-rendering
+   */
+  _updateRequestTypesVisibilityNoRender() {
+    LogUtil.log('_updateRequestTypesVisibilityNoRender');
+    const hasSelection = this.selectedActors.size > 0;
+    const requestTypesContainer = this.element.querySelector('.request-types');
+    
+    if (requestTypesContainer) {
+      requestTypesContainer.classList.toggle('disabled', !hasSelection);
+      
+      // Update the visual state of request items
+      const requestItems = requestTypesContainer.querySelectorAll('.request-type-item');
+      requestItems.forEach(item => {
+        item.classList.toggle('disabled', !hasSelection);
+      });
+    }
   }
 
   /**
@@ -802,8 +765,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const requestTypesContainer = this.element.querySelector('.request-types');
     
     if (!requestTypesContainer) return;
-    
-    // Get all request type items and sub-items
     const requestItems = requestTypesContainer.querySelectorAll('.request-type-item');
     
     requestItems.forEach(requestItem => {
@@ -811,7 +772,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       const subItems = requestItem.querySelectorAll('.sub-item');
       let hasVisibleSubItems = false;
       
-      // Check sub-items if they exist
       if (subItems.length > 0) {
         subItems.forEach(subItem => {
           const subItemName = subItem.querySelector('.sub-item-name')?.textContent.toLowerCase() || '';
@@ -820,12 +780,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           if (isVisible) hasVisibleSubItems = true;
         });
         
-        // If search term matches the category name or has visible sub-items, show the category
         const categoryMatches = requestName.includes(searchTerm);
         const shouldShowCategory = searchTerm === '' || categoryMatches || hasVisibleSubItems;
         requestItem.classList.toggle('hidden', !shouldShowCategory);
         
-        // Auto-expand accordion if there's a search term and we have matches
         if (searchTerm && hasVisibleSubItems) {
           const nestedList = requestItem.querySelector('.roll-types-nested');
           const accordionToggle = requestItem.querySelector('.accordion-toggle');
@@ -835,7 +793,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           }
         }
       } else {
-        // For items without sub-items, just check the name
         const isVisible = searchTerm === '' || requestName.includes(searchTerm);
         requestItem.classList.toggle('hidden', !isVisible);
       }
@@ -846,7 +803,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * Handle accordion toggle
    */
   async _onAccordionToggle(event) {
-    LogUtil.log('_onAccordionToggle');
     event.stopPropagation();
     
     const requestHeader = event.target.closest('.request-type-header');
@@ -857,14 +813,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     if (!nestedList) return;
     
-    // Toggle expanded state
     const isExpanded = accordionToggle.classList.contains('expanded');
     accordionToggle.classList.toggle('expanded', !isExpanded);
-    
-    // Toggle nested list visibility
     nestedList.style.display = isExpanded ? 'none' : 'block';
-    
-    // Update saved state
     this.accordionStates[requestId] = !isExpanded;
     await game.user.setFlag(MODULE.ID, 'menuAccordionStates', this.accordionStates);
   }
@@ -876,7 +827,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const requestItem = event.currentTarget;
     const requestType = requestItem.dataset.id;
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
-    LogUtil.log('_onRequestTypeClick', [requestType, requestItem.dataset, rollOption]);
     
     if (!rollOption) {
       LogUtil.error('Unknown request type:', [requestType]);
@@ -903,9 +853,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('_onRollTypeClick');
     const rollKey = event.currentTarget.dataset.id;
     const parentType = event.currentTarget.dataset.parent;
-    // Use parent type if available (for accordion sub-items), otherwise use selected request type
     const requestType = parentType || this.selectedRequestType;
-    // Pass the event through for local rolls
     this._triggerRoll(requestType, rollKey);
   }
 
@@ -924,9 +872,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const SETTINGS = getSettings();
     const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     
-    // Show GM configuration dialog (unless skip dialogs is enabled or it's a custom roll)
     if (!skipRollDialog && rollMethodName !== ROLL_TYPES.CUSTOM) {
-      // Use appropriate dialog based on roll type
       let DialogClass;
       if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName)) {
         DialogClass = GMSkillToolConfigDialog;
@@ -941,9 +887,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       });
       LogUtil.log('_getRollConfiguration', [config]);
       
-      return config; // Will be null if cancelled
+      return config;
     } else {
-      // Use default BasicRollProcessConfiguration when skipping dialogs
       const config = {
         rolls: [{
           parts: [],
@@ -959,7 +904,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         sendRequest: rollRequestsEnabled && pcActors.length > 0
       };
       
-      // Death saves always have DC 10
       if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
         config.target = 10;
       }
@@ -976,21 +920,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {Actor[]} npcActors - NPC actors
    * @param {string} rollMethodName - The roll method name
    * @param {string} rollKey - The roll key
+   * @param {Array} actorsWithIds - Array of actor entries with unique IDs
    */
-  async _orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey) {
+  async _orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsWithIds) {
     const SETTINGS = getSettings();
-    
-    // Handle PC actors - send roll requests (if sendRequest is true)
     const successfulRequests = [];
     const offlinePlayerActors = [];
     const onlinePlayerActors = [];
+    let groupRollId = foundry.utils.randomID();
+    // config.groupRollId = groupRollId;
     
     LogUtil.log('_orchestrateRollsForActors', [config, pcActors, npcActors]);
-
     
-    const groupRollId = foundry.utils.randomID();
-    
-    // Collect all actors that will be part of this roll
+    const allActorEntries = [];
     const allActors = [];
 
     if (config.sendRequest) {
@@ -1008,17 +950,23 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       }
       allActors.push(...onlinePlayerActors.map(({actor}) => actor));
     } else {
-      // if requests are off, add to NPC list to roll locally
       npcActors.push(...pcActors.map(({ actor }) => actor));
     }
     
     allActors.push(...offlinePlayerActors, ...npcActors);
+    const allActorIds = allActors.map(actor => actor.id);
+    
+    allActorEntries.push(...actorsWithIds.filter(item => 
+      item && item.actor && allActorIds.includes(item.actor.id)
+    ));
 
-    // Create group message if there are multiple actors and setting is enabled
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
+    
     if (groupRollsMsgEnabled && allActors.length > 1) {
+      LogUtil.log('_orchestrateRollsForActors - generated new groupRollId', [groupRollId]);
+      
       await ChatMessageUtils.createGroupRollMessage(
-        allActors,
+        allActorEntries,
         rollMethodName,
         rollKey,
         config,
@@ -1044,7 +992,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (gmRolledActors.length > 0) {
       config.skipRollDialog = true;
       config.groupRollId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
-      await this._handleGMRolls(gmRolledActors, rollMethodName, rollKey, config);
+      
+      // For GM rolls, we need to use actorsWithIds to preserve token information
+      const gmActorIds = gmRolledActors.map(actor => actor.id);
+      const gmActorEntries = actorsWithIds.filter(entry => 
+        entry && entry.actor && gmActorIds.includes(entry.actor.id)
+      );
+      
+      await this._handleGMRollsWithTokens(gmActorEntries, rollMethodName, rollKey, config);
     }
   }
 
@@ -1056,12 +1011,31 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _triggerRoll(requestType, rollKey) {
     LogUtil.log('_triggerRoll', [requestType, rollKey]);
     const SETTINGS = getSettings();
-    const selectedActorIds = Array.from(this.selectedActors);
+    const selectedUniqueIds = Array.from(this.selectedActors);
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
-    let actors = selectedActorIds
-      .map(id => game.actors.get(id))
-      .filter(actor => actor);
+    // Convert selected unique IDs back to actors with their unique identifiers
+    // Some IDs might be token IDs, others might be actor IDs
+    let actorsWithIds = selectedUniqueIds
+      .map(uniqueId => {
+        let actor = game.actors.get(uniqueId);
+        if (actor) {
+          return { actor, uniqueId, tokenId: null };
+        }
+        const token = canvas.tokens?.get(uniqueId);
+        if (token?.actor) {
+          return { actor: token.actor, uniqueId, tokenId: uniqueId };
+        }
+        const tokenDoc = game.scenes.active?.tokens.get(uniqueId);
+        if (tokenDoc?.actor) {
+          return { actor: tokenDoc.actor, uniqueId, tokenId: uniqueId };
+        }
+        
+        return null;
+      })
+      .filter(item => item);
+    
+    let actors = actorsWithIds.map(item => item.actor);
     
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
@@ -1075,33 +1049,92 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       case ROLL_TYPES.INITIATIVE_DIALOG:
         const combatReady = await ensureCombatForInitiative();
         if (combatReady) {
-          LogUtil.log("_triggerRoll - initiative", [selectedActorIds]);
+          LogUtil.log("_triggerRoll - initiative", [selectedUniqueIds]);
           
-          // Ensure all actors are combatants before filtering
-          for (const actorId of selectedActorIds) {
-            const actor = game.actors.get(actorId);
-            if (actor) {
-              const combatants = game.combat.getCombatantsByActor(actorId);
-              if (!combatants || combatants.length === 0) {
-                LogUtil.log("_triggerRoll - adding actor to combat", actor.name);
-                // Add the actor to combat (tokenId can be null for favorited actors without tokens)
-                const tokenId = actor.getActiveTokens()?.[0]?.id || null;
+          const actorsWithoutTokens = [];
+          const actorsWithTokens = [];
+          
+          for (const uniqueId of selectedUniqueIds) {
+            let actor = game.actors.get(uniqueId);
+            let tokenId = null;
+            
+            if (!actor) {
+              const token = canvas.tokens?.get(uniqueId) || game.scenes.active?.tokens.get(uniqueId);
+              if (token?.actor) {
+                actor = token.actor;
+                tokenId = uniqueId;
+                actorsWithTokens.push(actor.name);
+              }
+              LogUtil.log("_triggerRoll - actor from token", [actor.name, actor, tokenId]);
+            } else {
+              tokenId = actor.getActiveTokens()?.[0]?.id || null;
+              if (!tokenId) {
+                actorsWithoutTokens.push(actor.name);
+                continue;
+              }
+              actorsWithTokens.push(actor.name);
+              LogUtil.log("_triggerRoll - actor", [actor.name, actor, tokenId]);
+              
+              // Check if this specific token is already a combatant
+              const existingCombatant = game.combat.combatants.find(c => c.tokenId === tokenId);
+              if (!existingCombatant) {
+                LogUtil.log("_triggerRoll - adding token to combat", [actor.name, tokenId]);
                 await game.combat.createEmbeddedDocuments("Combatant", [{
-                  actorId: actorId,
+                  actorId: actor.id,
                   tokenId: tokenId
                 }]);
               }
             }
           }
           
-          const filteredActorIds = await filterActorsForInitiative(selectedActorIds, game);
+          // Check if no actors have tokens on the scene
+          if (actorsWithTokens.length === 0) {
+            ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.notifications.noTokensForInitiative") || 
+              "Cannot roll initiative: None of the selected actors have tokens on the scene.");
+            return;
+          }
+          
+          if (actorsWithoutTokens.length > 0) {
+            ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorsSkippedInitiative", {
+              actors: actorsWithoutTokens.join(", ")
+            }) || `Initiative skipped for actors without tokens: ${actorsWithoutTokens.join(", ")}`);
+          }
+          
+          // For initiative, filter out actors without tokens first
+          // Only keep entries that have tokens (either token-based entries or actors with tokens)
+          const entriesWithTokens = actorsWithIds.filter(entry => {
+            if (entry.tokenId) return true;  // Token-based entry
+            // Check if actor has a token on scene
+            const hasToken = entry.actor.getActiveTokens()?.[0];
+            return !!hasToken;
+          });
+          
+          // Update actorsWithIds to only include those with tokens
+          actorsWithIds.length = 0;
+          actorsWithIds.push(...entriesWithTokens);
+          
+          // Update actors list based on filtered entries
+          actors = entriesWithTokens.map(entry => entry.actor);
+          
+          // Now apply initiative filtering on the remaining actors
+          const uniqueActorIds = [...new Set(actors.map(actor => actor.id))];
+          const filteredActorIds = await filterActorsForInitiative(uniqueActorIds, game);
 
           LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
           if (!filteredActorIds.length) return;
 
+          // Filter actorsWithIds to only include those that passed initiative filtering
+          const filteredActorsWithIds = actorsWithIds.filter(item => 
+            item && item.actor && filteredActorIds.includes(item.actor.id)
+          );
+          
+          // Final update of both arrays
           actors = filteredActorIds
             .map(id => game.actors.get(id))
             .filter(actor => actor);
+          
+          actorsWithIds.length = 0;
+          actorsWithIds.push(...filteredActorsWithIds);
           
           const initiateCombat = SettingsUtil.get(SETTINGS.initiateCombatOnRequest.tag);
           if (initiateCombat) {
@@ -1126,11 +1159,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
+    await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsWithIds);
     
-    // Pass event to orchestrate rolls for local GM rolls
-    await RollMenuOrchestrationUtil.orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey);
-    
-    // Only close if not locked
     if (!this.isLocked) {
       setTimeout(() => this.close(), 500);
     }
@@ -1324,7 +1354,63 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       await delay(100);
     }
   }
+
+  /**
+   * Handle GM rolls with token information preserved
+   * @param {Array} actorEntries - Array of actor entries with unique IDs
+   * @param {string} requestType 
+   * @param {string} rollKey 
+   * @param {Object} rollProcessConfig 
+   */
+  async _handleGMRollsWithTokens(actorEntries, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_handleGMRollsWithTokens', [actorEntries.length, requestType, rollKey, rollProcessConfig]);
+    
+    for (const entry of actorEntries) {
+      // Set the token context for the roll if we have a token ID
+      if (entry.tokenId) {
+        const token = canvas.tokens?.get(entry.tokenId) || game.scenes.active?.tokens.get(entry.tokenId);
+        if (token) {
+          // Set the token as the controlled token for this roll
+          LogUtil.log('_handleGMRollsWithTokens - Rolling for token', [entry.actor, entry.tokenId]);
+          await this._initiateRollForToken(entry.actor, token, requestType, rollKey, rollProcessConfig);
+        } else {
+          LogUtil.log('_handleGMRollsWithTokens - Token not found, rolling for actor', [entry.actor, entry.tokenId]);
+          await this._initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
+        }
+      } else {
+        LogUtil.log('_handleGMRollsWithTokens - No token, rolling for actor', [entry.actor]);
+        await this._initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
+      }
+      // await delay(100);
+    }
+  }
   
+  /**
+   * Execute local roll for a GM actor with token context
+   * @param {Actor} actor 
+   * @param {Token} token 
+   * @param {string} requestType 
+   * @param {string} rollKey 
+   * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
+   */
+  async _initiateRollForToken(actor, token, requestType, rollKey, rollProcessConfig) {
+    LogUtil.log('_initiateRollForToken', [actor.name, token.name, requestType, rollKey, rollProcessConfig]);
+    
+    const wasControlled = token.controlled;
+    if (!wasControlled) {
+      token.control({ releaseOthers: false });
+    }
+    
+    try {
+      await this._initiateRoll(actor, requestType, rollKey, rollProcessConfig);
+    } finally {
+      // Restore original control state
+      if (!wasControlled) {
+        token.release();
+      }
+    }
+  }
+
   /**
    * Execute local roll for a GM actor
    * @param {Actor} actor 
@@ -1333,14 +1419,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
   async _initiateRoll(actor, requestType, rollKey, rollProcessConfig) {
-    LogUtil.log('_initiateRoll', [requestType, rollKey, rollProcessConfig]);
+    LogUtil.log('_initiateRoll', [actor.name, requestType, rollKey, rollProcessConfig]);
     try {
       const normalizedType = requestType.toLowerCase();
       let actualRollKey = rollKey;
       if (normalizedType === ROLL_TYPES.HIT_DIE) {
         const hdData = actor.system.attributes.hd;
         if (hdData) {
-          // Find the first denomination with available uses
           const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
           for (const denom of denominations) {
             const available = hdData[denom]?.value || 0;
@@ -1351,7 +1436,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           }
         }
         if (!actualRollKey) {
-          // No hit dice available - show refill dialog
           LogUtil.log('_initiateRoll - No hit dice available', [actor.name]);
           
           const dialogResult = await foundry.applications.api.DialogV2.confirm({
@@ -1378,16 +1462,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           });
           
           if (dialogResult) {
-            // Refill hit dice and continue with the roll
             const result = await RollHandlers.handleHitDieRecovery(actor);
             LogUtil.log('Hit die recovery result', [result]);
             
-            // Notify of refill
             NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
               actor: actor.name 
             }));
             
-            // Get the largest available hit die after refill
             const hdDataAfterRefill = actor.system.attributes.hd;
             actualRollKey = hdDataAfterRefill.largestAvailable;
             
@@ -1396,19 +1477,15 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
               return;
             }
           } else {
-            // User cancelled
             return;
           }
         }
       }
       
-      // Extract situational bonus from the rolls array if present
       const situational = rollProcessConfig.rolls?.[0]?.data?.situational || "";
-      
-      // Build requestData structure expected by RollHandlers
       const requestData = {
         rollKey: actualRollKey,
-        groupRollId: rollProcessConfig.groupRollId, // Pass through the group roll ID
+        groupRollId: rollProcessConfig.groupRollId,
         config: {
           ...rollProcessConfig,
           situational: situational,
@@ -1419,23 +1496,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         }
       };
       
-      // Dialog configuration
       const dialogConfig = {
         configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipRollDialog,
-        isRollRequest: true  // Mark this as a roll request to prevent re-interception
+        isRollRequest: true
       };
       
-      // Message configuration
       const messageConfig = {
         rollMode: rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
         create: rollProcessConfig.chatMessage !== false,
         isRollRequest: true  // Mark this as a roll request to prevent re-interception
       };
       
-      // Pass the proper roll configuration structure
       const rollConfig = rollProcessConfig.rolls?.[0] || {};
       
-      // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];
       if (handler) {
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
@@ -1458,13 +1531,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     if(!this.element) { return; }
     
-    // If menu is in custom position (in body), move it back to chat notifications before closing
     if (this.isCustomPosition && this.element.parentElement === document.body) {
       const chatNotifications = document.querySelector('#chat-notifications');
       if (chatNotifications) {
         chatNotifications.insertBefore(this.element, chatNotifications.firstChild);
       }
-      // Clear custom positioning styles
       this.element.style.position = '';
       this.element.style.inset = '';
       this.element.style.top = '';
@@ -1483,11 +1554,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (this._tokenControlHook) {
       Hooks.off(HOOKS_CORE.CONTROL_TOKEN, this._tokenControlHook);
       this._tokenControlHook = null;
-    }
-    
-    if (this._actorUpdateHook) {
-      Hooks.off(HOOKS_CORE.UPDATE_ACTOR, this._actorUpdateHook);
-      this._actorUpdateHook = null;
     }
     
     if (this._updateItemHook) {
@@ -1604,12 +1670,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       if (!this.#instance) {
         this.#instance = new RollRequestsMenu();
         this.#instance.render(true);
-        // Set menu to locked state when shown on load
         this.#instance.isLocked = true;
       } else if (!this.#instance.rendered) {
         this.#instance._initializeFromSelectedTokens();
         this.#instance.render(true);
-        // Set menu to locked state when shown on load
         this.#instance.isLocked = true;
       }
     }

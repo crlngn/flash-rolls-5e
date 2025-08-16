@@ -95,7 +95,7 @@ body.theme-light #flash-rolls-menu{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5em 0;
+  padding: 0;
   cursor: pointer;
   margin: 0.5em 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -238,6 +238,7 @@ body.theme-light #flash-rolls-menu{
   > .actor-img{
     width: 2.75rem;
     height: auto;
+    max-height: 4rem;
     flex-shrink: 0;
     border-radius: 4px;
     background-color: rgba(0, 0, 0, 0.25);
@@ -247,7 +248,6 @@ body.theme-light #flash-rolls-menu{
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    /*aspect-ratio: 1;*/
     padding: 1px;
 
     img{
@@ -383,7 +383,7 @@ body.theme-light #flash-rolls-menu{
 
 #flash-rolls-menu > div > ul.actors > li:first-child {
   font-weight: bold;
-  margin-bottom: 0.5em;
+  margin-bottom: 0;
   padding-bottom: 4px;
 }
 

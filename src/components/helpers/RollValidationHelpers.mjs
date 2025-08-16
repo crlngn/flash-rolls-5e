@@ -1,7 +1,3 @@
-/**
- * Helper functions for roll validation and preparation
- */
-
 import { LogUtil } from '../LogUtil.mjs';
 import { NotificationManager } from './Helpers.mjs';
 
@@ -11,27 +7,10 @@ import { NotificationManager } from './Helpers.mjs';
  */
 export async function ensureCombatForInitiative() {
   if (!game.combat) {
-    // const createCombat = await foundry.applications.api.DialogV2.confirm({
-    //   window: {
-    //     title: game.i18n.localize("COMBAT.Create"),
-    //     classes: ["flash5e-dialog"]
-    //   },
-    //   content: "<p>" + game.i18n.localize("FLASH_ROLLS.ui.dialogs.noCombatActive") + "</p>",
-    //   rejectClose: false,
-    //   modal: true
-    // });
-    
-    // if (createCombat) {
-      // const combat = await game.combats.documentClass.create({scene: game.scenes.active.id});
-      const combat = await Combat.create({scene: game.scenes.active.id});
-      await combat.activate();
-      NotificationManager.notify('info', game.i18n.localize("FLASH_ROLLS.notifications.combatCreated"));
-      // return combat;
-    // } else {
-    //   return false;
-    // }
+    const combat = await Combat.create({scene: game.scenes.active.id});
+    await combat.activate();
+    NotificationManager.notify('info', game.i18n.localize("FLASH_ROLLS.notifications.combatCreated"));
   }
-  
   return game.combat;
 }
 
@@ -48,13 +27,11 @@ export async function filterActorsForInitiative(actorIds, game) {
     .map(id => game.actors.get(id))
     .filter(actor => actor);
   
-  // Check which actors already have initiative
   const actorsNamesWithInitiative = [];
   const actorIdsWithInitiative = new Set();
   
   for (const actor of actors) {
     const combatants = game.combat.getCombatantsByActor(actor.id);
-    // Check if any combatant for this actor has initiative
     const hasInitiative = combatants.some(c => c.initiative !== null);
     if (hasInitiative) {
       actorsNamesWithInitiative.push(actor.name);
@@ -81,16 +58,14 @@ export async function filterActorsForInitiative(actorIds, game) {
       modal: true
     });
     
-    if (!reroll) { // User chose not to re-roll
+    if (!reroll) { 
       const filteredIds = actorIds.filter(id => !actorIdsWithInitiative.has(id));
-      
       if (filteredIds.length === 0) {
         NotificationManager.notify('info', game.i18n.localize("FLASH_ROLLS.notifications.allActorsHaveInitiative"));
       }
       
       return filteredIds;
-    } else { // User chose to re-roll
-      // Only GM can reset initiative
+    } else {
       if (game.user.isGM) {
         for (const actorId of actorIdsWithInitiative) {
           const combatants = game.combat.getCombatantsByActor(actorId);

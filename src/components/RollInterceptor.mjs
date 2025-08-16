@@ -77,7 +77,7 @@ export class RollInterceptor {
    * @returns {boolean|void} - Return false to prevent the roll
    */
   static _handlePreRollInitiative(rollType, actor, roll) {
-    LogUtil.log('_handlePreRollInitiative', [rollType, actor, roll]);
+    // LogUtil.log('_handlePreRollInitiative', [rollType, actor, roll]);
     return;
   }
 

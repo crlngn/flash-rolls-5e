@@ -8,7 +8,7 @@
       "rollError": "Error executing roll for {actor}",
       "combatCreated": "Combat encounter created",
       "allActorsHaveInitiative": "All selected actors already have initiative",
-      "actorsSkippingDeathSave": "The following actors don't need death saves: {actors}",
+      "actorsSkippingDeathSave": "No death saves needed for: {actors}",
       "rollRequestsSentSingle": "{rollType} requests sent to {player} for: {actors}",
       "rollRequestsSentMultiple": "{rollType} requests sent to {count} actors: {players}",
       "noHitDice": "No available hit dice for {actor}",
@@ -16,7 +16,9 @@
       "settingsUpdated": "Settings updated",
       "invalidFormula": "Invalid formula: {formula}",
       "actorAddedToFavorites": "{actor} added to Flash Rolls favorites",
-      "actorRemovedFromFavorites": "{actor} removed from Flash Rolls favorites"
+      "actorRemovedFromFavorites": "{actor} removed from Flash Rolls favorites",
+      "actorsSkippedInitiative": "No tokens found for {actors}. Initiative not rolled.",
+      "noTokensForInitiative": "The selected actors do not have tokens on the scene. Initiative not rolled."
     },
     "contextMenu": {
       "addToFavorites": "Add to Flash Rolls Menu",

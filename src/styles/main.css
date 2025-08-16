@@ -30,7 +30,7 @@ body.flash5e {
       font-size: var(--font-size-12);
       height: 0.86rem;
       width: 1.6rem;
-      background: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.35);
       border-radius: 1.5em;
       border: 0;
       z-index: 0;
@@ -68,11 +68,11 @@ body.flash5e {
   }
   
   .flash5e-switch input:checked ~ .track {
-    background-color: var(--color-warm-3);
+    background-color: var(--color-warm-2);
     justify-self: flex-start;
   }
 
-  #chat-notifications #roll-privacy {
+  #chat-notifications #chat-controls{
     z-index: 2;
   }
   #chat-notifications #flash-rolls-menu {

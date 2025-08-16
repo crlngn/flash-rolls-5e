@@ -7,7 +7,7 @@
   
   <div class="group-roll-list">
     {{#each results}}
-    <div class="actor-result {{#if success}}success{{/if}} {{#if failure}}failure{{/if}}" data-actor-id="{{actorId}}">
+    <div class="actor-result {{#if success}}success{{/if}} {{#if failure}}failure{{/if}}" data-actor-id="{{actorId}}"{{#if tokenId}} data-token-id="{{tokenId}}"{{/if}}>
       <div class="actor-summary">
         <img class="actor-image" src="{{actorImg}}" alt="{{actorName}}" />
         <span class="actor-name">{{actorName}}</span>
@@ -20,6 +20,7 @@
                   data-type="{{../rollType}}"
                   data-roll-key="{{../rollKey}}"
                   data-actor-id="{{actorId}}"
+                  {{#if tokenId}}data-token-id="{{tokenId}}"{{/if}}
                   data-group-roll-id="{{../groupRollId}}"
                   {{#if ../rollType}}{{#eq ../rollType "skill"}}data-skill="{{../rollKey}}"{{/eq}}{{/if}}
                   {{#if ../rollType}}{{#eq ../rollType "tool"}}data-tool="{{../rollKey}}"{{/eq}}{{/if}}

@@ -171,11 +171,13 @@ export const RollHandlers = {
             rolls: initiativeConfig.rolls,
             groupRollId: requestData.groupRollId
           };
+          LogUtil.log('RollHandlers.initiative - Setting tempConfig with groupRollId', [requestData.groupRollId, actor.name, tokenActor.name]);
           await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
           await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         }
         await tokenActor.rollInitiativeDialog();
-        // await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+        await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+        await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
 
       } else {
         LogUtil.log('RollHandlers.initiative - Not dialog');
@@ -183,6 +185,7 @@ export const RollHandlers = {
           rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
           groupRollId: requestData.groupRollId
         };
+        LogUtil.log('RollHandlers.initiative - Setting tempConfig (no dialog) with groupRollId', [requestData.groupRollId, actor.name, tokenActor.name]);
         await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
 
@@ -191,6 +194,8 @@ export const RollHandlers = {
           rerollInitiative: true
         };
         await tokenActor.rollInitiative(rollOptions);
+        await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
+        await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
       }
       
       LogUtil.log('RollHandlers.initiative - COMPLETE');

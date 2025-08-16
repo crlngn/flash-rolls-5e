@@ -198,7 +198,6 @@ export class ChatMessageUtils {
             
             if (isNaN(newDC) || newDC < 1 || newDC > 99) {
               dcInput.value = '';
-              // ui.notifications.warn("Please enter a valid DC between 1 and 99");
               return;
             }
             
@@ -217,7 +216,7 @@ export class ChatMessageUtils {
             
             debounceTimer = setTimeout(() => {
               handleDCChange();
-            }, 1000);
+            }, 750);
           });
           
           dcInput.addEventListener('keypress', (e) => {
@@ -266,60 +265,73 @@ export class ChatMessageUtils {
   
   /**
    * Create a group roll message for multiple actors
-   * @param {Actor[]} actors - Array of actors
+   * @param {Array<{actor: Actor, uniqueId: string, tokenId: string|null}>} actorEntries - Array of actor entries with unique identifiers
    * @param {string} rollType - Type of roll
    * @param {string} rollKey - Specific roll key
    * @param {Object} config - Roll configuration
    * @param {string} groupRollId - Unique group roll identifier
    * @returns {Promise<ChatMessage>} The created chat message
    */
-  static async createGroupRollMessage(actors, rollType, rollKey, config, groupRollId) {
-    LogUtil.log('ChatMessageUtils.createGroupRollMessage', [actors.length, rollType, rollKey, groupRollId]);
+  static async createGroupRollMessage(actorEntries, rollType, rollKey, config, groupRollId) {
+    LogUtil.log('ChatMessageUtils.createGroupRollMessage', [actorEntries.length, rollType, rollKey, groupRollId]);
     
-    const data = this.buildGroupRollData(actors, rollType, rollKey, config);
+    const data = this.buildGroupRollData(actorEntries, rollType, rollKey, config);
+    if (!data) {
+      LogUtil.error('createGroupRollMessage - Failed to build group roll data');
+      return null;
+    }
     data.groupRollId = groupRollId;
-    
-    const hasPlayerOwnedActor = actors.some(actor => RollHelpers.isPlayerOwnerActive(actor));
+    const validEntries = actorEntries.filter(entry => entry && entry.actor);
+    const hasPlayerOwnedActor = validEntries.some(entry => RollHelpers.isPlayerOwnerActive(entry.actor));
     const rollMode = hasPlayerOwnedActor ? 
       CONST.DICE_ROLL_MODES.PUBLIC : 
       game.settings.get("core", "rollMode");
-    LogUtil.log('hasPlayerOwnedActor', [hasPlayerOwnedActor, rollMode]);
     
-    // Store pending roll data
     this.pendingRolls.set(groupRollId, {
-      actors: actors.map(a => a.id),
+      actorEntries: validEntries.map(entry => ({ actorId: entry.actor.id, uniqueId: entry.uniqueId, tokenId: entry.tokenId })),
       rollType,
       rollKey,
       config,
       results: new Map()
     });
     
-    const message = await this.postGroupMessage(data, rollMode);
-    
-    if (message) {
-      this.groupRollMessages.set(groupRollId, message);
-    }
-    
+    const message = await this.postGroupMessage(data, rollMode);    
     return message;
   }
   
   /**
    * Build the data object for the group roll template
-   * @param {Actor[]} actors - Array of actors
+   * @param {Array<{actor: Actor, uniqueId: string, tokenId: string|null}>} actorEntries - Array of actor entries with unique identifiers
    * @param {string} rollType - Type of roll
    * @param {string} rollKey - Specific roll key
    * @param {Object} config - Roll configuration
    * @returns {Object} Template data
    */
-  static buildGroupRollData(actors, rollType, rollKey, config) {
-    LogUtil.log('ChatMessageUtils.buildGroupRollData', [actors.length, rollType, rollKey, config]);
+  static buildGroupRollData(actorEntries, rollType, rollKey, config) {
+    LogUtil.log('ChatMessageUtils.buildGroupRollData', [actorEntries.length, rollType, rollKey, config]);
+    LogUtil.log('ChatMessageUtils.buildGroupRollData - actorEntries structure', actorEntries.map(entry => ({
+      hasEntry: !!entry,
+      hasActor: !!(entry && entry.actor),
+      entryKeys: entry ? Object.keys(entry) : 'null',
+      actorType: entry?.actor?.constructor?.name || 'undefined'
+    })));
+    
+    const validEntries = actorEntries.filter(entry => entry && entry.actor);
+    if (validEntries.length === 0) {
+      LogUtil.error('buildGroupRollData - No valid actor entries found', [actorEntries]);
+      return null;
+    }
     
     let flavor = this._buildFlavorText(rollType, rollKey, config);
     const dc = config?.dc || config?.target;
-    const results = actors.map(actor => ({
-      actorId: actor.id,
-      actorImg: actor.img || actor.prototypeToken?.texture?.src || 'icons/svg/mystery-man.svg',
-      actorName: actor.name,
+    const results = validEntries.map(entry => ({
+      actorId: entry.actor.id,
+      uniqueId: entry.uniqueId,
+      tokenId: entry.tokenId,
+      actorImg: entry.actor.img || entry.actor.prototypeToken?.texture?.src || 'icons/svg/mystery-man.svg',
+      actorName: entry.tokenId ? 
+        (canvas.tokens?.get(entry.tokenId)?.name || entry.actor.name) : 
+        entry.actor.name,
       rolled: false,
       showDice: true,
       total: null,
@@ -340,7 +352,7 @@ export class ChatMessageUtils {
       rollKey,
       supportsDC,
       showDCToPlayers,
-      actors: actors.map(a => a.id), // Store actor IDs for later retrieval
+      actorEntries: validEntries.map(entry => ({ actorId: entry.actor.id, uniqueId: entry.uniqueId, tokenId: entry.tokenId })),
       moduleId: MODULE_ID
     };
   }
@@ -398,11 +410,10 @@ export class ChatMessageUtils {
    * @returns {Promise<ChatMessage>} The created message
    */
   static async postGroupMessage(data, rollMode = null) {
-    LogUtil.log('ChatMessageUtils.postGroupMessage', [data, rollMode]);
+    LogUtil.log('postGroupMessage - groupRollId', [data.groupRollId, rollMode]);
     
     try {
       const content = await GeneralUtil.renderTemplate(this.templatePath, data);
-      
       const messageData = {
         content,
         speaker: {
@@ -416,13 +427,13 @@ export class ChatMessageUtils {
           }
         }
       };
-      
-      // Apply rollMode to set whisper and blind properties correctly
       if (rollMode) {
         ChatMessage.applyRollMode(messageData, rollMode);
       }
       
-      return await ChatMessage.create(messageData);
+      const msg = await ChatMessage.create(messageData);
+      this.groupRollMessages.set(data.groupRollId, msg);
+      return msg;
     } catch (error) {
       LogUtil.error('Failed to post group message', error);
       return null;
@@ -432,11 +443,11 @@ export class ChatMessageUtils {
   /**
    * Update a group roll message with a completed roll result
    * @param {string} groupRollId - The group roll identifier
-   * @param {string} actorId - The actor who rolled
+   * @param {string} uniqueId - The unique identifier (token ID or actor ID) who rolled
    * @param {Roll} roll - The completed roll
    */
-  static async updateGroupRollMessage(groupRollId, actorId, roll) {
-    LogUtil.log('ChatMessageUtils.updateGroupRollMessage', [groupRollId, actorId, roll.total, game.user.isGM]);
+  static async updateGroupRollMessage(groupRollId, uniqueId, roll) {
+    LogUtil.log('ChatMessageUtils.updateGroupRollMessage', [groupRollId, uniqueId, roll ]);
     
     if (!game.user.isGM) {
       return;
@@ -459,7 +470,7 @@ export class ChatMessageUtils {
         if (!pendingData) {
           const flagData = message.getFlag(MODULE_ID, 'rollData');
           pendingData = {
-            actors: flagData.results.map(r => r.actorId),
+            actorEntries: flagData.actorEntries || flagData.results.map(r => ({ actorId: r.actorId, uniqueId: r.uniqueId, tokenId: r.tokenId })),
             results: new Map()
           };
           this.pendingRolls.set(groupRollId, pendingData);
@@ -474,7 +485,7 @@ export class ChatMessageUtils {
     
     // Store the result if pendingData exists
     if (pendingData && pendingData.results) {
-      pendingData.results.set(actorId, {
+      pendingData.results.set(uniqueId, {
         total: roll.total,
         roll: roll
       });
@@ -482,7 +493,7 @@ export class ChatMessageUtils {
     
     const flagData = message.getFlag(MODULE_ID, 'rollData');
     
-    const resultIndex = flagData.results.findIndex(r => r.actorId === actorId);
+    const resultIndex = flagData.results.findIndex(r => r.uniqueId === uniqueId);
     if (resultIndex !== -1) {
       flagData.results[resultIndex].rolled = true;
       flagData.results[resultIndex].showDice = false;
@@ -511,7 +522,8 @@ export class ChatMessageUtils {
     
     // Calculate group result if DC is set and roll type supports it
     if (flagData.supportsDC && flagData.showDC && flagData.dc) {
-      const actors = flagData.actors?.map(id => game.actors.get(id)).filter(a => a) || [];
+      const actors = flagData.actorEntries?.map(entry => game.actors.get(entry.actorId)).filter(a => a) || 
+                     flagData.actors?.map(id => game.actors.get(id)).filter(a => a) || [];
       
       const groupResult = RollHelpers.getGroupResult(
         flagData.results,
@@ -539,8 +551,8 @@ export class ChatMessageUtils {
       }
     });
     
-    if (pendingData?.results && pendingData?.actors) {
-      if (pendingData.results.size === pendingData.actors.length) {
+    if (pendingData?.results && pendingData?.actorEntries) {
+      if (pendingData.results.size === pendingData.actorEntries.length) {
         this.pendingRolls.delete(groupRollId);
         setTimeout(() => {
           this.groupRollMessages.delete(groupRollId);
@@ -570,7 +582,8 @@ export class ChatMessageUtils {
       }
     });
     
-    const actors = flagData.actors?.map(id => game.actors.get(id)).filter(a => a) || [];
+    const actors = flagData.actorEntries?.map(entry => game.actors.get(entry.actorId)).filter(a => a) || 
+                   flagData.actors?.map(id => game.actors.get(id)).filter(a => a) || [];
     
     const groupResult = RollHelpers.getGroupResult(
       flagData.results,
@@ -611,19 +624,32 @@ export class ChatMessageUtils {
    * @returns {boolean} Return false to prevent rendering
    */
   static interceptRollMessage(message, html, context) {
-    LogUtil.log('ChatMessageUtils.interceptRollMessage', [message, context]);
     const SETTINGS = getSettings();
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     if (!groupRollsMsgEnabled) return;
     
     const actorId = message.speaker?.actor;
-    const actor = game.actors.get(actorId);
-    if (!actorId || !actor) return;
+    const tokenId = message.speaker?.token;
     
+    // For unlinked tokens, we need to get the synthetic actor from the token
+    // because flags are set on the synthetic actor, not the base actor
+    let actor;
+    if (tokenId) {
+      const token = canvas.tokens?.get(tokenId) || game.scenes.active?.tokens?.get(tokenId);
+      actor = token?.actor;  // This gets the synthetic actor for unlinked tokens
+    }
+    if (!actor) {
+      actor = game.actors.get(actorId);
+    }
+
+    if (!actor) return;
+    
+    const uniqueId = tokenId || actorId;
     const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') || actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
 
+    LogUtil.log('interceptRollMessage #1', [actor, message.getFlag(MODULE_ID, 'groupRollId'), actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId]);
     if (!groupRollId) {
-      LogUtil.log('interceptRollMessage - no groupRollId in flag');
+      LogUtil.log('interceptRollMessage #2 - no groupRollId in flag', [actor.name]);
       return;
     }
     
@@ -636,13 +662,32 @@ export class ChatMessageUtils {
       
       if (groupMessage) {
         this.groupRollMessages.set(groupRollId, groupMessage);
-        LogUtil.log('interceptRollMessage - Registered group roll message', [groupRollId]);
+        LogUtil.log('interceptRollMessage - Registered group roll message', [actor.name,groupRollId]);
       }
     }
     
     if (!this.groupRollMessages.has(groupRollId)) {
-      LogUtil.log('interceptRollMessage - groupRollId not in map', [groupRollId, Array.from(this.groupRollMessages.keys())]);
-      return;
+      LogUtil.log('interceptRollMessage - groupRollId not in map', [actor.name, groupRollId, Array.from(this.groupRollMessages.keys())]);
+      LogUtil.log('interceptRollMessage - All group messages in chat:', [
+        game.messages.contents,
+        game.messages.contents
+          .filter(m => m.getFlag(MODULE_ID, 'isGroupRoll'))
+          .map(m => ({ id: m.id, groupRollId: m.getFlag(MODULE_ID, 'groupRollId') }))
+      ]);
+      
+      const messages = game.messages.contents;
+      const groupMessage = messages.find(m => 
+        m.getFlag(MODULE_ID, 'groupRollId') === groupRollId &&
+        m.getFlag(MODULE_ID, 'isGroupRoll')
+      );
+      
+      if (groupMessage) {
+        LogUtil.log('interceptRollMessage - Found group message in chat log, registering', [groupRollId]);
+        this.groupRollMessages.set(groupRollId, groupMessage);
+      } else {
+        LogUtil.log('interceptRollMessage - No group message found in chat log either', [groupRollId]);
+        return;
+      }
     }
     
     const roll = message.rolls?.[0];
@@ -653,7 +698,7 @@ export class ChatMessageUtils {
     }
     
     if (game.user.isGM) {
-      this.updateGroupRollMessage(groupRollId, actorId, roll);
+      this.updateGroupRollMessage(groupRollId, uniqueId, roll);
       
       const msgId = message.id;
       if (this.messagesScheduledForDeletion.has(msgId)) {

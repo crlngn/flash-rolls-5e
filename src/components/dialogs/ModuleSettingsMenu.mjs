@@ -218,7 +218,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     ModuleSettingsMenu.#element = this.element;
 
     const hintToggles = ModuleSettingsMenu.#element.querySelectorAll('.toggle-hint');
-    LogUtil.log("_onRender", [context, options, this.element]);
     hintToggles.forEach(toggle => {
       toggle.addEventListener('click', () => {
         ModuleSettingsMenu.#element.querySelectorAll('p.hint').forEach(p => p.classList.toggle('shown'));
@@ -233,8 +232,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
         option.selected = true;
       }
     });
-
-    LogUtil.log("_onRender", [context, options]);
   }
 
   /**
