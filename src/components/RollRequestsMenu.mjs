@@ -1106,7 +1106,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
               actorsWithTokens.push(actor.name);
               LogUtil.log("_triggerRoll - actor", [actor.name, actor, tokenId]);
               
-              // Check if this specific token is already a combatant
               const existingCombatant = game.combat.combatants.find(c => c.tokenId === tokenId);
               if (!existingCombatant) {
                 LogUtil.log("_triggerRoll - adding token to combat", [actor.name, tokenId]);
@@ -1118,7 +1117,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             }
           }
           
-          // Check if no actors have tokens on the scene
           if (actorsWithTokens.length === 0) {
             ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.notifications.noTokensForInitiative") || 
               "Cannot roll initiative: None of the selected actors have tokens on the scene.");
@@ -1131,35 +1129,27 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             }) || `Initiative skipped for actors without tokens: ${actorsWithoutTokens.join(", ")}`);
           }
           
-          // For initiative, filter out actors without tokens first
-          // Only keep entries that have tokens (either token-based entries or actors with tokens)
+          // For initiative, filter out actors without tokens
           const entriesWithTokens = actorsWithIds.filter(entry => {
-            if (entry.tokenId) return true;  // Token-based entry
-            // Check if actor has a token on scene
+            if (entry.tokenId) return true;
             const hasToken = entry.actor.getActiveTokens()?.[0];
             return !!hasToken;
           });
           
-          // Update actorsWithIds to only include those with tokens
           actorsWithIds.length = 0;
           actorsWithIds.push(...entriesWithTokens);
           
-          // Update actors list based on filtered entries
           actors = entriesWithTokens.map(entry => entry.actor);
-          
-          // Now apply initiative filtering on the remaining actors
           const uniqueActorIds = [...new Set(actors.map(actor => actor.id))];
           const filteredActorIds = await filterActorsForInitiative(uniqueActorIds, game);
 
           LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
           if (!filteredActorIds.length) return;
 
-          // Filter actorsWithIds to only include those that passed initiative filtering
           const filteredActorsWithIds = actorsWithIds.filter(item => 
             item && item.actor && filteredActorIds.includes(item.actor.id)
           );
           
-          // Final update of both arrays
           actors = filteredActorIds
             .map(id => game.actors.get(id))
             .filter(actor => actor);
@@ -1343,7 +1333,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const rollTypeKey = rollMethodName;
     let rollTypeName = game.i18n.localize(`FLASH_ROLLS.rollTypes.${rollTypeKey}`) || rollTypeKey;
     
-    // Add specific roll details if applicable
     if (rollKey) {
       const normalizedRollTypeKey = rollTypeKey.toLowerCase();
       if (normalizedRollTypeKey === ROLL_TYPES.SKILL) {

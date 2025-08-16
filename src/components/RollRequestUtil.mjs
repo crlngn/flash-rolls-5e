@@ -90,6 +90,7 @@ export class RollRequestUtil {
     const publicPlayerRolls = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag);
 
     LogUtil.log('executePlayerRollRequest', [actor, requestData]);
+    LogUtil.log('executePlayerRollRequest - groupRollId check', [requestData.groupRollId, typeof requestData.groupRollId]);
     
     try {
       const normalizedRollType = requestData.rollType?.toLowerCase();

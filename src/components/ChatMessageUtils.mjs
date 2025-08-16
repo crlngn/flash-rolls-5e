@@ -30,6 +30,12 @@ export class ChatMessageUtils {
   static messagesScheduledForDeletion = new Set();
   
   /**
+   * Queue for serializing group message updates
+   * @type {Map<string, Promise>}
+   */
+  static updateQueue = new Map();
+  
+  /**
    * Path to the group roll template
    * @type {string}
    */
@@ -453,6 +459,23 @@ export class ChatMessageUtils {
       return;
     }
     
+    // Queue updates to prevent race conditions
+    const currentUpdate = this.updateQueue.get(groupRollId) || Promise.resolve();
+    const nextUpdate = currentUpdate.then(() => this._performGroupRollUpdate(groupRollId, uniqueId, roll));
+    this.updateQueue.set(groupRollId, nextUpdate);
+    
+    return nextUpdate;
+  }
+  
+  /**
+   * Internal method to perform the actual group roll update
+   * @param {string} groupRollId - The group roll identifier
+   * @param {string} uniqueId - The unique identifier (token ID or actor ID) who rolled
+   * @param {Roll} roll - The completed roll
+   * @private
+   */
+  static async _performGroupRollUpdate(groupRollId, uniqueId, roll) {
+    
     let message = this.groupRollMessages.get(groupRollId);
     let pendingData = this.pendingRolls.get(groupRollId);
     
@@ -556,7 +579,8 @@ export class ChatMessageUtils {
         this.pendingRolls.delete(groupRollId);
         setTimeout(() => {
           this.groupRollMessages.delete(groupRollId);
-        }, 60000); // Clean up after 1 minute
+          this.updateQueue.delete(groupRollId);
+        }, 60000);
       }
     }
   }
@@ -752,6 +776,13 @@ export class ChatMessageUtils {
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     
     LogUtil.log('addGroupRollFlag called', [messageConfig, requestData.groupRollId, this.isGroupRoll(requestData.groupRollId)]);
+    LogUtil.log('addGroupRollFlag - detailed check', [
+      'groupRollId:', requestData.groupRollId, 
+      'type:', typeof requestData.groupRollId,
+      'isGM:', game.user.isGM,
+      'actor:', actor?.name,
+      'requestData keys:', Object.keys(requestData)
+    ]);
     
     if (!game.user.isGM && requestData.groupRollId && actor) {
       await actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);

@@ -248,15 +248,13 @@ export class HooksUtil {
             const baseActor = game.actors.get(actor.actor?.id);
             if (baseActor) {
               storedInitConfig = baseActor.getFlag(MODULE_ID, 'tempInitiativeConfig');
-              LogUtil.log('_onPreCreateChatMessage - Checking base actor for tempInitiativeConfig', [baseActor.id, storedInitConfig]);
             }
           }
           
           if (storedInitConfig?.groupRollId || storedGroupRollId) {
             data.flags = data.flags || {};
             data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
-            data.flags[MODULE_ID].groupRollId = storedGroupRollId || storedInitConfig.groupRollId;
-            LogUtil.log('_onPreCreateChatMessage - Added groupRollId flag from initiative config', [storedInitConfig.groupRollId, actorId]);
+            data.flags[MODULE_ID].groupRollId = storedGroupRollId || storedInitConfig?.groupRollId || '';
           }
         }
       }
@@ -287,7 +285,6 @@ export class HooksUtil {
     LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
     if (app._flashRollsApplied) return;
     
-    // Check if this is an initiative roll
     const isInitiativeRoll = app.config?.hookNames?.includes('initiativeDialog') || 
                            app.element?.id?.includes('initiative');
     
@@ -298,8 +295,6 @@ export class HooksUtil {
       const storedConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');      
       if (storedConfig) {
         app._flashRollsApplied = true;
-
-        // Trigger change event after a short delay
         const situationalInput = html.querySelector('input[name*="situational"]');
         setTimeout(() => {
           situationalInput.dispatchEvent(new Event('change', {
@@ -599,39 +594,6 @@ export class HooksUtil {
     if (storedConfig.rolls?.[0]?.data?.situational && config.rolls?.[0]?.data) {
       config.rolls[0].data.situational = storedConfig.rolls[0].data.situational;
     }
-
-    // // Apply the situational bonus from stored rolls
-    // if (storedConfig.rolls?.[0]?.data?.situational) {
-    //   const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-    //   situationalInputs.forEach(input => {
-    //     if (!input.value) {
-    //       input.value = storedConfig.rolls[0].data.situational;
-    //     }
-    //   });
-    // }
-    
-    // if (actor && actor._initiativeSituationalBonus) {
-    //   if (!config.rolls || config.rolls.length === 0) {
-    //     const initiativeConfig = actor.getInitiativeRollConfig({});
-    //     config.rolls = initiativeConfig.rolls || [];
-    //   }
-      
-    //   // Add situational bonus
-    //   if (config.rolls.length > 0) {
-    //     if (!config.rolls[0].data) {
-    //       config.rolls[0].data = {};
-    //     }
-    //     config.rolls[0].data.situational = actor._initiativeSituationalBonus;
-        
-    //     LogUtil.log("Added situational bonus to initiative dialog", [{
-    //       bonus: actor._initiativeSituationalBonus,
-    //       rolls: config.rolls
-    //     }]);
-        
-    //     // Clean up the temporary storage
-    //     delete actor._initiativeSituationalBonus;
-    //   }
-    // }
   
   }
   
@@ -692,11 +654,9 @@ export class HooksUtil {
         return;
       }
 
-      // Merge damage options
       if (stored.critical) config.critical = stored.critical;
       messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
       
-      // Set situational bonus
       if (stored.situational) {
         if (!config.rolls || config.rolls.length === 0) {
           config.rolls = [{
@@ -729,12 +689,11 @@ export class HooksUtil {
     activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig'); 
     activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig'); 
 
-    if(GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol')){
-      // message.create = false;
-    }
+    // if(GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol')){
+    //   // message.create = false;
+    // }
     if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
     
-    // Check if the actor has player ownership
     const actor = activity.actor;
     if (!actor) return;
 

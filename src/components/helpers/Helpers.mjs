@@ -321,17 +321,14 @@ export class NotificationManager {
    * @param {Object} options.batchData - Data for batched notifications
    */
   static notify(type, message, options = {}) {
-    // If not batching, show immediately
     if (!options.batch) {
       ui.notifications[type](message);
       return;
     }
     
-    // Add to pending notifications for batching
     if (options.batchData) {
       NotificationManager.pendingNotifications.push(options.batchData);
       
-      // Clear existing timer and set new one
       if (NotificationManager.notificationTimer) {
         clearTimeout(NotificationManager.notificationTimer);
       }

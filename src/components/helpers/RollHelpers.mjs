@@ -167,7 +167,6 @@ export const RollHelpers = {
       }]
     };
     
-    // Add roll-specific data
     switch (normalizedType) {
       case ROLL_TYPES.SKILL:
         rollConfig.skill = rollKey;

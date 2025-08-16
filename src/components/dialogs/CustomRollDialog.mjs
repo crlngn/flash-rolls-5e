@@ -150,11 +150,9 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
         remainingFormula = remainingFormula.replace(match[0], '').trim();
       }
       
-      // Add the new die
       const newDieType = die.substring(1); // Remove 'd' prefix
       diceMap.set(newDieType, (diceMap.get(newDieType) || 0) + 1);
       
-      // Rebuild the formula
       const diceParts = [];
       for (const [dieType, count] of diceMap) {
         diceParts.push(`${count}d${dieType}`);

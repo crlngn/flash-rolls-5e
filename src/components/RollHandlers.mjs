@@ -15,9 +15,7 @@ export const RollHandlers = {
     LogUtil.log('RollHandlers.ability #2', [config.rolls?.[0]]);
     LogUtil.log('RollHandlers.ability - messageConfig', messageConfig);
     
-    // Add groupRollId to message flags if it's a group roll
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
-    
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -30,7 +28,6 @@ export const RollHandlers = {
       ability: requestData.config?.ability || requestData.rollKey
     });
     
-    // Add groupRollId to message flags if it's a group roll
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
@@ -66,10 +63,7 @@ export const RollHandlers = {
       messageConfig.data.flavor = flavor;
     }
     LogUtil.log('RollHandlers.skill #2', [config, dialogConfig, messageConfig]);
-    
-    // Add groupRollId to message flags if it's a group roll
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
-    
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
@@ -212,8 +206,6 @@ export const RollHandlers = {
 
   deathsave: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig);
-    
-    // Add groupRollId to message flags if it's a group roll
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
@@ -300,13 +292,16 @@ export const RollHandlers = {
         roll.options = roll.options || {};
         roll.options.isRollRequest = requestData.config?.isRollRequest !== false;
         
-        await roll.evaluate({async: true});
+        await roll.evaluate();
+        await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
+        
         await roll.toMessage({
           speaker: ChatMessage.getSpeaker({actor}),
           flavor: game.i18n.localize(`FLASH_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
           rollMode: messageConfig?.rollMode || requestData.config?.rollMode || game.settings.get("core", "rollMode"),
           isRollRequest: requestData.config?.isRollRequest !== false,
-          create: messageConfig?.create !== false
+          create: messageConfig?.create !== false,
+          flags: messageConfig?.data?.flags
         });
       } catch (error) {
         ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {formula: formula}));
@@ -325,14 +320,17 @@ export const RollHandlers = {
           roll.options = roll.options || {};
           roll.options.isRollRequest = true;
           
-          await roll.evaluate({async: true});
+          await roll.evaluate();
+          await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
+          
           await roll.toMessage({
             speaker: ChatMessage.getSpeaker({actor}),
             flavor: game.i18n.localize(`FLASH_ROLLS.rollTypes.${ROLL_TYPES.CUSTOM}`),
             rollMode: requestData.config.rollMode,
             isRollRequest: true,
             _showRequestedBy: true,
-            _requestedBy: requestData.config.requestedBy || 'GM'
+            _requestedBy: requestData.config.requestedBy || 'GM',
+            flags: messageConfig?.data?.flags
           });
         } catch (error) {
           ui.notifications.error(game.i18n.format("FLASH_ROLLS.ui.notifications.invalidFormula", {formula: confirmedFormula}));

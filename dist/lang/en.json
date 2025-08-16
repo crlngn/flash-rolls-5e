@@ -23,7 +23,7 @@
     "contextMenu": {
       "addToFavorites": "Add to Flash Rolls Menu",
       "removeFromFavorites": "Remove from Flash Rolls Menu",
-      "toggleFavorite": "Toggle on Flash Rolls Menu"
+      "toggleFavorite": "Toggle on Flash Menu"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"

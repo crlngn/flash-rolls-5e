@@ -51,7 +51,6 @@ export class GMAttackConfigDialog extends GMRollConfigMixin(dnd5e.applications.d
     LogUtil.log('GMAttackConfigDialog._prepareConfigurationData', [roll, config, dialog, message]);
     const data = super._prepareConfigurationData(roll, config, dialog, message);
     
-    // Add GM-specific data
     data.sendRequest = this.sendRequest;
     data.actorCount = this.actors.length;
     

@@ -22,8 +22,6 @@ export class RollMenuOrchestrationUtil {
    */
   static async orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey) {
     const SETTINGS = getSettings();
-    
-    // Handle PC actors - send roll requests (if sendRequest is true)
     const successfulRequests = [];
     const offlinePlayerActors = [];
     const onlinePlayerActors = [];
@@ -32,7 +30,6 @@ export class RollMenuOrchestrationUtil {
     
     const groupRollId = foundry.utils.randomID();
     
-    // Collect all actors that will be part of this roll
     const allActors = [];
 
     if (config.sendRequest) {
@@ -50,13 +47,11 @@ export class RollMenuOrchestrationUtil {
       }
       allActors.push(...onlinePlayerActors.map(({actor}) => actor));
     } else {
-      // if requests are off, add to NPC list to roll locally
       npcActors.push(...pcActors.map(({ actor }) => actor));
     }
     
     allActors.push(...offlinePlayerActors, ...npcActors);
 
-    // Create group message if there are multiple actors and setting is enabled
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     if (groupRollsMsgEnabled && allActors.length > 1) {
       await ChatMessageUtils.createGroupRollMessage(
@@ -67,8 +62,7 @@ export class RollMenuOrchestrationUtil {
         groupRollId
       );
     }
-
-    // Player Rolls: Actors owned by active players
+    
     for (const { actor, owner } of onlinePlayerActors) {
       const useGroupId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
       await this.sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true, useGroupId);
@@ -152,21 +146,17 @@ export class RollMenuOrchestrationUtil {
             LogUtil.error('Error calling handleHitDieRecovery:', [error]);
           }
           
-          // Get the largest available hit die after refill
           rollKey = actor.system.attributes.hd.largestAvailable;
           
           NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
             actor: actor.name 
           }) || `Hit dice refilled for ${actor.name}`);
         } else {
-          // User cancelled - don't send the request
           return;
         }
       }
     }
     
-    // Build the request data with proper rollProcessConfig
-    // Filter out circular references that midi-qol might add
     const cleanConfig = { ...config };
     delete cleanConfig.subject;
     delete cleanConfig.workflow;
@@ -179,12 +169,12 @@ export class RollMenuOrchestrationUtil {
       actorId: actor.id,
       rollType,
       rollKey,
-      activityId: null,  // Menu-initiated rolls don't use activities
+      activityId: null,
       rollProcessConfig: {
         ...cleanConfig,
-        _requestedBy: game.user.name  // Add who requested the roll
+        _requestedBy: game.user.name 
       },
-      skipRollDialog: false, // Never skip to player when it's a request
+      skipRollDialog: false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
@@ -208,7 +198,7 @@ export class RollMenuOrchestrationUtil {
    */
   static showConsolidatedNotification(successfulRequests, rollMethodName, rollKey) {
     LogUtil.log('showConsolidatedNotification');
-    // Group requests by player
+
     const requestsByPlayer = {};
     for (const { actor, owner } of successfulRequests) {
       if (!requestsByPlayer[owner.id]) {
@@ -220,11 +210,9 @@ export class RollMenuOrchestrationUtil {
       requestsByPlayer[owner.id].actors.push(actor);
     }
     
-    // Get roll type name for display
     const rollTypeKey = rollMethodName;
     let rollTypeName = game.i18n.localize(`FLASH_ROLLS.rollTypes.${rollTypeKey}`) || rollTypeKey;
     
-    // Add specific roll details if applicable
     if (rollKey) {
       const normalizedRollTypeKey = rollTypeKey.toLowerCase();
       if (normalizedRollTypeKey === ROLL_TYPES.SKILL) {
@@ -234,7 +222,6 @@ export class RollMenuOrchestrationUtil {
       } else if (normalizedRollTypeKey === ROLL_TYPES.ABILITY_CHECK) {
         rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
       } else if (normalizedRollTypeKey === ROLL_TYPES.TOOL) {
-        // Try to get tool name from enrichmentLookup
         const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
         if (toolData?.id) {
           const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
@@ -247,7 +234,6 @@ export class RollMenuOrchestrationUtil {
       }
     }
     
-    // Use NotificationManager for consolidated roll request notifications
     NotificationManager.notifyRollRequestsSent(requestsByPlayer, rollTypeName);
   }
 
@@ -282,7 +268,6 @@ export class RollMenuOrchestrationUtil {
       if (normalizedType === ROLL_TYPES.HIT_DIE) {
         const hdData = actor.system.attributes.hd;
         if (hdData) {
-          // Find the first denomination with available uses
           const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
           for (const denom of denominations) {
             const available = hdData[denom]?.value || 0;
@@ -293,7 +278,6 @@ export class RollMenuOrchestrationUtil {
           }
         }
         if (!actualRollKey) {
-          // No hit dice available - show refill dialog
           LogUtil.log('initiateRoll - No hit dice available', [actor.name]);
           
           const dialogResult = await foundry.applications.api.DialogV2.confirm({
@@ -320,16 +304,13 @@ export class RollMenuOrchestrationUtil {
           });
           
           if (dialogResult) {
-            // Refill hit dice and continue with the roll
             const result = await RollHandlers.handleHitDieRecovery(actor);
             LogUtil.log('Hit die recovery result', [result]);
             
-            // Notify of refill
             NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
               actor: actor.name 
             }));
             
-            // Get the largest available hit die after refill
             const hdDataAfterRefill = actor.system.attributes.hd;
             actualRollKey = hdDataAfterRefill.largestAvailable;
             
@@ -338,16 +319,13 @@ export class RollMenuOrchestrationUtil {
               return;
             }
           } else {
-            // User cancelled
             return;
           }
         }
       }
       
-      // Extract situational bonus from the rolls array if present
       const situational = rollProcessConfig.rolls?.[0]?.data?.situational || "";
       
-      // Build requestData structure expected by RollHandlers
       const requestData = {
         rollKey: actualRollKey,
         groupRollId: rollProcessConfig.groupRollId, // Pass through the group roll ID
@@ -361,23 +339,19 @@ export class RollMenuOrchestrationUtil {
         }
       };
       
-      // Dialog configuration
       const dialogConfig = {
         configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipRollDialog,
-        isRollRequest: true  // Mark this as a roll request to prevent re-interception
+        isRollRequest: true
       };
       
-      // Message configuration
       const messageConfig = {
         rollMode: rollProcessConfig.rollMode || game.settings.get("core", "rollMode"),
         create: rollProcessConfig.chatMessage !== false,
-        isRollRequest: true  // Mark this as a roll request to prevent re-interception
+        isRollRequest: true
       };
       
-      // Pass the proper roll configuration structure
       const rollConfig = rollProcessConfig.rolls?.[0] || {};
       
-      // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedType];
       if (handler) {
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
