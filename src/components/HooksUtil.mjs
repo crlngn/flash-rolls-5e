@@ -338,11 +338,12 @@ export class HooksUtil {
    * Used to add custom situational bonus from data, since the default DnD5e dialog does not seem to handle that
    */
   static _onRenderRollConfigDialog(app, html, data) {
-    LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
+    console.trace("Flash Rolls 5e - _onRenderRollConfigDialog");
     if (app._flashRollsApplied) return;
+    LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
     
-    const isDamageRoll = app instanceof dnd5e.applications.dice.DamageRollConfigurationDialog;
-    LogUtil.log("_onRenderRollConfigDialog - isDamageRoll?", [isDamageRoll, app.constructor.name]);
+    // const isDamageRoll = app instanceof dnd5e.applications.dice.DamageRollConfigurationDialog;
+    // LogUtil.log("_onRenderRollConfigDialog - isDamageRoll?", [isDamageRoll, app.constructor.name]);
     
     const isInitiativeRoll = app.config?.hookNames?.includes('initiativeDialog') || 
                            app.element?.id?.includes('initiative');
@@ -366,7 +367,7 @@ export class HooksUtil {
       return;
     }else{
       const situationalInputs = html.querySelectorAll('input[name*="situational"]');
-      LogUtil.log("_onRenderRollConfigDialog - found situational inputs", [situationalInputs.length, isDamageRoll]);
+      LogUtil.log("_onRenderRollConfigDialog - found situational inputs", [situationalInputs.length]);
       
       situationalInputs.forEach((input, index) => { 
         LogUtil.log("_onRenderRollConfigDialog - processing input", [index, input.name, input.value]);
@@ -706,6 +707,7 @@ export class HooksUtil {
    * Handle pre-roll damage hook to restore GM-configured options
    */
   static _onPreRollDamageV2(config, dialogOptions, messageOptions) {
+    console.trace("Flash Rolls 5e - _onPreRollDamageV2 triggered #0", [config]);
     LogUtil.log("_onPreRollDamageV2 triggered", [config, dialogOptions, messageOptions]);
     
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
@@ -793,23 +795,27 @@ export class HooksUtil {
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+    const isGM = game.user.isGM;
 
-    LogUtil.log("_onPostUseActivity", [activity, config, dialog, message]);
+    LogUtil.log("_onPostUseActivity #0", [activity, config, dialog, message]);
 
-    if(!requestsEnabled || !rollInterceptionEnabled || skipRollDialog) return;
+    if(!requestsEnabled || !rollInterceptionEnabled) return;
     const actorOwner = GeneralUtil.getActorOwner(activity.actor);
     if (!actorOwner?.active || actorOwner.isGM) {
       LogUtil.log("Preventing usage message - no owning player for actor", [actor.name]);
       return;
     }
     
-    // config.scaling = true;
-    if(activity.type === ACTIVITY_TYPES.SAVE){
-      LogUtil.log("_onPostUseActivity triggered", [activity.damage, config]);
-      if(activity.damage && activity.damage.parts?.length > 0 ){
+    if(activity.type === ACTIVITY_TYPES.SAVE){ // && (dialog.isRollRequest || config.isRollRequest)
+      const isOwnerActive = actorOwner && actorOwner.active && !actorOwner.isGM;
+
+      LogUtil.log("_onPostUseActivity #1", [activity, config]);
+      if(activity.damage && activity.damage.parts?.length > 0){
+        LogUtil.log("_onPostUseActivity #2 - roll triggered", [activity, config]);
+        config.scaling = true;
         activity.rollDamage(config, {
           ...dialog,
-          configure: actorOwner && actorOwner.active && !actorOwner.isGM //!skipRollDialog
+          configure: !game.user.isGM || (isOwnerActive && !skipRollDialog)
         }, message)
       }
       

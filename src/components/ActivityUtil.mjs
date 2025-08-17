@@ -192,9 +192,9 @@ export class ActivityUtil {
           };
 
           // TODO: check how to evaluate when use should be called
-          // if(activity.type === ACTIVITY_TYPES.SAVE || !activity?.attack){
-          //   await activity.use(config.usage, config.dialog, config.message);
-          // }
+          if(!game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE || !activity?.attack)){
+            await activity.use(config.usage, config.dialog, config.message);
+          }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
           
@@ -223,7 +223,7 @@ export class ActivityUtil {
               // TODO: check how to evaluate when rollDamage should be called
               // if(activity.type !== ACTIVITY_TYPES.SAVE || activity?.attack){
               // NOTE: use damageConfig instead of config.usage
-              if(activity.type !== ACTIVITY_TYPES.SAVE || !game.user.isGM){
+              if(activity.type !== ACTIVITY_TYPES.SAVE || !game.user.isGM || (game.user.isGM && !config.dialog.isRollRequest)){
                 await activity.rollDamage(damageConfig, config.dialog, config.message);
               }
               // }

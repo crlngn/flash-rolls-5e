@@ -127,7 +127,7 @@ export class RollRequestUtil {
     
     setTimeout(() => {
       this.processNextRoll();
-    }, 100);
+    }, 500);
   }
   
   /**

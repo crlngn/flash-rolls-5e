@@ -157,8 +157,10 @@ export class RollInterceptor {
     LogUtil.log('_handlePreRoll - ownership', [owner]);
     
     if (!owner || !owner.active || owner.id === game.user.id) {
-      LogUtil.log('_handlePreRoll - skipping interception (owner unavailable)', [owner?.name, owner?.active]);
+      LogUtil.log('_handlePreRoll - skipping interception (ownership)', [owner?.name, owner?.active]);
       return;
+    }else{
+      config.isRollRequest = true;
     }
 
     if (rollType === ROLL_TYPES.ATTACK) {
@@ -180,8 +182,8 @@ export class RollInterceptor {
     //   return;
     // }
 
-    if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {
-      LogUtil.log('_handlePreRoll - skipping interception', [config]);
+    if (config.sendRequest===false) { //|| config.fastForward===true || config.skipRollDialog===true || 
+      LogUtil.log('_handlePreRoll - skipping interception', [dialog.configure, config.sendRequest]);
       return;
     }
     
