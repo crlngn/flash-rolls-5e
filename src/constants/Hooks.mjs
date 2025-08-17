@@ -31,7 +31,8 @@ export const HOOKS_CORE = {
   CREATE_ITEM: "createItem",
   DELETE_ITEM: "deleteItem",
   UPDATE_SETTING: "updateSetting",
-  GET_ACTOR_CONTEXT_OPTIONS: "getActorContextOptions"
+  GET_ACTOR_CONTEXT_OPTIONS: "getActorContextOptions",
+  RENDER_ACTOR_DIRECTORY: "renderActorDirectory"
 };
 
 /**

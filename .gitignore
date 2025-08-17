@@ -1,6 +1,6 @@
 node_modules/
-dnd5e/
-foundry/
+# dnd5e/
+# foundry/
 deps/
 local/
 flash-rolls-5e.code-workspace

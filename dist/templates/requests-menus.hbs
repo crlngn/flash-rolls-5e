@@ -56,7 +56,11 @@
       <ul>
       {{#unless actors}}
         <li class="actor-lit-empty">
-          {{localize "FLASH_ROLLS.ui.menus.noActors"}}
+          {{#if ../isGM}}
+            {{localize "FLASH_ROLLS.ui.menus.noActorsDropHint"}}
+          {{else}}
+            {{localize "FLASH_ROLLS.ui.menus.noActors"}}
+          {{/if}}
         </li>
       {{/unless}}
       {{#each actors as |actor|}}

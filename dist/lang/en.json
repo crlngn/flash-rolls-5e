@@ -21,7 +21,11 @@
       "actorUnblocked": "{actor} was unblocked from Flash Rolls menu",
       "actorsSkippedInitiative": "No tokens found for {actors}. Initiative not rolled.",
       "noTokensForInitiative": "The selected actors do not have tokens on the scene. Initiative not rolled.",
-      "noCharactersForHitDie": "Hit dice can only be rolled for player characters, not NPCs."
+      "noCharactersForHitDie": "Hit dice can only be rolled for player characters, not NPCs.",
+      "actorAdded": "{actor} added to Flash Rolls menu",
+      "actorAlreadyAdded": "{actor} is already in the menu",
+      "actorNotFound": "Actor not found",
+      "dropError": "Error adding actor to menu"
     },
     "contextMenu": {
       "addToFavorites": "Add to Flash Rolls Menu",
@@ -217,7 +221,8 @@
       "menus": {
         "rollRequestsTitle": "Roll Requests",
         "dragHandleTooltip": "Drag menu",
-        "noActors": "No actors in this list."
+        "noActors": "No actors in this list.",
+        "noActorsDropHint": "No actors in this list. Drag some here from the Actor Directory, or simply add tokens to the active scene."
       }
     },
     "common": {

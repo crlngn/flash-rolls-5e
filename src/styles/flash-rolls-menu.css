@@ -11,7 +11,7 @@
   bottom: 0;
   width: auto;
   z-index: 0;
-  pointer-events: none;
+  pointer-events: auto;
   height: auto;
   border-top-left-radius: 4px;
   background: transparent;
@@ -281,7 +281,7 @@ body > .actor.drag-wrapper {
       display: block;
       font-weight: bold;
       padding: 2px 0 0 0;
-      margin-left: 8px;
+      margin-left: 4px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -778,5 +778,70 @@ body.crlngn-tabs #flash-rolls-menu.docked-right {
 /* Drag ghost image styling */
 #flash-rolls-menu ul.actors > li.actor-list > ul > li.actor[draggable="true"]:active {
   cursor: grabbing;
+}
+
+/* Drop zone styling */
+#flash-rolls-menu .actor-list.drag-over,
+#flash-rolls-menu ul.actors.drag-over {
+  background-color: rgba(255,255,255, 0.9);
+  /*border: 1px dashed rgba(40,40,40, 0.5);*/
+  border-radius: 4px;
+  position: relative;
+  pointer-events: auto;
+}
+
+/* Ensure actor list elements can receive drop events */
+#flash-rolls-menu .actor-list,
+#flash-rolls-menu ul.actors {
+  pointer-events: auto;
+}
+
+#flash-rolls-menu .actor-list.drag-over::before {
+  content: "Drop Actor Here";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255, 0.5);
+  color: white;
+  padding: 8px 16px;
+  /*border-radius: 4px;*/
+  font-weight: bold;
+  font-size: 0.9rem;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Prevent multiple drop messages from nested elements */
+#flash-rolls-menu .actor-list.drag-over ul.drag-over::before,
+#flash-rolls-menu ul.actors.drag-over li.drag-over::before {
+  display: none;
+}
+
+/* Empty actor list specific drop styling */
+#flash-rolls-menu .actor-list ul:empty.drag-over {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Drop feedback animation */
+#flash-rolls-menu .actor-list.drag-over,
+#flash-rolls-menu ul.actors.drag-over {
+  animation: drop-zone-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes drop-zone-pulse {
+  0% { 
+    background-color: rgba(255,255,255, 0.1);
+  }
+  50% { 
+    background-color: rgba(255,255,255, 0.25);
+  }
+  100% { 
+    background-color: rgba(255,255,255, 0.1);
+  }
 }
 

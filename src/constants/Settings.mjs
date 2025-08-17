@@ -151,12 +151,12 @@ export const getSettings = () => {
       config: false
     },
     rollInterceptionEnabled: {
-      tag: "roll-interception-enabled",
+      tag: "roll-interception-on",
       label: game.i18n.localize("FLASH_ROLLS.settings.rollInterceptionEnabled.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.rollInterceptionEnabled.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
+      default: false,
       scope: SETTING_SCOPE.world,
       config: false
     },
@@ -211,17 +211,6 @@ export const getSettings = () => {
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
-      scope: SETTING_SCOPE.world,
-      config: false
-    },
-
-    favoriteActorsList: {
-      tag: "favorite-actors-list",
-      label: game.i18n.localize("FLASH_ROLLS.settings.favoriteActorsList.label"),
-      hint: game.i18n.localize("FLASH_ROLLS.settings.favoriteActorsList.hint"),
-      propType: Array,
-      inputType: SETTING_INPUT.text,
-      default: [],
       scope: SETTING_SCOPE.world,
       config: false
     },

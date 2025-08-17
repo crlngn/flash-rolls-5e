@@ -20,6 +20,7 @@ import { RollMenuConfigUtil } from './utils/RollMenuConfigUtil.mjs';
 import { RollMenuDragUtil } from './utils/RollMenuDragUtil.mjs';
 import { ActorStatusUtil } from './ActorStatusUtil.mjs';
 import { ActorDragUtil } from './utils/ActorDragUtil.mjs';
+import { ActorDropUtil } from './utils/ActorDropUtil.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -37,7 +38,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('RollRequestsMenu.constructor', [options]);
     super(options);
     
-    // Track selected actors and current state
     this.selectedActors = new Set();
     this.currentTab = 'pc';
     this.selectedRequestType = null;
@@ -45,12 +45,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this.optionsExpanded = game.user.getFlag(MODULE.ID, 'menuOptionsExpanded') ?? false;
     this.accordionStates = game.user.getFlag(MODULE.ID, 'menuAccordionStates') ?? {};
     
-    // Drag state
     this.isDragging = false;
     this.isCustomPosition = false;
     this.customPosition = RollMenuDragUtil.loadCustomPosition();
     
-    // Initialize with actors from selected tokens
     this._initializeFromSelectedTokens();
   }
 
@@ -63,7 +61,12 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       resizable: false,
       minimizable: false
     },
-    position: {}
+    position: {},
+    dragDrop: [
+      {
+        dropSelector: '.actor-list'
+      }
+    ]
   };
 
   static PARTS = {
@@ -85,7 +88,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       if (actor.type !== 'character' && actor.type !== 'npc') continue;
       
       const createActorData = (token = null) => {
-        // Use token's actor for stats if available, otherwise use base actor
         const actorForStats = token?.actor || actor;
         const hpData = RollMenuActorUtil.getActorHPData(actorForStats);
         return {
@@ -103,7 +105,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         };
       };
       
-      // Check if owned by a player (not GM)
       const isPlayerOwned = Object.entries(actor.ownership)
         .some(([userId, level]) => {
           const user = game.users.get(userId);
@@ -111,9 +112,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         });
       
       if (isPlayerOwned) {
-        // Skip blocked actors
         if (ActorStatusUtil.isBlocked(actor)) {
-          continue; // Skip this actor
+          continue;
         }
         
         const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
@@ -157,7 +157,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         }
         
         const isFavorite = ActorStatusUtil.isFavorite(actor);
-        
         const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
         
         if (isFavorite) {
@@ -188,7 +187,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken.tag);
     
-    // Check if all actors in current tab are selected
     const currentActors = this.currentTab === 'pc' ? pcActors : npcActors;
     const selectAllOn = currentActors.length > 0 && 
       currentActors.every(actor => this.selectedActors.has(actor.uniqueId));
@@ -205,7 +203,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         subItems: []
       };
       
-      // Build sub-items for accordion
       if (option.subList) {
         requestType.subItems = buildRollTypes(key, this.selectedActors);
       }
@@ -231,10 +228,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       rollTypes,
       showNames: true,
       actorsLocked: this.isLocked,
-      optionsExpanded: this.optionsExpanded
+      optionsExpanded: this.optionsExpanded,
+      isGM: game.user.isGM
     };
     
-    // Store the context for use in select all
     this._lastPreparedContext = preparedContext;
     
     return preparedContext;
@@ -248,7 +245,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _renderFrame(options) {
     const frame = await super._renderFrame(options);
     
-    // Apply custom position BEFORE inserting into DOM to prevent flicker
     const customPosition = this.customPosition || RollMenuDragUtil.loadCustomPosition();
     if (customPosition?.isCustom && frame) {
       if (customPosition.dockedRight) {
@@ -275,7 +271,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         frame.style.bottom = 'auto';
         frame.classList.add('custom-position');
         
-        // Check if close to left edge
         const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
         if (customPosition.x < remInPixels) {
           frame.classList.add('left-edge');
@@ -289,7 +284,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         this.customPosition = customPosition;
       }
     } else {
-      // Default position - insert into chat notifications
       const chatNotifications = document.querySelector('#chat-notifications');
       if (chatNotifications && frame) {
         chatNotifications.insertBefore(frame, chatNotifications.firstChild);
@@ -306,7 +300,52 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   _onRender(context, options) {
     LogUtil.log('_onRender');
     super._onRender(context, options);
+    
+    LogUtil.log('_onRender - DragDrop handlers:', [this._dragDrop]);
+    if (this._dragDrop && this._dragDrop.length > 0) {
+      this._dragDrop.forEach((handler, index) => {
+        LogUtil.log(`_onRender - DragDrop handler ${index}:`, [handler, handler.dropSelector, handler.callbacks]);
+      });
+    }
+    
     this._attachListeners();
+
+    const dropZones = this.element.querySelectorAll('.actor-list');
+    LogUtil.log('_onRender - Found drop zones:', [dropZones]);
+    
+    dropZones.forEach((zone, index) => {
+      LogUtil.log(`_onRender - Setting up manual listeners for drop zone ${index}:`, [zone]);
+      
+      zone.removeEventListener('dragover', this._boundDragOver);
+      zone.removeEventListener('drop', this._boundDrop);
+      zone.removeEventListener('dragenter', this._boundDragEnter);
+      zone.removeEventListener('dragleave', this._boundDragLeave);
+      
+      this._boundDragOver = (e) => {
+        LogUtil.log('Manual dragover event triggered', [e]);
+        this._onDragOver(e);
+      };
+      
+      this._boundDrop = (e) => {
+        LogUtil.log('Manual drop event triggered', [e]);
+        this._onDrop(e);
+      };
+      
+      this._boundDragEnter = (e) => {
+        LogUtil.log('Manual dragenter event triggered', [e]);
+        e.preventDefault();
+      };
+      
+      this._boundDragLeave = (e) => {
+        LogUtil.log('Manual dragleave event triggered', [e]);
+        ActorDropUtil.handleDragLeave(e);
+      };
+      
+      zone.addEventListener('dragover', this._boundDragOver);
+      zone.addEventListener('drop', this._boundDrop);
+      zone.addEventListener('dragenter', this._boundDragEnter);
+      zone.addEventListener('dragleave', this._boundDragLeave);
+    });
 
     adjustMenuOffset();
     
@@ -612,6 +651,35 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (optionsElement) {
       optionsElement.classList.toggle('expanded', this.optionsExpanded);
     }
+  }
+  
+  /**
+   * Check if the current user can drop actors into the menu
+   * @param {string} selector - The drop target selector
+   * @returns {boolean} Whether the drop is allowed
+   */
+  _canDragDrop(selector) {
+    const canDrop = ActorDropUtil.canDrop(selector);
+    LogUtil.log('RollRequestsMenu._canDragDrop', [selector, canDrop]);
+    return canDrop;
+  }
+
+  /**
+   * Handle drag over events for visual feedback
+   * @param {DragEvent} event - The drag over event
+   */
+  _onDragOver(event) {
+    LogUtil.log('RollRequestsMenu._onDragOver - DRAG OVER TRIGGERED!', [event]);
+    ActorDropUtil.handleDragOver(event, this);
+  }
+
+  /**
+   * Handle drop events when actors are dropped into the menu
+   * @param {DragEvent} event - The drop event
+   */
+  async _onDrop(event) {
+    LogUtil.log('RollRequestsMenu._onDrop - DROP TRIGGERED!', [event]);
+    await ActorDropUtil.handleDrop(event, this);
   }
   
   /**

@@ -12,6 +12,7 @@ import { ModuleHelpers } from "./helpers/ModuleHelpers.mjs";
 import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
 import { ActorStatusUtil } from "./ActorStatusUtil.mjs";
+import { ActorDirectoryIconUtil } from "./utils/ActorDirectoryIconUtil.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -33,103 +34,75 @@ export class HooksUtil {
       
       if (!game.user.isGM) return;
       
-      contextOptions.push({
-        name: game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites"),
-        icon: '<i class="fas fa-bolt"></i>',
-        callback: li => {
-          const actorId = li.dataset.entryId;
-          if (actorId) {
-            ActorStatusUtil.toggleFavorite(actorId, true);
-            // ActorStatusUtil.toggleBlocked(actorId, false);
-          }
-          return actorId;
-        },
-        condition: li => {
-          const actorId = li?.dataset?.entryId;
-          const isFavorite = ActorStatusUtil.isFavorite(actorId);
-          // const isBlocked = ActorStatusUtil.isBlocked(actorId);
-          return !isFavorite;
-        }
-      });
-
-      contextOptions.push({
-        name: game.i18n.localize("FLASH_ROLLS.contextMenu.removeFromFavorites"),
-        icon: '<i class="fas fa-bolt-slash"></i>',
-        callback: li => {
-          const actorId = li.dataset.entryId;
-          if (actorId) {
-            ActorStatusUtil.toggleFavorite(actorId, false);
-          }
-          return actorId;
-        },
-        condition: li => {
-          const actorId = li?.dataset?.entryId;
-          const isFavorite = ActorStatusUtil.isFavorite(actorId);
-          return isFavorite;
-        }
-      });
-
+      // Add to favor
       // contextOptions.push({
-      //   name: li => {
-      //     const actorId = li?.dataset?.entryId;
-      //     return 'Add to Flash Rolls Menu';
-      //   },
-      //   icon: li => {
-      //     const actorId = li?.dataset?.entryId;
-      //     return '<i class="fas fa-bolt"></i>';
-      //   },
+      //   name: game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites"),
+      //   icon: '<i class="fas fa-bolt"></i>',
       //   callback: li => {
       //     const actorId = li.dataset.entryId;
       //     if (actorId) {
-      //       ActorStatusUtil.toggleFavorite(actorId);
+      //       ActorStatusUtil.toggleFavorite(actorId, true);
       //     }
       //     return actorId;
       //   },
       //   condition: li => {
       //     const actorId = li?.dataset?.entryId;
-      //     const isFavorited = ActorStatusUtil.isFavorite(actorId);
-      //     return !isFavorited;
+      //     const isFavorite = ActorStatusUtil.isFavorite(actorId);
+      //     // const isBlocked = ActorStatusUtil.isBlocked(actorId);
+      //     return !isFavorite;
       //   }
       // });
-      // Add/Remove from Flash Rolls Menu
+
       // contextOptions.push({
-      //   name: li => {
-      //     try {
-      //       const actorId = li?.dataset?.entryId;
-      //       if (!actorId || !game?.actors?.get?.(actorId)) {
-      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
-      //       }
-            
-      //       if (ActorStatusUtil.isFavorite(actorId)) {
-      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.removeFromFavorites");
-      //       } else {
-      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
-      //       }
-      //     } catch (error) {
-      //       LogUtil.error('Error in context menu name function', [error, li]);
-      //       return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
-      //     }
-      //   },
-      //   icon: li => {
-      //     const actorId = li.dataset.entryId;
-      //     if (!actorId) return '<i class="fas fa-bolt"></i>';
-          
-      //     if (ActorStatusUtil.isFavorite(actorId)) {
-      //       return '<i class="fas fa-bolt-slash"></i>';
-      //     } else {
-      //       return '<i class="fas fa-bolt"></i>';
-      //     }
-      //   },
+      //   name: game.i18n.localize("FLASH_ROLLS.contextMenu.removeFromFavorites"),
+      //   icon: '<i class="fas fa-bolt-slash"></i>',
       //   callback: li => {
-      //     LogUtil.log("Context menu callback li:", [li]);
       //     const actorId = li.dataset.entryId;
-      //     LogUtil.log("Actor ID from context menu:", [actorId]);
       //     if (actorId) {
-      //       ActorStatusUtil.toggleFavorite(actorId);
+      //       ActorStatusUtil.toggleFavorite(actorId, false);
       //     }
+      //     return actorId;
       //   },
-      //   condition: li => game.user.isGM
+      //   condition: li => {
+      //     const actorId = li?.dataset?.entryId;
+      //     const isFavorite = ActorStatusUtil.isFavorite(actorId);
+      //     return isFavorite;
+      //   }
       // });
+
+      contextOptions.push({
+        name: game.i18n.localize("FLASH_ROLLS.contextMenu.unblockFromMenu"),
+        icon: '<i class="fas fa-bolt"></i>',
+        callback: li => {
+          const actorId = li.dataset.entryId;
+          if (actorId) {
+            ActorStatusUtil.toggleBlocked(actorId, false);
+          }
+          return actorId;
+        },
+        condition: li => {
+          const actorId = li?.dataset?.entryId;
+          const isBlocked = ActorStatusUtil.isBlocked(actorId);
+          return isBlocked;
+        }
+      });
+
+      contextOptions.push({
+        name: game.i18n.localize("FLASH_ROLLS.contextMenu.blockFromMenu"),
+        icon: '<i class="fas fa-bolt-slash"></i>',
+        callback: li => {
+          const actorId = li.dataset.entryId;
+          if (actorId) {
+            ActorStatusUtil.toggleBlocked(actorId, true);
+          }
+          return actorId;
+        },
+        condition: li => {
+          const actorId = li?.dataset?.entryId;
+          const isBlocked = ActorStatusUtil.isBlocked(actorId);
+          return !isBlocked;
+        }
+      });
     });
   }
   
@@ -149,8 +122,8 @@ export class HooksUtil {
    * Triggered when Foundry is ready (fully loaded)
    */
   static _onReady() {
-
     SettingsUtil.registerSettingsMenu();
+    ActorDirectoryIconUtil.initialize();
     SidebarUtil.addSidebarControls(ui.sidebar, ui.sidebar?.element);
     if(ModuleHelpers.isModuleActive("midi-qol")){
       LogUtil.log("HooksUtil.initialize", ["midi-qol is active. Awaiting for it to be ready..."]);
@@ -516,8 +489,7 @@ export class HooksUtil {
     const SETTINGS = getSettings();
     const MODULE = { ID: 'flash-rolls-5e' };
     
-    if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}` ||
-        setting.key === `${MODULE.ID}.${SETTINGS.favoriteActorsList.tag}`) {
+    if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}`) {
       
       LogUtil.log('HooksUtil._onSettingUpdate - Re-rendering roll requests menu due to setting change', [setting.key]);
       RollRequestsMenu.refreshIfOpen();
@@ -697,7 +669,6 @@ export class HooksUtil {
         return;
       }
 
-      // Merge attack options
       if (stored.attackMode) config.attackMode = stored.attackMode;
       if (stored.ammunition) config.ammunition = stored.ammunition;
       if (stored.mastery !== undefined) config.mastery = stored.mastery;
@@ -705,7 +676,6 @@ export class HooksUtil {
       config.disadvantage = stored.disadvantage || false;
       messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
       
-      // Set situational bonus
       if (stored.situational) {
         if (!config.rolls || config.rolls.length === 0) {
           config.rolls = [{
@@ -799,21 +769,6 @@ export class HooksUtil {
         break;
     }
     
-    // const hasPlayerOwner = Object.entries(actor.ownership).some(([userId, level]) => {
-    //   const user = game.users.get(userId);
-    //   return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-    // });
-
-    // if(activity.type === ACTIVITY_TYPES.SAVE){
-    //   config.create = { measuredTemplate: true };
-    //   config.hasConsumption = false;
-    //   config.consume = {
-    //     action: false,
-    //     resources: [],
-    //     spellSlot: false
-    //   };
-    // }
-
     const actorOwner = GeneralUtil.getActorOwner(actor);
     
     if (actorOwner && actorOwner.active && !actorOwner.isGM) {

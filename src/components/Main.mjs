@@ -7,6 +7,7 @@ import { SettingsUtil } from "./SettingsUtil.mjs";
 import { RollRequestUtil } from "./RollRequestUtil.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { HOOKS_CORE } from "../constants/Hooks.mjs";
+import { ActorDirectoryIconUtil } from "./utils/ActorDirectoryIconUtil.mjs";
 
 /**
  * @typedef {import("./RollRequestUtil.mjs").RollRequestData} RollRequestData

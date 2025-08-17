@@ -61,15 +61,15 @@ export class ActorStatusUtil {
       await actorDoc.setFlag(MODULE_ID, this.FLAGS.FAVORITE, true);
       await actorDoc.unsetFlag(MODULE_ID, this.FLAGS.BLOCKED);
       
-      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorAddedToFavorites", {
-        actor: actorDoc.name
-      }) || `${actorDoc.name} added to Flash Rolls favorites`);
+      // ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorAddedToFavorites", {
+      //   actor: actorDoc.name
+      // }) || `${actorDoc.name} added to Flash Rolls favorites`);
     } else {
       await actorDoc.unsetFlag(MODULE_ID, this.FLAGS.FAVORITE);
       
-      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorRemovedFromFavorites", {
-        actor: actorDoc.name
-      }) || `${actorDoc.name} removed from Flash Rolls favorites`);
+      // ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorRemovedFromFavorites", {
+      //   actor: actorDoc.name
+      // }) || `${actorDoc.name} removed from Flash Rolls favorites`);
     }
 
     this._refreshMenu();
@@ -95,15 +95,15 @@ export class ActorStatusUtil {
       await actorDoc.setFlag(MODULE_ID, this.FLAGS.BLOCKED, true);
       await actorDoc.unsetFlag(MODULE_ID, this.FLAGS.FAVORITE);
       
-      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorBlocked", {
-        actor: actorDoc.name
-      }) || `${actorDoc.name} blocked from Flash Rolls menu`);
+      // ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorBlocked", {
+      //   actor: actorDoc.name
+      // }) || `${actorDoc.name} blocked from Flash Rolls menu`);
     } else {
       await actorDoc.unsetFlag(MODULE_ID, this.FLAGS.BLOCKED);
       
-      ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorUnblocked", {
-        actor: actorDoc.name
-      }) || `${actorDoc.name} unblocked from Flash Rolls menu`);
+      // ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorUnblocked", {
+      //   actor: actorDoc.name
+      // }) || `${actorDoc.name} unblocked from Flash Rolls menu`);
     }
 
     this._refreshMenu();
