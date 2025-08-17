@@ -2,6 +2,7 @@
  * Helper functions for the Flash Rolls 5e module
  */
 import { MODULE, ROLL_TYPES } from '../../constants/General.mjs';
+import { LogUtil } from '../LogUtil.mjs';
 import { GeneralUtil } from './GeneralUtil.mjs';
 
 /**
@@ -134,12 +135,23 @@ export function getActorStats(actor) {
  */
 export function applyTargetTokens(tokenIds, user = game.user) {
   if (!tokenIds?.length) return;
+
+  tokenIds.forEach((id, index) => {
+    LogUtil.log('applyTargetTokens', [id, canvas.tokens.placeables.map(t => t.id)]);
+    const token = canvas.tokens.placeables.find(t => t.id === id); //canvas.tokens.get(id);
+    if (token) {
+      token.setTarget(true, { releaseOthers: index === 0 });
+    }else{
+      LogUtil.warn('applyTargetTokens - Token not found:', [id]);
+    }
+  });
   
-  const tokens = tokenIds
-    .map(id => canvas.tokens.get(id))
-    .filter(t => t);
+  // const tokens = tokenIds
+  //   .map(id => canvas.tokens.get(id))
+  //   .filter(t => t);
+  // LogUtil.log('applyTargetTokens', [tokenIds, canvas.tokens.placeables.map(t => t.id)]);
     
-  tokens.forEach(t => t.setTarget(true, { user }));
+  // tokens.forEach(t => t.setTarget(true, { user }));
 }
 
 /**

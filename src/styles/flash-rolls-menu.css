@@ -34,10 +34,12 @@
   }
 }
 
-#interface.theme-dark #flash-rolls-menu{
+#interface.theme-dark #flash-rolls-menu,
+body.theme-dark > #flash-rolls-menu {
   color: var(--color-text-light-highlight, var(--color-light-1));
 }
-#interface.theme-light #flash-rolls-menu{
+#interface.theme-light #flash-rolls-menu,
+body.theme-light > #flash-rolls-menu {
   color: var(--color-text-dark-highlight, var(--color-dark-1));
 }
 
@@ -299,7 +301,7 @@ body > .actor.drag-wrapper {
       flex-wrap: wrap;
   
       > li {
-        background-color: rgba(0, 0, 0, 0.25);
+        background-color: rgba(0, 0, 0, 0.15);
         padding: 2px 4px;
         display: flex;
         width: 48%;

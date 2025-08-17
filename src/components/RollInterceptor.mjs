@@ -92,7 +92,7 @@ export class RollInterceptor {
   static _handlePreRoll(rollType, config, dialog, message) {
     LogUtil.log('_handlePreRoll #0', [rollType, config, dialog, message]);
     // Only intercept on GM side
-    if (!game.user.isGM || config.isRollRequest === false) return;
+    if (!game.user.isGM || config.isRollRequest === false ) return;
     const isMidiRequest = GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol');
 
     const hookNames = config?.hookNames || dialog?.hookNames || message?.hookNames || [];
@@ -110,7 +110,8 @@ export class RollInterceptor {
     if(rollType === ROLL_TYPES.DAMAGE){
       // Check if this damage roll is from a local execution
       const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
-      LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config.subject?.item, moduleFlags]);
+      config.scaling = true;
+      LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config, config.subject?.item, moduleFlags]);
       if(moduleFlags){
         LogUtil.log('RollInterceptor._handlePreRoll - found module flags, skipping interception', [moduleFlags]);
         return;
@@ -174,8 +175,13 @@ export class RollInterceptor {
       return false;
     }
     
+    // if (dialog.configure===false || !config.isRollRequest || config.skipRollDialog===true || config.fastForward===true) {
+    //   LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config]);
+    //   return;
+    // }
+
     if (dialog.configure===false || config.isRollRequest===false || config.skipRollDialog===true || config.fastForward===true) {
-      LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config]);
+      LogUtil.log('_handlePreRoll - skipping interception', [config]);
       return;
     }
     
@@ -185,8 +191,8 @@ export class RollInterceptor {
     return false;
   }
 
-  static _handleRollInitiative(a,b,c,d,e) {
-    LogUtil.log('_handleRollInitiative', [a,b,c,d,e]);
+  static _handleRollInitiative(a,b,c) {
+    // LogUtil.log('_handleRollInitiative', [a,b,c]);
     return;
   }
   
@@ -318,6 +324,7 @@ export class RollInterceptor {
   static async _getDialogResult(DialogClass, actor, rollType, rollKey, skipRollDialog, rollRequestsEnabled, config, dialog) {
     const normalizedRollType = rollType?.toLowerCase();
     
+    LogUtil.log('_getDialogResult', [actor, rollType, rollKey, config, dialog]);
     if (skipRollDialog) {
       return {
         sendRequest: true,
@@ -501,7 +508,6 @@ export class RollInterceptor {
       const handlerMap = ROLL_TYPES;
       
       const handler = RollHandlers[normalizedRollType];
-      LogUtil.log('RollInterceptor._executeInterceptedRoll - handler 1', [handler, normalizedRollType, RollHandlers[normalizedRollType]]);
       
       if (handler) {
         // Special handling for attack and damage rolls
@@ -510,7 +516,6 @@ export class RollInterceptor {
           requestData.activityId = originalConfig.subject?.id;
         }
         
-        LogUtil.log('RollInterceptor._executeInterceptedRoll - handler 2', [requestData, rollConfig, dialogConfig, messageConfig]);
         await handler(actor, requestData, rollConfig, dialogConfig, messageConfig);
       } else {
         LogUtil.warn(`No handler found for roll type: ${normalizedRollType}`);

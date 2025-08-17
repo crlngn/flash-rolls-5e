@@ -177,7 +177,7 @@ export class ActivityUtil {
           }
           return;
         case ROLL_TYPES.DAMAGE:
-          LogUtil.log('executeActivityRoll - damage roll', [activity, config]);
+          LogUtil.log('executeActivityRoll - damage roll #0', [activity, config]);
           if(!isMidiActive) {
             config.message.create = true;
           }
@@ -186,12 +186,15 @@ export class ActivityUtil {
             critical: config.usage.critical || {},
             situational: config.usage.rolls[0].data.situational || "",
             rollMode: config.message?.rollMode,
-            create: config.message?.create !== false
+            // rolls: config.usage.rolls[0],
+            create: config.message?.create !== false,
+            scaling: config.usage.scaling
           };
 
-          if(activity.type === ACTIVITY_TYPES.SAVE || activity?.damageOnly){
-            await activity.use(config.usage, config.dialog, config.message);
-          }
+          // TODO: check how to evaluate when use should be called
+          // if(activity.type === ACTIVITY_TYPES.SAVE || !activity?.attack){
+          //   await activity.use(config.usage, config.dialog, config.message);
+          // }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
           
@@ -203,7 +206,7 @@ export class ActivityUtil {
                 LogUtil.log('executeActivityRoll - workflow', [workflow]);
                 if(workflow){
                   const damageRoll = await workflow.activity.rollDamage({
-                    ...config,
+                    ...damageConfig,
                     workflow: workflow,
                     // autoFastAttack: false,
                     // autoFastDamage: false,
@@ -217,8 +220,12 @@ export class ActivityUtil {
               }
             }else{
               LogUtil.log('executeActivityRoll - damage roll', [activity, damageConfig, config]);
-              // if(activity?.previousAttack || activity?.damageOnly) {
-              await activity.rollDamage(damageConfig, config.dialog, config.message);
+              // TODO: check how to evaluate when rollDamage should be called
+              // if(activity.type !== ACTIVITY_TYPES.SAVE || activity?.attack){
+              // NOTE: use damageConfig instead of config.usage
+              if(activity.type !== ACTIVITY_TYPES.SAVE || !game.user.isGM){
+                await activity.rollDamage(damageConfig, config.dialog, config.message);
+              }
               // }
             }
           } catch (error) {

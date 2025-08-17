@@ -341,6 +341,9 @@ export class HooksUtil {
     LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
     if (app._flashRollsApplied) return;
     
+    const isDamageRoll = app instanceof dnd5e.applications.dice.DamageRollConfigurationDialog;
+    LogUtil.log("_onRenderRollConfigDialog - isDamageRoll?", [isDamageRoll, app.constructor.name]);
+    
     const isInitiativeRoll = app.config?.hookNames?.includes('initiativeDialog') || 
                            app.element?.id?.includes('initiative');
     
@@ -363,26 +366,31 @@ export class HooksUtil {
       return;
     }else{
       const situationalInputs = html.querySelectorAll('input[name*="situational"]');
+      LogUtil.log("_onRenderRollConfigDialog - found situational inputs", [situationalInputs.length, isDamageRoll]);
       
       situationalInputs.forEach((input, index) => { 
+        LogUtil.log("_onRenderRollConfigDialog - processing input", [index, input.name, input.value]);
         if (!input.value && app.config?.rolls?.[0]?.data?.situational) {
           input.value = app.config.rolls[0].data.situational;
         }
-        LogUtil.log("_onRenderRollConfigDialog #1", [input.value, app.config.rolls[0]]);
+        LogUtil.log("_onRenderRollConfigDialog #1", [input.value, app.config.rolls]);
         
+        // app.config.scaling = true;
         if (input.value) {
           app._flashRollsApplied = true;
+
+          if (app.config?.rolls?.[0]?.data) {
+            delete app.config.rolls[0].data.situational;
+          }
           
           setTimeout(() => {
+
             input.dispatchEvent(new Event('change', {
               bubbles: true,
               cancelable: false
             }));
-
-            if (app.config?.rolls?.[0]?.data) {
-              delete app.config.rolls[0].data.situational;
-            }
-          }, 50);
+            LogUtil.log("_onRenderRollConfigDialog #2 - dispatched change event", []);
+          }, 150);
         }
       });
     }
@@ -412,8 +420,8 @@ export class HooksUtil {
    * @param {jQuery} html - The rendered HTML
    */
   static _addSelectTargetsButton(message, html) {
+    if(!game.user.isGM) return;
     LogUtil.log("_addSelectTargetsButton #0", [message, html, html.querySelector('.message-content')]);
-    // const content = html.querySelector('.message-content');
     if (message.flags?.dnd5e?.roll?.type !== 'damage' || html.querySelector('.select-targeted')) return;
     
     const button = document.createElement('button');
@@ -725,6 +733,9 @@ export class HooksUtil {
           config.rolls[0].data = {};
         }
         config.rolls[0].data.situational = stored.situational;
+        
+        // Store the situational for the render hook to handle
+        config._flashRollsSituational = stored.situational;
       }
       LogUtil.log("_onPreRollDamageV2 - Applied stored configuration to damage roll", [config, messageOptions]);
     }
@@ -778,14 +789,27 @@ export class HooksUtil {
   }
 
   static _onPostUseActivity(activity, config, dialog, message) {
-    if(game.user.isGM && activity.type === ACTIVITY_TYPES.SAVE){
-      LogUtil.log("_onPostUseActivity triggered", [activity.damage]);
-      const SETTINGS = getSettings();
-      const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
-      if(activity.damage && activity.damage.parts?.length > 0){
+    const SETTINGS = getSettings();
+    const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
+    const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
+
+    LogUtil.log("_onPostUseActivity", [activity, config, dialog, message]);
+
+    if(!requestsEnabled || !rollInterceptionEnabled || skipRollDialog) return;
+    const actorOwner = GeneralUtil.getActorOwner(activity.actor);
+    if (!actorOwner?.active || actorOwner.isGM) {
+      LogUtil.log("Preventing usage message - no owning player for actor", [actor.name]);
+      return;
+    }
+    
+    // config.scaling = true;
+    if(activity.type === ACTIVITY_TYPES.SAVE){
+      LogUtil.log("_onPostUseActivity triggered", [activity.damage, config]);
+      if(activity.damage && activity.damage.parts?.length > 0 ){
         activity.rollDamage(config, {
           ...dialog,
-          configure: !skipRollDialog
+          configure: actorOwner && actorOwner.active && !actorOwner.isGM //!skipRollDialog
         }, message)
       }
       

@@ -49,29 +49,24 @@ export class RollRequestUtil {
     if (requestData.isTokenActor) {
       const tokenDoc = game.scenes.active?.tokens.get(requestData.actorId);
       actor = tokenDoc?.actor;
-      LogUtil.log('handleRequest - token actor lookup', [
-        'tokenId:', requestData.actorId,
-        'tokenDoc found:', !!tokenDoc,
-        'actor found:', !!actor,
-        'actor name:', actor?.name,
-        'hit dice value:', actor?.system?.attributes?.hd?.value
-      ]);
       if (!actor) {
         LogUtil.warn('Token actor not found:', requestData.actorId);
         return;
       }
     } else {
       actor = game.actors.get(requestData.actorId);
-      LogUtil.log('handleRequest - base actor lookup', [
-        'actorId:', requestData.actorId,
-        'actor found:', !!actor,
-        'actor name:', actor?.name,
-        'hit dice value:', actor?.system?.attributes?.hd?.value
-      ]);
     }
     
     if (!actor || !actor.isOwner) {
       return;
+    }
+    
+    if (requestData.preserveTargets && 
+      requestData.targetTokenIds?.length > 0 
+      // && game.user.targets.size === 0
+    ) {
+      LogUtil.log('handleRequest - applyTargetTokens', [requestData]);
+      applyTargetTokens(requestData.targetTokenIds);
     }
 
     if(isMidiRequest && requestData.rollProcessConfig.midiOptions){
@@ -90,12 +85,6 @@ export class RollRequestUtil {
           fastForwardAttack: false,
         }
       };
-    }
-    
-    if (requestData.preserveTargets && 
-      requestData.targetTokenIds?.length > 0 && 
-      game.user.targets.size === 0) {
-      applyTargetTokens(requestData.targetTokenIds);
     }
     
     NotificationManager.notify('info', '', {
