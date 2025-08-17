@@ -23,23 +23,22 @@ export const SOCKET_CALLS = {
 };
 
 export const HOOK_NAMES = {
-  // "" (empty string) - General roll
-  ATTACK: { name: "attack", requestType: "attack" }, // Attack Activity
-  DAMAGE: { name: "damage", requestType: "damage" }, // Damage Activity
-  SAVE: { name: "save", requestType: "damage" }, // Save Activity (usually with damage)
-  SAVING_THROW: { name: "savingthrow", requestType: "check" }, // Saving throws
-  ABILITY_CHECK: { name: "abilitycheck", requestType: "check" }, // Ability checks
-  CONCENTRATION: { name: "concentration", requestType: "check" }, // Concentration checks
-  DEATH_SAVE: { name: "deathsave", requestType: "save" }, // Death saving throws
-  SKILL: { name: "skill", requestType: "check" }, // Skill checks
-  TOOL: { name: "tool", requestType: "check" }, // Tool checks
-  HIT_DIE: { name: "hitdie", requestType: "formula" }, // Hit die rolls
-  INITIATIVE: { name: "initiative", requestType: "check" }, // Initiative rolls
-  FORMULA: { name: "formula", requestType: "formula" }, // Formula rolls
-  RECHARGE: { name: "recharge", requestType: "formula" }, // Recharge rolls
-  D20_TEST: { name: "d20Test", requestType: "formula" }, // D20 test
-  SHORT_REST: { name: "shortRest", requestType: "formula" }, // Short rest
-  LONG_REST: { name: "longRest", requestType: "formula" }, // Long rest
+  ATTACK: { name: "attack", requestType: "attack" },
+  DAMAGE: { name: "damage", requestType: "damage" },
+  SAVE: { name: "save", requestType: "damage" },
+  SAVING_THROW: { name: "savingthrow", requestType: "check" },
+  ABILITY_CHECK: { name: "abilitycheck", requestType: "check" },
+  CONCENTRATION: { name: "concentration", requestType: "check" },
+  DEATH_SAVE: { name: "deathsave", requestType: "save" }, 
+  SKILL: { name: "skill", requestType: "check" },
+  TOOL: { name: "tool", requestType: "check" },
+  HIT_DIE: { name: "hitdie", requestType: "formula" },
+  INITIATIVE: { name: "initiative", requestType: "check" },
+  FORMULA: { name: "formula", requestType: "formula" },
+  RECHARGE: { name: "recharge", requestType: "formula" },
+  D20_TEST: { name: "d20Test", requestType: "formula" },
+  SHORT_REST: { name: "shortRest", requestType: "formula" },
+  LONG_REST: { name: "longRest", requestType: "formula" },
 };
 
 export const ACTIVITY_TYPES = {

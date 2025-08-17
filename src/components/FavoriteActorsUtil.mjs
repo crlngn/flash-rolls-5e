@@ -88,9 +88,6 @@ export class FavoriteActorsUtil {
     await SettingsUtil.set(SETTINGS.favoriteActorsList.tag, updatedFavorites);
     
     const actor = game.actors.get(actorId);
-    ui.notifications.info(game.i18n.format("FLASH_ROLLS.notifications.actorRemovedFromFavorites", {
-      actor: actor?.name || 'Unknown'
-    }) || `${actor?.name || 'Unknown'} removed from Flash Rolls favorites`);
     
     this._refreshMenu();
   }

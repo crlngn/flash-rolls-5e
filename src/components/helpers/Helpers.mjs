@@ -273,15 +273,12 @@ export function buildRollTypes(selectedRequestType, selectedActors) {
     return rollTypes;
   }
   
-  // Use CONFIG.DND5E directly for standard roll types
   const configData = CONFIG.DND5E[selectedOption.subList];
   
   if (configData) {
-    // For abilities, skills, and other standard types
     for (const [key, data] of Object.entries(configData)) {
       let label = data.label || data.name || key;
       
-      // Special handling for tools using enrichmentLookup
       if (selectedOption.subList === 'tools' && CONFIG.DND5E.enrichmentLookup?.tools?.[key]) {
         const toolData = CONFIG.DND5E.enrichmentLookup.tools[key];
         if (toolData?.id) {
@@ -297,7 +294,6 @@ export function buildRollTypes(selectedRequestType, selectedActors) {
       });
     }
     
-    // Sort alphabetically by name
     rollTypes.sort((a, b) => a.name.localeCompare(b.name));
   }
   
@@ -461,4 +457,18 @@ export function adjustMenuOffset(isExpanded=true){
   const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
   
   GeneralUtil.addCSSVars('--flash-rolls-menu-offset', (isCrlngnUIOn ? controlsWidth : controlsWidth + 16) + 'px');
+}
+
+/**
+ * Find the actor data from actor ID, token ID, or token document ID
+ * @param {string} uniqueId - The ID of the actor, token, or token document
+ * @returns {Actor|null} The actor document, or null if not found
+ */
+export function getActorData(uniqueId){
+  const actor = game.actors.get(uniqueId);
+  if (actor) return actor;
+  const token = canvas.tokens?.get(uniqueId);
+  const tokenDoc = game.scenes.active?.tokens.get(uniqueId);
+   
+  return actor || token?.actor || tokenDoc?.actor || null;
 }

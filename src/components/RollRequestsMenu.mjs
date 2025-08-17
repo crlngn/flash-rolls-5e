@@ -7,7 +7,7 @@ import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './dialogs/gm-dialogs/index.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
-import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, adjustMenuOffset } from './helpers/Helpers.mjs';
+import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, adjustMenuOffset, getActorData } from './helpers/Helpers.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { RollHelpers } from './helpers/RollHelpers.mjs';
 import { CustomRollDialog } from './dialogs/CustomRollDialog.mjs';
@@ -17,9 +17,9 @@ import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
 import { ChatMessageUtils } from './ChatMessageUtils.mjs';
 import { RollMenuActorUtil } from './utils/RollMenuActorUtil.mjs';
 import { RollMenuConfigUtil } from './utils/RollMenuConfigUtil.mjs';
-import { RollMenuOrchestrationUtil } from './utils/RollMenuOrchestrationUtil.mjs';
 import { RollMenuDragUtil } from './utils/RollMenuDragUtil.mjs';
-import { FavoriteActorsUtil } from './FavoriteActorsUtil.mjs';
+import { ActorStatusUtil } from './ActorStatusUtil.mjs';
+import { ActorDragUtil } from './utils/ActorDragUtil.mjs';
 
 /**
  * Roll Requests Menu Application
@@ -104,10 +104,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         });
       
       if (isPlayerOwned) {
+        // Skip blocked actors
+        if (ActorStatusUtil.isBlocked(actor)) {
+          continue; // Skip this actor
+        }
+        
         const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
-        const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
-        const favorite = favoriteActorsList.find(fav => fav.actorId === actor.id);
-        const isFavorite = !!favorite;
+        const isFavorite = ActorStatusUtil.isFavorite(actor);
         
         const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
         
@@ -121,7 +124,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           } else {
             const actorData = createActorData();
             actorData.isFavorite = true;
-            actorData.tokenId = favorite.tokenId || null;
             pcActors.push(actorData);
           }
         } else if (showOnlyPCsWithToken) {
@@ -143,9 +145,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           }
         }
       } else {
-        const favoriteActorsList = SettingsUtil.get(SETTINGS.favoriteActorsList?.tag) || [];
-        const favorite = favoriteActorsList.find(fav => fav.actorId === actor.id);
-        const isFavorite = !!favorite;
+        if (ActorStatusUtil.isBlocked(actor)) {
+          continue;
+        }
+        
+        const isFavorite = ActorStatusUtil.isFavorite(actor);
         
         const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
         
@@ -159,7 +163,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           } else {
             const actorData = createActorData();
             actorData.isFavorite = true;
-            actorData.tokenId = favorite.tokenId || null;
             npcActors.push(actorData);
           }
         } else {
@@ -183,7 +186,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const selectAllOn = currentActors.length > 0 && 
       currentActors.every(actor => this.selectedActors.has(actor.uniqueId));
     
-    // Always prepare request types, they're just disabled when no actors are selected
     const requestTypes = [];
     for (const [key, option] of Object.entries(MODULE.ROLL_REQUEST_OPTIONS)) {
       const requestType = {
@@ -325,6 +327,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         RollMenuDragUtil.handleDragStart(e, this);
       });
     }
+    
+    ActorDragUtil.initializeActorDrag(this);
+    this._updateRequestTypesVisibilityNoRender();
   }
   
   /**
@@ -435,8 +440,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       tab.addEventListener('dblclick', this._onTabDoubleClick.bind(this));
     });
     
-    html.querySelectorAll('.actor').forEach(actor => {
-      actor.addEventListener('click', this._onActorClick.bind(this));
+    html.querySelectorAll('.actor.drag-wrapper').forEach(wrapper => {
+      wrapper.addEventListener('click', this._onActorClick.bind(this));
     });
     
     const searchInput = html.querySelector('.search-input');
@@ -619,8 +624,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     for (const token of controlledTokens) {
       if (token.actor) {
-        // For tokens on the scene, we need to use the token ID as the unique ID
-        // This matches how the actor list is rendered with uniqueId
         const uniqueId = token.id;
         this.selectedActors.add(uniqueId);
         
@@ -677,10 +680,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   _onActorClick(event) {
     if (event.target.closest('.actor-select')) return;
     
-    const actorElement = event.currentTarget;
-    const uniqueId = actorElement.dataset.id;
-    const actorId = actorElement.dataset.actorId;
-    const tokenId = actorElement.dataset.tokenId;
+    const wrapperElement = event.currentTarget;
+    
+    const uniqueId = wrapperElement.dataset.id;
+    const actorId = wrapperElement.dataset.actorId;
+    const tokenId = wrapperElement.dataset.tokenId;
     this._toggleActorSelection(uniqueId, actorId, tokenId);
   }
   
@@ -730,7 +734,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * Update the visual state of an actor element without re-rendering
    */
   _updateActorSelectionUI(actorId) {
-    const actorElement = this.element.querySelector(`.actor[data-id="${actorId}"]`);
+    const wrapperElement = this.element.querySelector(`.actor.drag-wrapper[data-id="${actorId}"]`);
+    if (!wrapperElement) return;
+    
+    const actorElement = wrapperElement.closest('.actor');
     if (!actorElement) return;
     
     const checkbox = actorElement.querySelector('.actor-select');
@@ -740,11 +747,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       checkbox.checked = isSelected;
     }
     
-    // Update both the class and the data-selected attribute
-    actorElement.classList.toggle('selected', isSelected);
-    actorElement.dataset.selected = isSelected.toString();
+    wrapperElement.classList.toggle('selected', isSelected);
+    wrapperElement.dataset.selected = isSelected.toString();
   }
-  
 
   /**
    * Update request types visibility based on actor selection
@@ -765,11 +770,20 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (requestTypesContainer) {
       requestTypesContainer.classList.toggle('disabled', !hasSelection);
       
-      // Update the visual state of request items
       const requestItems = requestTypesContainer.querySelectorAll('.request-type-item');
       requestItems.forEach(item => {
         item.classList.toggle('disabled', !hasSelection);
       });
+      
+      const hasPlayerCharacter = Array.from(this.selectedActors).some(uniqueId => {
+        const actor = getActorData(uniqueId);
+        return actor?.type === 'character';
+      });
+      
+      const hitDieItem = requestTypesContainer.querySelector('[data-id="HIT_DIE"]');
+      if (hitDieItem) {
+        hitDieItem.style.display = hasPlayerCharacter ? '' : 'none';
+      }
     }
   }
 
@@ -951,9 +965,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {Actor[]} npcActors - NPC actors
    * @param {string} rollMethodName - The roll method name
    * @param {string} rollKey - The roll key
-   * @param {Array} actorsWithIds - Array of actor entries with unique IDs
+   * @param {Array} actorsData - Array of actor entries with unique IDs
    */
-  async _orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsWithIds) {
+  async _orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsData) {
     const SETTINGS = getSettings();
     const successfulRequests = [];
     const offlinePlayerActors = [];
@@ -987,7 +1001,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     allActors.push(...offlinePlayerActors, ...npcActors);
     const allActorIds = allActors.map(actor => actor.id);
     
-    allActorEntries.push(...actorsWithIds.filter(item => 
+    allActorEntries.push(...actorsData.filter(item => 
       item && item.actor && allActorIds.includes(item.actor.id)
     ));
 
@@ -1003,15 +1017,48 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         config,
         groupRollId
       );
+      // Add delay to ensure group message is registered before sending roll requests
+      await delay(100);
+    }
+
+    /////////////////////////////////
+    // Special handling for hit die rolls - check ALL actors upfront and refill if needed
+    if (rollMethodName === ROLL_TYPES.HIT_DIE) {
+      LogUtil.log('_orchestrateRollsForActors - hit die roll detected, checking all actors for refill');
+      
+      const allActorsForHitDie = [];
+      onlinePlayerActors.forEach(({actor}) => allActorsForHitDie.push(actor));
+      offlinePlayerActors.forEach(actor => allActorsForHitDie.push(actor));
+      npcActors.forEach(actor => allActorsForHitDie.push(actor));
+      
+      LogUtil.log('_orchestrateRollsForActors - calling _handleHitDieRefill for', allActorsForHitDie.length, 'actors');
+      const refillCheckComplete = await this._handleHitDieRefill(allActorsForHitDie);
+      
+      if (!refillCheckComplete) {
+        LogUtil.log('_orchestrateRollsForActors - refill cancelled, aborting all rolls');
+        return;
+      }
+      
+      LogUtil.log('_orchestrateRollsForActors - refill check complete, proceeding with rolls');
     }
 
     /////////////////////////////////
     // Player Rolls: Actors owned by active players
     for (const { actor, owner } of onlinePlayerActors) {
       const useGroupId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
-      await this._sendRollRequestToPlayer(actor, owner, rollMethodName, rollKey, config, true, useGroupId);
+      
+      let currentRollKey = rollKey;
+      if (rollMethodName === ROLL_TYPES.HIT_DIE) {
+        currentRollKey = actor.system.attributes.hd.largestAvailable;
+        if (!currentRollKey) {
+          LogUtil.warn(`No hit dice available for ${actor.name} after refill attempt`);
+          continue;
+        }
+      }
+      
+      await this._sendRollRequestToPlayer(actor, owner, rollMethodName, currentRollKey, config, true, useGroupId);
       successfulRequests.push({ actor, owner });
-      await delay(100);
+      await delay(250);
     }
     if (successfulRequests.length > 0) {
       this._showConsolidatedNotification(successfulRequests, rollMethodName, rollKey);
@@ -1019,19 +1066,109 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     /////////////////////////////////
     // GM Rolls: Actors owned by offline players or NPC actors
-    const gmRolledActors = [...offlinePlayerActors, ...npcActors];
+    let gmRolledActors = [];
+    gmRolledActors = gmRolledActors.concat(offlinePlayerActors);
+    gmRolledActors = gmRolledActors.concat(npcActors);
+
     if (gmRolledActors.length > 0) {
       config.skipRollDialog = true;
       config.groupRollId = groupRollsMsgEnabled && allActors.length > 1 ? groupRollId : null;
       
-      // For GM rolls, we need to use actorsWithIds to preserve token information
       const gmActorIds = gmRolledActors.map(actor => actor.id);
-      const gmActorEntries = actorsWithIds.filter(entry => 
+      const gmActorEntries = actorsData.filter(entry => 
         entry && entry.actor && gmActorIds.includes(entry.actor.id)
       );
       
       await this._handleGMRollsWithTokens(gmActorEntries, rollMethodName, rollKey, config);
     }
+  }
+
+  /**
+   * Handle hit die refill dialog for actors with no available hit dice
+   * This is centralized and called BEFORE any rolls are sent (to players or executed by GM)
+   * @param {Actor|Actor[]} actors - Single actor or array of actors to potentially refill hit dice for
+   * @returns {Promise<boolean>} True if refill succeeded or not needed, false if cancelled
+   */
+  async _handleHitDieRefill(actorsToRefill) {
+    const actors = Array.isArray(actorsToRefill) ? actorsToRefill : [actorsToRefill];
+    LogUtil.log('_handleHitDieRefill - processing actors:', actors.map(a => a.name));
+    
+    const actorsNeedingRefill = actors.filter(actor => {
+      const hdData = actor.system.attributes.hd;
+      const needsRefill = hdData.value === 0;
+      LogUtil.log('_handleHitDieRefill - checking actor', [actor.name, 'value:', hdData.value, 'needs refill:', needsRefill]);
+      return needsRefill;
+    });
+    
+    LogUtil.log('_handleHitDieRefill - actors needing refill:', actorsNeedingRefill.length, [actorsNeedingRefill]);
+    
+    if (actorsNeedingRefill.length === 0) {
+      LogUtil.log('_handleHitDieRefill - no refill needed', []);
+      return true; // No refill needed
+    }
+    
+    const actorNames = actorsNeedingRefill.map(actor => actor.name).join(", ");
+    LogUtil.log('_handleHitDieRefill - showing dialog for actors:', actorNames);
+    
+    // Show dialog to GM
+    const dialogResult = await foundry.applications.api.DialogV2.confirm({
+      window: {
+        title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
+        classes: ["flash5e-hit-die-dialog"]
+      },
+      position: {
+        width: 420
+      },
+      content: `<p>${game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refillMessage", { 
+        actors: actorNames 
+      }) || ""}</p>`,
+      modal: true,
+      rejectClose: false,
+      yes: {
+        label: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillAndSend") || "Refill & Send",
+        icon: ""
+      },
+      no: {
+        label: game.i18n.localize("Cancel") || "Cancel",
+        icon: ""
+      }
+    });
+    
+    LogUtil.log('_handleHitDieRefill - dialog result:', dialogResult);
+    
+    if (dialogResult) {
+      LogUtil.log('_handleHitDieRefill - proceeding with refill for actors:', actorNames);
+      for (const actor of actorsNeedingRefill) {
+        try {
+          LogUtil.log('About to call handleHitDieRecovery for', [actor.name, 'isToken:', actor.isToken]);
+          const hitDieResult = await RollHandlers.handleHitDieRecovery(actor);
+          LogUtil.log('handleHitDieRecovery completed', [hitDieResult]);
+          
+          // If this is a token actor, also update the base actor to keep them in sync
+          if (actor.isToken && actor._actor) {
+            LogUtil.log('Also updating base actor for token', [actor._actor.name]);
+            try {
+              await RollHandlers.handleHitDieRecovery(actor._actor);
+              LogUtil.log('Base actor updated successfully');
+            } catch (baseActorError) {
+              LogUtil.error('Error updating base actor:', [baseActorError]);
+            }
+          }
+        } catch (error) {
+          LogUtil.error('Error calling handleHitDieRecovery:', [error]);
+        }
+      }
+      
+      NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
+        actor: actorNames 
+      }) || `Hit dice refilled for ${actorNames}`);
+      
+      LogUtil.log('_handleHitDieRefill - refill completed, returning true');
+      return true;
+    }
+    
+    LogUtil.log('_handleHitDieRefill - user cancelled, returning false');
+    return false;
   }
 
   /**
@@ -1046,27 +1183,23 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     
     // Convert selected unique IDs back to actors with their unique identifiers
-    // Some IDs might be token IDs, others might be actor IDs
-    let actorsWithIds = selectedUniqueIds
+    let actorsData = selectedUniqueIds
       .map(uniqueId => {
-        let actor = game.actors.get(uniqueId);
-        if (actor) {
-          return { actor, uniqueId, tokenId: null };
-        }
-        const token = canvas.tokens?.get(uniqueId);
-        if (token?.actor) {
-          return { actor: token.actor, uniqueId, tokenId: uniqueId };
-        }
-        const tokenDoc = game.scenes.active?.tokens.get(uniqueId);
-        if (tokenDoc?.actor) {
-          return { actor: tokenDoc.actor, uniqueId, tokenId: uniqueId };
+        const actor = getActorData(uniqueId);
+        if (!actor) return null;
+        
+        let tokenId = null;
+        if (game.actors.get(uniqueId)) {
+          tokenId = null;
+        } else {
+          tokenId = uniqueId;
         }
         
-        return null;
+        return { actor, uniqueId, tokenId };
       })
       .filter(item => item);
     
-    let actors = actorsWithIds.map(item => item.actor);
+    let actors = actorsData.map(item => item.actor);
     
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
@@ -1086,17 +1219,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
           const actorsWithTokens = [];
           
           for (const uniqueId of selectedUniqueIds) {
-            let actor = game.actors.get(uniqueId);
+            const actor = getActorData(uniqueId);
+            if (!actor) continue;
+            
             let tokenId = null;
             
-            if (!actor) {
-              const token = canvas.tokens?.get(uniqueId) || game.scenes.active?.tokens.get(uniqueId);
-              if (token?.actor) {
-                actor = token.actor;
-                tokenId = uniqueId;
-                actorsWithTokens.push(actor.name);
-              }
-              LogUtil.log("_triggerRoll - actor from token", [actor.name, actor, tokenId]);
+            if (!game.actors.get(uniqueId)) {
+              tokenId = uniqueId;
+              actorsWithTokens.push(actor.name);
             } else {
               tokenId = actor.getActiveTokens()?.[0]?.id || null;
               if (!tokenId) {
@@ -1104,11 +1234,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
                 continue;
               }
               actorsWithTokens.push(actor.name);
-              LogUtil.log("_triggerRoll - actor", [actor.name, actor, tokenId]);
               
               const existingCombatant = game.combat.combatants.find(c => c.tokenId === tokenId);
               if (!existingCombatant) {
-                LogUtil.log("_triggerRoll - adding token to combat", [actor.name, tokenId]);
                 await game.combat.createEmbeddedDocuments("Combatant", [{
                   actorId: actor.id,
                   tokenId: tokenId
@@ -1129,24 +1257,22 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             }) || `Initiative skipped for actors without tokens: ${actorsWithoutTokens.join(", ")}`);
           }
           
-          // For initiative, filter out actors without tokens
-          const entriesWithTokens = actorsWithIds.filter(entry => {
+          const entriesWithTokens = actorsData.filter(entry => {
             if (entry.tokenId) return true;
             const hasToken = entry.actor.getActiveTokens()?.[0];
             return !!hasToken;
           });
           
-          actorsWithIds.length = 0;
-          actorsWithIds.push(...entriesWithTokens);
+          actorsData.length = 0;
+          actorsData.push(...entriesWithTokens);
           
           actors = entriesWithTokens.map(entry => entry.actor);
           const uniqueActorIds = [...new Set(actors.map(actor => actor.id))];
           const filteredActorIds = await filterActorsForInitiative(uniqueActorIds, game);
 
-          LogUtil.log("_triggerRoll filteredActorIds", [filteredActorIds, !filteredActorIds.length]);
           if (!filteredActorIds.length) return;
 
-          const filteredActorsWithIds = actorsWithIds.filter(item => 
+          const filteredActorsData = actorsData.filter(item => 
             item && item.actor && filteredActorIds.includes(item.actor.id)
           );
           
@@ -1154,8 +1280,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
             .map(id => game.actors.get(id))
             .filter(actor => actor);
           
-          actorsWithIds.length = 0;
-          actorsWithIds.push(...filteredActorsWithIds);
+          actorsData.length = 0;
+          actorsData.push(...filteredActorsData);
           
           const initiateCombat = SettingsUtil.get(SETTINGS.initiateCombatOnRequest.tag);
           if (initiateCombat) {
@@ -1165,6 +1291,15 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         break;
       case ROLL_TYPES.DEATH_SAVE:
         actors = await filterActorsForDeathSaves(actors);
+        break;
+      case ROLL_TYPES.HIT_DIE:
+        actors = actors.filter(actor => actor.type === 'character');
+        actorsData = actorsData.filter(item => item.actor.type === 'character');
+        if (actors.length === 0) {
+          NotificationManager.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noCharactersForHitDie") || 
+            "Hit dice can only be rolled for player characters, not NPCs.");
+          return;
+        }
         break;
       default:
         break;
@@ -1180,7 +1315,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     LogUtil.log("_triggerRoll config", [config]);
     if (!config) return;
-    await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsWithIds);
+    await this._orchestrateRollsForActors(config, pcActors, npcActors, rollMethodName, rollKey, actorsData);
     
     if (!this.isLocked) {
       setTimeout(() => this.close(), 500);
@@ -1212,55 +1347,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       rollType = ROLL_TYPES.INITIATIVE;
     }
     
+    // For hit die rolls, get the largest available denomination
+    // Note: Refill check is already done in orchestration before this method is called
     if (rollType === ROLL_TYPES.HIT_DIE) {
-      const hdData = actor.system.attributes.hd; // First available hit die denomination
-      
-      if (hdData.value > 0) {
-        rollKey = hdData.largestAvailable;
-      } else {
-        // No hit dice available - show dialog to GM
-        const dialogResult = await foundry.applications.api.DialogV2.confirm({
-          window: {
-            title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
-            classes: ["flash5e-hit-die-dialog"]
-          },
-          position: {
-            width: 420
-          },
-          content: `<p>${game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refillMessage", { 
-            actors: actor.name 
-          }) || ""}</p>`,
-          modal: true,
-          rejectClose: false,
-          yes: {
-            label: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillAndSend") || "Refill & Send",
-            icon: ""
-          },
-          no: {
-            label: game.i18n.localize("Cancel") || "Cancel",
-            icon: ""
-          }
-        });
-        
-        if (dialogResult) {
-          try {
-            LogUtil.log('About to call handleHitDieRecovery for', [actor.name]);
-            const hitDieResult = await RollHandlers.handleHitDieRecovery(actor);
-            LogUtil.log('handleHitDieRecovery completed', [hitDieResult]);
-          } catch (error) {
-            LogUtil.error('Error calling handleHitDieRecovery:', [error]);
-          }
-          
-          // Get the largest available hit die after refill
-          rollKey = actor.system.attributes.hd.largestAvailable;
-          
-          NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
-            actor: actor.name 
-          }) || `Hit dice refilled for ${actor.name}`);
-        } else {
-          // User cancelled - don't send the request
-          return;
-        }
+      rollKey = actor.system.attributes.hd.largestAvailable;
+      if (!rollKey) {
+        LogUtil.warn(`No hit dice available for ${actor.name}.`);
+        return;
       }
     }
     
@@ -1275,15 +1368,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const requestData = {
       type: "rollRequest",
       groupRollId: groupRollId || foundry.utils.randomID(),
-      actorId: actor.id,
+      actorId: actor.isToken ? actor.token.id : actor.id,
+      isTokenActor: actor.isToken, 
+      baseActorId: actor.isToken ? actor._actor?.id : actor.id,
       rollType,
       rollKey,
-      activityId: null,  // Menu-initiated rolls don't use activities
+      activityId: null, 
       rollProcessConfig: {
         ...cleanConfig,
-        _requestedBy: game.user.name  // Add who requested the roll
+        _requestedBy: game.user.name
       },
-      skipRollDialog: false, // Never skip to player when it's a request
+      skipRollDialog: false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag)
     };
@@ -1342,7 +1437,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       } else if (normalizedRollTypeKey === ROLL_TYPES.ABILITY_CHECK) {
         rollTypeName = `${rollTypeName} (${CONFIG.DND5E.abilities[rollKey]?.label || rollKey})`;
       } else if (normalizedRollTypeKey === ROLL_TYPES.TOOL) {
-        // Try to get tool name from enrichmentLookup
         const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
         if (toolData?.id) {
           const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
@@ -1386,22 +1480,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('_handleGMRollsWithTokens', [actorEntries.length, requestType, rollKey, rollProcessConfig]);
     
     for (const entry of actorEntries) {
-      // Set the token context for the roll if we have a token ID
       if (entry.tokenId) {
         const token = canvas.tokens?.get(entry.tokenId) || game.scenes.active?.tokens.get(entry.tokenId);
         if (token) {
-          // Set the token as the controlled token for this roll
-          LogUtil.log('_handleGMRollsWithTokens - Rolling for token', [entry.actor, entry.tokenId]);
           await this._initiateRollForToken(entry.actor, token, requestType, rollKey, rollProcessConfig);
         } else {
-          LogUtil.log('_handleGMRollsWithTokens - Token not found, rolling for actor', [entry.actor, entry.tokenId]);
           await this._initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
         }
       } else {
-        LogUtil.log('_handleGMRollsWithTokens - No token, rolling for actor', [entry.actor]);
         await this._initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
       }
-      // await delay(100);
+      await delay(100);
     }
   }
   
@@ -1439,66 +1528,32 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {BasicRollProcessConfiguration} rollProcessConfig - Process configuration from GM dialog
    */
   async _initiateRoll(actor, requestType, rollKey, rollProcessConfig) {
-    LogUtil.log('_initiateRoll', [actor.name, requestType, rollKey, rollProcessConfig]);
+    LogUtil.log('_initiateRoll', [actor, requestType, rollKey, rollProcessConfig]);
     try {
       const normalizedType = requestType.toLowerCase();
+      actor = rollProcessConfig.subject || actor;
       let actualRollKey = rollKey;
       if (normalizedType === ROLL_TYPES.HIT_DIE) {
         const hdData = actor.system.attributes.hd;
-        if (hdData) {
-          const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
-          for (const denom of denominations) {
-            const available = hdData[denom]?.value || 0;
-            if (available > 0) {
-              actualRollKey = denom;
-              break;
-            }
-          }
+        if(hdData.value > 0){
+          actualRollKey = hdData.largestAvailable;
         }
+        // if (hdData) {
+        //   const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
+        //   for (const denom of denominations) {
+        //     const available = hdData[denom]?.value || 0;
+        //     if (available > 0) {
+        //       actualRollKey = denom;
+        //       break;
+        //     }
+        //   }
+        // }
         if (!actualRollKey) {
-          LogUtil.log('_initiateRoll - No hit dice available', [actor.name]);
-          
-          const dialogResult = await foundry.applications.api.DialogV2.confirm({
-            window: {
-              title: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillTitle") || "No Hit Dice Available",
-              classes: ["flash5e-hit-die-dialog"]
-            },
-            position: {
-              width: 420
-            },
-            content: `<p>${game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refillMessageLocal", { 
-              actors: actor.name 
-            }) || ""}</p>`,
-            modal: true,
-            rejectClose: false,
-            yes: {
-              label: game.i18n.localize("FLASH_ROLLS.ui.dialogs.hitDie.refillAndRoll") || "Refill & Roll",
-              icon: ""
-            },
-            no: {
-              label: game.i18n.localize("Cancel") || "Cancel",
-              icon: ""
-            }
-          });
-          
-          if (dialogResult) {
-            const result = await RollHandlers.handleHitDieRecovery(actor);
-            LogUtil.log('Hit die recovery result', [result]);
-            
-            NotificationManager.notify('info', game.i18n.format("FLASH_ROLLS.ui.dialogs.hitDie.refilled", { 
-              actor: actor.name 
-            }));
-            
-            const hdDataAfterRefill = actor.system.attributes.hd;
-            actualRollKey = hdDataAfterRefill.largestAvailable;
-            
-            if (!actualRollKey) {
-              NotificationManager.notify('warn', game.i18n.format("DND5E.HitDiceWarn", { name: actor.name }));
-              return;
-            }
-          } else {
-            return;
-          }
+          LogUtil.warn('_initiateRoll - No hit dice available after orchestration refill', [actor.name]);
+          NotificationManager.notify('warn', game.i18n.format("FLASH_ROLLS.notifications.noHitDice", { 
+            actor: actor.name 
+          }) || `No hit dice available for ${actor.name}`);
+          return;
         }
       }
       

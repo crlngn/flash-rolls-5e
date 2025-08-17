@@ -25,6 +25,18 @@ import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
  */
 export class RollRequestUtil {
   /**
+   * Queue for managing roll requests per user
+   * @type {Array<{actor: Actor, requestData: RollRequestData}>}
+   */
+  static rollQueue = [];
+  
+  /**
+   * Flag indicating if a roll dialog is currently active
+   * @type {boolean}
+   */
+  static isProcessingRoll = false;
+  
+  /**
    * Handle roll request from GM on player side
    * @param {RollRequestData} requestData - The roll request data
    */
@@ -33,7 +45,31 @@ export class RollRequestUtil {
     LogUtil.log('handleRequest', [requestData]);
     if (game.user.isGM) return;
     
-    const actor = game.actors.get(requestData.actorId);
+    let actor;
+    if (requestData.isTokenActor) {
+      const tokenDoc = game.scenes.active?.tokens.get(requestData.actorId);
+      actor = tokenDoc?.actor;
+      LogUtil.log('handleRequest - token actor lookup', [
+        'tokenId:', requestData.actorId,
+        'tokenDoc found:', !!tokenDoc,
+        'actor found:', !!actor,
+        'actor name:', actor?.name,
+        'hit dice value:', actor?.system?.attributes?.hd?.value
+      ]);
+      if (!actor) {
+        LogUtil.warn('Token actor not found:', requestData.actorId);
+        return;
+      }
+    } else {
+      actor = game.actors.get(requestData.actorId);
+      LogUtil.log('handleRequest - base actor lookup', [
+        'actorId:', requestData.actorId,
+        'actor found:', !!actor,
+        'actor name:', actor?.name,
+        'hit dice value:', actor?.system?.attributes?.hd?.value
+      ]);
+    }
+    
     if (!actor || !actor.isOwner) {
       return;
     }
@@ -47,19 +83,14 @@ export class RollRequestUtil {
           ...requestData.rollProcessConfig.midiOptions.dialogOptions,
           fastForward: false,
           fastForwardAttack: false,
-          // fastForwardDamage: false
         },
         workflowOptions: {
           ...requestData.rollProcessConfig.midiOptions.workflowOptions,
-          // autoRollAttack: false,
-          // autoRollDamage: "none",
           fastForward: false,
           fastForwardAttack: false,
-          // fastForwardDamage: false
         }
       };
     }
-    
     
     if (requestData.preserveTargets && 
       requestData.targetTokenIds?.length > 0 && 
@@ -77,7 +108,37 @@ export class RollRequestUtil {
       }
     });
     
-    RollRequestUtil.executePlayerRollRequest(actor, requestData);
+    this.rollQueue.push({ actor, requestData });
+    LogUtil.log('handleRequest - Added to queue', [this.rollQueue.length, this.isProcessingRoll]);
+    
+    if (!this.isProcessingRoll) {
+      this.processNextRoll();
+    }
+  }
+  
+  /**
+   * Process the next roll in the queue
+   */
+  static async processNextRoll() {
+    if (this.rollQueue.length === 0) {
+      this.isProcessingRoll = false;
+      return;
+    }
+    
+    this.isProcessingRoll = true;
+    const { actor, requestData } = this.rollQueue.shift();
+    
+    LogUtil.log('processNextRoll - Processing', [actor.name, this.rollQueue.length, 'remaining']);
+    
+    try {
+      await this.executePlayerRollRequest(actor, requestData);
+    } catch (error) {
+      LogUtil.error('Error processing roll request:', [error]);
+    }
+    
+    setTimeout(() => {
+      this.processNextRoll();
+    }, 100);
   }
   
   /**
@@ -105,7 +166,6 @@ export class RollRequestUtil {
         configure: !shouldSkipDialog
       };
       
-      // Determine the roll mode - respect what was sent from GM
       const rollModeFromGM = requestData.rollProcessConfig.rollMode;
       const defaultRollMode = game.settings.get("core", "rollMode");
       const finalRollMode = rollModeFromGM || defaultRollMode;
@@ -115,15 +175,13 @@ export class RollRequestUtil {
         create: requestData.rollProcessConfig.chatMessage !== false
       };
       
-      // Build requestData structure expected by handlers
       const handlerRequestData = {
         rollKey: requestData.rollKey,
-        activityId: requestData.activityId, // For attack/damage rolls
+        activityId: requestData.activityId, 
         config: requestData.rollProcessConfig,
-        groupRollId: requestData.groupRollId // Pass through for group rolls
+        groupRollId: requestData.groupRollId 
       };
 
-      // Use the roll handler for the requested roll type
       const handler = RollHandlers[normalizedRollType];
       if (handler) {
         await handler(actor, handlerRequestData, rollConfig, dialogConfig, messageConfig);

@@ -105,6 +105,19 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 3px;
   }
+  .dice-formula {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+  .roll-breakdown {
+    background-color: rgba(0, 0, 0, 0.2);
+    .dice-tooltip .total {
+      display: none;
+    }
+    .dice-rolls {
+      display: flex;
+      justify-content: center;
+    }
+  }
 }
 
 .flash5e-group-roll .group-roll-footer {

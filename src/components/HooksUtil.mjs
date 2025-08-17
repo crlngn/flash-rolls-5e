@@ -11,7 +11,7 @@ import { GeneralUtil } from "./helpers/GeneralUtil.mjs";
 import { ModuleHelpers } from "./helpers/ModuleHelpers.mjs";
 import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 import RollRequestsMenu from "./RollRequestsMenu.mjs";
-import { FavoriteActorsUtil } from "./FavoriteActorsUtil.mjs";
+import { ActorStatusUtil } from "./ActorStatusUtil.mjs";
 
 /**
  * Utility class for managing all module hooks in one place
@@ -34,19 +34,102 @@ export class HooksUtil {
       if (!game.user.isGM) return;
       
       contextOptions.push({
-        name: "FLASH_ROLLS.contextMenu.toggleFavorite",
+        name: game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites"),
         icon: '<i class="fas fa-bolt"></i>',
         callback: li => {
-          LogUtil.log("Context menu callback li:", [li]);
-          const data = li.dataset;
-          const actorId = data.entryId;
-          LogUtil.log("Actor ID from context menu:", [actorId]);
+          const actorId = li.dataset.entryId;
           if (actorId) {
-            FavoriteActorsUtil.toggleFavorite(actorId);
+            ActorStatusUtil.toggleFavorite(actorId, true);
+            // ActorStatusUtil.toggleBlocked(actorId, false);
           }
+          return actorId;
         },
-        condition: li => game.user.isGM
+        condition: li => {
+          const actorId = li?.dataset?.entryId;
+          const isFavorite = ActorStatusUtil.isFavorite(actorId);
+          // const isBlocked = ActorStatusUtil.isBlocked(actorId);
+          return !isFavorite;
+        }
       });
+
+      contextOptions.push({
+        name: game.i18n.localize("FLASH_ROLLS.contextMenu.removeFromFavorites"),
+        icon: '<i class="fas fa-bolt-slash"></i>',
+        callback: li => {
+          const actorId = li.dataset.entryId;
+          if (actorId) {
+            ActorStatusUtil.toggleFavorite(actorId, false);
+          }
+          return actorId;
+        },
+        condition: li => {
+          const actorId = li?.dataset?.entryId;
+          const isFavorite = ActorStatusUtil.isFavorite(actorId);
+          return isFavorite;
+        }
+      });
+
+      // contextOptions.push({
+      //   name: li => {
+      //     const actorId = li?.dataset?.entryId;
+      //     return 'Add to Flash Rolls Menu';
+      //   },
+      //   icon: li => {
+      //     const actorId = li?.dataset?.entryId;
+      //     return '<i class="fas fa-bolt"></i>';
+      //   },
+      //   callback: li => {
+      //     const actorId = li.dataset.entryId;
+      //     if (actorId) {
+      //       ActorStatusUtil.toggleFavorite(actorId);
+      //     }
+      //     return actorId;
+      //   },
+      //   condition: li => {
+      //     const actorId = li?.dataset?.entryId;
+      //     const isFavorited = ActorStatusUtil.isFavorite(actorId);
+      //     return !isFavorited;
+      //   }
+      // });
+      // Add/Remove from Flash Rolls Menu
+      // contextOptions.push({
+      //   name: li => {
+      //     try {
+      //       const actorId = li?.dataset?.entryId;
+      //       if (!actorId || !game?.actors?.get?.(actorId)) {
+      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
+      //       }
+            
+      //       if (ActorStatusUtil.isFavorite(actorId)) {
+      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.removeFromFavorites");
+      //       } else {
+      //         return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
+      //       }
+      //     } catch (error) {
+      //       LogUtil.error('Error in context menu name function', [error, li]);
+      //       return game.i18n.localize("FLASH_ROLLS.contextMenu.addToFavorites");
+      //     }
+      //   },
+      //   icon: li => {
+      //     const actorId = li.dataset.entryId;
+      //     if (!actorId) return '<i class="fas fa-bolt"></i>';
+          
+      //     if (ActorStatusUtil.isFavorite(actorId)) {
+      //       return '<i class="fas fa-bolt-slash"></i>';
+      //     } else {
+      //       return '<i class="fas fa-bolt"></i>';
+      //     }
+      //   },
+      //   callback: li => {
+      //     LogUtil.log("Context menu callback li:", [li]);
+      //     const actorId = li.dataset.entryId;
+      //     LogUtil.log("Actor ID from context menu:", [actorId]);
+      //     if (actorId) {
+      //       ActorStatusUtil.toggleFavorite(actorId);
+      //     }
+      //   },
+      //   condition: li => game.user.isGM
+      // });
     });
   }
   
@@ -769,7 +852,6 @@ export class HooksUtil {
       if (selectedAbility === configAbility) {
         app._abilityFlavorFixed = true;
         
-        // Force flavor to update
         setTimeout(() => {
           const changeEvent = new Event('change', {
             bubbles: true,

@@ -34,10 +34,10 @@
   }
 }
 
-body.theme-dark #flash-rolls-menu{
+#interface.theme-dark #flash-rolls-menu{
   color: var(--color-text-light-highlight, var(--color-light-1));
 }
-body.theme-light #flash-rolls-menu{
+#interface.theme-light #flash-rolls-menu{
   color: var(--color-text-dark-highlight, var(--color-dark-1));
 }
 
@@ -185,13 +185,18 @@ body.theme-light #flash-rolls-menu{
   }
 }
 
-#flash-rolls-menu > div > ul.actors > li.actor-list > ul > li.actor,
-#flash-rolls-menu > div > ul.actors > li.actor,
+body > .actor.drag-wrapper {
+  background-color: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+}
+
+.actor.drag-wrapper,
+#flash-rolls-menu > div > ul.actors > li.actor-list > ul > li .actor,
+#flash-rolls-menu > div > ul.actors > li .actor,
 #flash-rolls-menu > div > ul.actors > li.actor-list-empty {
   align-items: flex-start;
   display: flex;
   flex-direction: row;
-  margin:  0 0 1em 0;
+  margin:  0 0 0.1em 0;
   padding: 0;
   gap: 6px;
   height: auto;
@@ -259,6 +264,54 @@ body.theme-light #flash-rolls-menu{
       pointer-events: none;
     }
   }
+
+  .actor-data {
+    align-self: stretch;
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1 1 auto;
+    min-width: 0;
+  
+    .actor-name {
+      width: 100%;
+      display: block;
+      font-weight: bold;
+      padding: 2px 0 0 0;
+      margin-left: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: var(--font-size-12);
+    }
+    .actor-stats {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      list-style-type: none;
+      gap: 2px;
+      align-items: center;
+      justify-content: stretch;
+      flex-wrap: wrap;
+  
+      > li {
+        background-color: rgba(0, 0, 0, 0.25);
+        padding: 2px 4px;
+        display: flex;
+        width: 48%;
+        flex: 1 1 48%;
+        gap: 2px;
+  
+        .stat-abbrev{
+          font-weight: bold;
+          width: 50%;
+          flex: 1 1 50%;
+        }
+      }
+    }
+  }
 }
 #flash-rolls-menu > div > ul.actors > li.actor-list > ul > li.actor{
   margin-bottom: 0;
@@ -296,54 +349,6 @@ body.theme-light #flash-rolls-menu{
       background: var(--color-warm-2);
       color: var(--color-light-1);
       border-color: transparent;
-    }
-  }
-}
-
-#flash-rolls-menu > div > ul.actors > li .actor-data {
-  align-self: stretch;
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1 1 auto;
-  min-width: 0;
-
-  .actor-name {
-    width: 100%;
-    display: block;
-    font-weight: bold;
-    padding: 2px 0 0 0;
-    margin-left: 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: var(--font-size-12);
-  }
-  .actor-stats {
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    list-style-type: none;
-    gap: 2px;
-    align-items: center;
-    justify-content: stretch;
-    flex-wrap: wrap;
-
-    > li {
-      background-color: rgba(0, 0, 0, 0.25);
-      padding: 2px 4px;
-      display: flex;
-      width: 48%;
-      flex: 1 1 48%;
-      gap: 2px;
-
-      .stat-abbrev{
-        font-weight: bold;
-        width: 50%;
-        flex: 1 1 50%;
-      }
     }
   }
 }
@@ -684,3 +689,74 @@ body.theme-light #flash-rolls-menu{
 body.crlngn-tabs #flash-rolls-menu.docked-right {
   padding-right: var(--flash-rolls-menu-offset, 16px) !important;
 }
+
+/* Actor Drag Wrapper */
+.actor-drag-wrapper {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: row;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  height: auto;
+  width: 100%;
+}
+
+.actor-drag-wrapper[draggable="true"] {
+  cursor: grab;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.actor-drag-wrapper[draggable="true"]:hover {
+  transform: translateX(-2px);
+}
+
+.actor-drag-wrapper.dragging {
+  opacity: 0.6;
+  transform: scale(0.95);
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+.actor-drag-wrapper.drag-remove-zone {
+  opacity: 0.3;
+  animation: drag-remove-pulse 1s infinite;
+  border: 2px dashed var(--color-border-highlight-alt);
+  border-radius: 3px;
+}
+
+/* Dragged wrapper styling when outside menu hierarchy */
+.actor-drag-wrapper.dragging {
+  /* Preserve styling when dragged */
+  background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  border-radius: 3px;
+  border: 1px solid var(--color-warm-2);
+  color: var(--color-text-light-highlight, var(--color-light-1));
+  font-size: 0.75rem;
+  min-width: 12rem;
+  max-width: 14rem;
+  pointer-events: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  padding: 4px;
+}
+
+@keyframes drag-remove-pulse {
+  0% { 
+    opacity: 0.3;
+    border-color: var(--color-border-highlight-alt);
+  }
+  50% { 
+    opacity: 0.1;
+    border-color: var(--color-warm-2);
+  }
+  100% { 
+    opacity: 0.3;
+    border-color: var(--color-border-highlight-alt);
+  }
+}
+
+/* Drag ghost image styling */
+#flash-rolls-menu ul.actors > li.actor-list > ul > li.actor[draggable="true"]:active {
+  cursor: grabbing;
+}
+

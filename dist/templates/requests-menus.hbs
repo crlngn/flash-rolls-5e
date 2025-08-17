@@ -60,28 +60,30 @@
         </li>
       {{/unless}}
       {{#each actors as |actor|}}
-        <li class="actor{{#if actor.selected}} selected{{/if}}" 
-          data-id="{{actor.uniqueId}}" data-actor-id="{{actor.id}}" 
-          {{#if actor.tokenId}}data-token-id="{{actor.tokenId}}"{{/if}} 
-          data-selected="{{actor.selected}}">
-          <div class="actor-data">
-            {{#if ../showNames}}<span class="actor-name">
-              {{#if actor.isFavorite}}
-              <i class="fas fa-bolt" title="Favorite"></i>
-              {{/if}}{{ actor.name }}
-              </span>
-            {{/if}}
-            <ul class="actor-stats">
-              {{#each actor.crlngnStats as |prop|}}
-                <li class="actor-stat">
-                  <span class="stat-abbrev">{{ prop.abbrev }}</span>
-                  <span class="stat-value">{{ prop.value }}</span>
-                </li>
-              {{/each}}
-            </ul>
-          </div>
-          <div class="actor-img">
-            <img src="{{ actor.img }}" alt="{{ actor.name }}" />
+        <li>
+          <div class="actor drag-wrapper{{#if actor.selected}} selected{{/if}}" draggable="true"
+               data-id="{{actor.uniqueId}}" data-actor-id="{{actor.id}}" 
+               {{#if actor.tokenId}}data-token-id="{{actor.tokenId}}"{{/if}}
+               data-selected="{{actor.selected}}">
+            <div class="actor-data">
+              {{#if ../showNames}}<span class="actor-name">
+                {{#if actor.isFavorite}}
+                <i class="fas fa-bolt" title="Favorite"></i>
+                {{/if}}{{ actor.name }}
+                </span>
+              {{/if}}
+              <ul class="actor-stats">
+                {{#each actor.crlngnStats as |prop|}}
+                  <li class="actor-stat">
+                    <span class="stat-abbrev">{{ prop.abbrev }}</span>
+                    <span class="stat-value">{{ prop.value }}</span>
+                  </li>
+                {{/each}}
+              </ul>
+            </div>
+            <div class="actor-img">
+              <img src="{{ actor.img }}" alt="{{ actor.name }}" />
+            </div>
           </div>
         </li>
       {{/each}}

@@ -27,8 +27,6 @@ export default function vitePluginVersion() {
         // Read module.json
         const moduleJsonPath = path.resolve('./src/module.json');
         const moduleJson = JSON.parse(readFileSync(moduleJsonPath, 'utf-8'));
-
-        // Update version in module.json
         moduleJson.version = version;
         
         // Update download URL to include version

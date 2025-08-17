@@ -131,7 +131,6 @@ export class RollInterceptor {
     let actor;
     if (rollType === ROLL_TYPES.INITIATIVE && config instanceof Actor) {
       actor = config;
-      // For initiative, check if this is from our own dialog execution
       LogUtil.log('_handlePreRoll - Initiative', [config, dialog, message]);
       if (dialog?.isRollRequest === false || message?.isRollRequest === false) {
         return;
@@ -144,7 +143,6 @@ export class RollInterceptor {
       actor = config.subject?.actor || config.subject || config.actor;
     }
 
-    // Check if roll interception and requests are enabled
     const SETTINGS = getSettings();
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     // const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
@@ -162,7 +160,6 @@ export class RollInterceptor {
       return;
     }
 
-    // For attack rolls, if a usage message is created, ensure it's public
     if (rollType === ROLL_TYPES.ATTACK) {
       message = {
         ...message,
@@ -366,21 +363,16 @@ export class RollInterceptor {
     try {
       const normalizedRollType = rollType?.toLowerCase();
       
-      // Handle initiative-specific checks
       if (normalizedRollType === ROLL_TYPES.INITIATIVE) {
         const shouldContinue = await this._handleInitiativePreChecks(actor);
         if (!shouldContinue) return;
       }
       
-      // Get appropriate dialog class
       const DialogClass = this._getDialogClass(rollType);
-      
-      // Extract roll configuration
       const { rollKey, rollConfig } = this._extractRollConfiguration(rollType, config, dialog, actor);
       
       LogUtil.log('_showGMConfigDialog - rollConfig', [rollConfig, rollKey]);
       
-      // Get dialog result or default configuration
       const result = await this._getDialogResult(
         DialogClass, 
         actor, 
@@ -476,11 +468,10 @@ export class RollInterceptor {
         rollMode: dialogResult.rollMode || originalConfig.rollMode,
         situational: situational,
         isRollRequest: false,
-        ability: originalConfig.ability // Pass the ability from original config
+        ability: originalConfig.ability
       }
     };
     
-    // For skills and tools, ensure we have the ability if not choosing
     if (normalizedRollType === ROLL_TYPES.SKILL && !requestData.config.ability) {
       requestData.config.ability = actor.system.skills?.[requestData.rollKey]?.ability || 
                                    CONFIG.DND5E.skills?.[requestData.rollKey]?.ability;
@@ -490,7 +481,6 @@ export class RollInterceptor {
                                    CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey]?.ability ||
                                    'int';
     } else if ((normalizedRollType === ROLL_TYPES.ABILITY || normalizedRollType === ROLL_TYPES.SAVE) && !requestData.config.ability) {
-      // For ability checks and saves, the rollKey IS the ability
       requestData.config.ability = requestData.rollKey;
     }
     

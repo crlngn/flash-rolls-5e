@@ -227,47 +227,6 @@ export class ActivityUtil {
             await activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
           }
           return;
-        // case ROLL_TYPES.ITEM_SAVE:
-        //   // if(ModuleHelpers.isModuleActive('midi-qol')) {
-        //   //   const MidiQOL = ModuleHelpers.getMidiQOL();
-        //   //   if (MidiQOL) {
-        //   //     const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
-        //   //     const damageRoll = await workflow.activity.rollDamage({
-        //   //       ...config,
-        //   //       workflow: workflow
-        //   //     });
-        //   //     return;
-        //   //   }
-        //   // }
-
-        //   // we need to check if the activity has a previous attack
-        //   // or if it is a damage only roll, like from a spell with save
-        //   LogUtil.log('executeActivityRoll - save damage roll', [activity, config]);
-          
-        //   // Extract the roll configuration from the usage config
-        //   damageConfig = {
-        //     critical: config.usage.critical || {},
-        //     situational: config.usage.rolls[0].data.situational || "",
-        //     rollMode: config.message?.rollMode,
-        //     create: config.message?.create !== false
-        //   };
-
-        //   await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
-        //   LogUtil.log('executeActivityRoll - savedamage config with situational', [damageConfig]);
-        //   try {
-        //     await activity.use(config.usage, config.dialog, {
-        //       ...config.message,
-        //       create: true
-        //     });
-        //     await activity.rollDamage(damageConfig, config.dialog, config.message);
-        //   } catch (error) {
-        //     LogUtil.error(['executeActivityRoll - save damage roll error', error]);
-        //   } finally {
-        //     await activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
-        //   }
-        //   return;
-        //   // // For save activities, use the item's use() method to show the save card
-        //   // return await item.use({ activity: activity.id }, { skipRollDialog: config.fastForward });
         default:
           LogUtil.log('executeActivityRoll - unknown roll type', [normalizedRollType]);
           await activity.use(config.usage, config.dialog, config.message);

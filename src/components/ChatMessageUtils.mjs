@@ -371,17 +371,17 @@ export class ChatMessageUtils {
     let flavor = '';
     
     switch(rollType?.toLowerCase()) {
-      case 'ability':
-      case 'abilitycheck':
+      case ROLL_TYPES.ABILITY:
+      case ROLL_TYPES.ABILITY_CHECK:
         const abilityLabel = CONFIG.DND5E.abilities[rollKey]?.label || rollKey;
         flavor = game.i18n.format("DND5E.AbilityPromptTitle", { ability: abilityLabel });
         break;
-      case 'save':
-      case 'savingthrow':
+      case ROLL_TYPES.SAVE:
+      case ROLL_TYPES.SAVING_THROW:
         const saveLabel = CONFIG.DND5E.abilities[rollKey]?.label || rollKey;
         flavor = game.i18n.format("DND5E.SavePromptTitle", { ability: saveLabel });
         break;
-      case 'skill':
+      case ROLL_TYPES.SKILL:
         const skillLabel = CONFIG.DND5E.skills[rollKey]?.label || rollKey;
         const skillAbility = config?.ability || CONFIG.DND5E.skills[rollKey]?.ability || 'int';
         const skillAbilityLabel = CONFIG.DND5E.abilities[skillAbility]?.label || skillAbility;
@@ -390,20 +390,53 @@ export class ChatMessageUtils {
           ability: skillAbilityLabel
         });
         break;
-      case 'tool':
-        flavor = `Tool Check: ${rollKey}`;
+      case ROLL_TYPES.TOOL:
+        const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[rollKey];
+        let toolLabel = rollKey;
+        if (toolData?.id) {
+          const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
+          toolLabel = toolItem?.name || rollKey;
+        }
+        const toolAbility = config?.ability || toolData?.ability || 'int';
+        const toolAbilityLabel = CONFIG.DND5E.abilities[toolAbility]?.label || toolAbility;
+        flavor = game.i18n.format("DND5E.ToolPromptTitle", { 
+          tool: toolLabel, 
+          ability: toolAbilityLabel 
+        });
         break;
-      case 'initiative':
+      case ROLL_TYPES.CONCENTRATION:
+        flavor = game.i18n.localize("DND5E.ConcentrationBreaking") || "Concentration";
+        break;
+      case ROLL_TYPES.DEATH_SAVE:
+        flavor = game.i18n.localize("DND5E.DeathSave") || "Death Saving Throw";
+        break;
+      case ROLL_TYPES.HIT_DIE:
+      case 'hitdice':
+        flavor = game.i18n.localize("DND5E.HitDice") || "Hit Dice";
+        break;
+      case ROLL_TYPES.HEALING:
+        flavor = config?.flavor || game.i18n.localize("DND5E.Healing") || "Healing";
+        break;
+      case ROLL_TYPES.CUSTOM:
+        flavor = config?.flavor || rollKey || game.i18n.localize("DND5E.Roll") || "Custom Roll";
+        break;
+      case ROLL_TYPES.FORMULA:
+        flavor = config?.flavor || rollKey || game.i18n.localize("DND5E.Roll") || "Custom Formula";
+        break;
+      case ROLL_TYPES.ITEM_SAVE:
+        flavor = config?.flavor || game.i18n.localize("DND5E.SavingThrow") || "Saving Throw";
+        break;
+      case ROLL_TYPES.INITIATIVE:
         flavor = game.i18n.localize("DND5E.Initiative");
         break;
-      case 'attack':
-        flavor = config?.flavor || "Attack Roll";
+      case ROLL_TYPES.ATTACK:
+        flavor = config?.flavor || game.i18n.localize("DND5E.Attack") || "Attack Roll";
         break;
-      case 'damage':
-        flavor = config?.flavor || "Damage Roll";
+      case ROLL_TYPES.DAMAGE:
+        flavor = config?.flavor || game.i18n.localize("DND5E.Damage") || "Damage Roll";
         break;
       default:
-        flavor = config?.flavor || "";
+        flavor = config?.flavor || "Roll";
     }
     
     return flavor;
@@ -523,7 +556,16 @@ export class ChatMessageUtils {
       flagData.results[resultIndex].total = roll.total;
       
       try {
-        flagData.results[resultIndex].rollBreakdown = await roll.render();
+        let rollBreakdown = await roll.render();
+        // Remove the dice total element to avoid redundancy in group roll messages
+        // const tempDiv = document.createElement('div');
+        // tempDiv.innerHTML = rollBreakdown;
+        // const diceTotal = tempDiv.querySelector('.dice-tooltip .total');
+        // if (diceTotal) {
+        //   diceTotal.remove();
+        // }
+        flagData.results[resultIndex].rollBreakdown = rollBreakdown;
+        LogUtil.log('Roll breakdown rendered', [flagData.results[resultIndex].rollBreakdown]);
       } catch (error) {
         LogUtil.error('Error rendering roll breakdown', error);
         flagData.results[resultIndex].rollBreakdown = null;

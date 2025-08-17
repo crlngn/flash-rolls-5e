@@ -6,14 +6,15 @@ import { CustomRollDialog } from "./dialogs/CustomRollDialog.mjs";
 import { NotificationManager } from "./helpers/Helpers.mjs";
 import { ChatMessageUtils } from "./ChatMessageUtils.mjs";
 
+/**
+ * Methods for handling different types of rolls
+ * Called from GM side or player side to fulfill the roll request
+ */
 export const RollHandlers = {
   ability: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    LogUtil.log('RollHandlers.ability #1', [rollConfig]);
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {
       ability: requestData.rollKey
     });
-    LogUtil.log('RollHandlers.ability #2', [config.rolls?.[0]]);
-    LogUtil.log('RollHandlers.ability - messageConfig', messageConfig);
     
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
@@ -38,9 +39,6 @@ export const RollHandlers = {
   },
 
   skill: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    LogUtil.log('RollHandlers.skill #1', [requestData, rollConfig, dialogConfig]);
-
-    // Get the default ability for this skill from the actor
     const defaultAbility = actor.system.skills?.[requestData.rollKey]?.ability || 
                           CONFIG.DND5E.skills?.[requestData.rollKey]?.ability || 
                           undefined;
@@ -51,7 +49,6 @@ export const RollHandlers = {
       ability: requestData.config.ability || defaultAbility 
     });
     
-    // If we have a custom ability, set the flavor in the message config
     if (requestData.config.ability && dialogConfig.configure === false) {
       const skillLabel = CONFIG.DND5E.skills[requestData.rollKey]?.label || requestData.rollKey;
       const abilityLabel = CONFIG.DND5E.abilities[requestData.config.ability]?.label || requestData.config.ability;
@@ -62,16 +59,11 @@ export const RollHandlers = {
       messageConfig.data = messageConfig.data || {};
       messageConfig.data.flavor = flavor;
     }
-    LogUtil.log('RollHandlers.skill #2', [config, dialogConfig, messageConfig]);
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
   tool: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
-    LogUtil.log('RollHandlers.tool #1', [requestData, rollConfig]);
-
-    // Get the default ability for this tool from the actor
-    // Tools can have custom abilities set per actor, or use the system default
     const toolConfig = actor.system.tools?.[requestData.rollKey];
     const defaultAbility = toolConfig?.ability || 
                           CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey]?.ability ||
@@ -83,7 +75,6 @@ export const RollHandlers = {
       ability: requestData.config.ability || defaultAbility
     });
     
-    // If we have a custom ability, set the flavor in the message config
     if (requestData.config.ability && dialogConfig.configure === false) {
       const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[requestData.rollKey];
       let toolLabel = requestData.rollKey;
@@ -134,20 +125,15 @@ export const RollHandlers = {
 
     let tokenActor = actor;
     if (!actor.isToken) {
-      // Find a token for this actor in the current scene
       const token = canvas.tokens.placeables.find(t => t.actor?.id === actor.id);
       if (token) {
         tokenActor = token.actor;
       } else {
-        ui.notifications.error(game.i18n.format("COMBAT.NoneActive"));
+        ui.notifications.error(game.i18n.localize("FLASH_ROLLS.notifications.noTokensForInitiative"));
         return;
       }
     }
     await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
-
-    LogUtil.log('RollHandlers.initiative - START', [
-      actor, requestData, rollConfig, dialogConfig
-    ]);
     
     try {
       if (dialogConfig.configure) {
@@ -165,7 +151,6 @@ export const RollHandlers = {
             rolls: initiativeConfig.rolls,
             groupRollId: requestData.groupRollId
           };
-          LogUtil.log('RollHandlers.initiative - Setting tempConfig with groupRollId', [requestData.groupRollId, actor.name, tokenActor.name]);
           await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
           await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         }
@@ -174,12 +159,11 @@ export const RollHandlers = {
         await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
 
       } else {
-        LogUtil.log('RollHandlers.initiative - Not dialog');
         const tempConfig = {
           rollMode: requestData.config.rollMode || game.settings.get("core", "rollMode"),
           groupRollId: requestData.groupRollId
         };
-        LogUtil.log('RollHandlers.initiative - Setting tempConfig (no dialog) with groupRollId', [requestData.groupRollId, actor.name, tokenActor.name]);
+
         await actor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
         await tokenActor.setFlag(MODULE_ID, 'tempInitiativeConfig', tempConfig);
 
@@ -191,8 +175,6 @@ export const RollHandlers = {
         await tokenActor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
         await actor.unsetFlag(MODULE_ID, 'tempInitiativeConfig');
       }
-      
-      LogUtil.log('RollHandlers.initiative - COMPLETE');
     } catch (error) {
       LogUtil.error('RollHandlers.initiative - Error', [error]);
       NotificationManager.notify('error', `Initiative roll failed: ${error.message}`);
@@ -217,6 +199,7 @@ export const RollHandlers = {
       denomination: requestData.rollKey // The hit die denomination (d6, d8, etc.)
     });
     LogUtil.log('RollHandlers.hitdie', [config, dialogConfig, messageConfig]);
+    await ChatMessageUtils.addGroupRollFlag(messageConfig, requestData, actor);
     await actor.rollHitDie(config, dialogConfig, messageConfig);
   },
 

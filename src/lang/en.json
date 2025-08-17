@@ -15,15 +15,20 @@
       "noTargetedTokens": "No targeted tokens found for the roll.",
       "settingsUpdated": "Settings updated",
       "invalidFormula": "Invalid formula: {formula}",
-      "actorAddedToFavorites": "{actor} added to Flash Rolls favorites",
-      "actorRemovedFromFavorites": "{actor} removed from Flash Rolls favorites",
+      "actorAddedToFavorites": "{actor} was added to Flash Rolls favorites",
+      "actorRemovedFromFavorites": "{actor} was removed from Flash Rolls favorites",
+      "actorBlocked": "{actor} was blocked from Flash Rolls menu",
+      "actorUnblocked": "{actor} was unblocked from Flash Rolls menu",
       "actorsSkippedInitiative": "No tokens found for {actors}. Initiative not rolled.",
-      "noTokensForInitiative": "The selected actors do not have tokens on the scene. Initiative not rolled."
+      "noTokensForInitiative": "The selected actors do not have tokens on the scene. Initiative not rolled.",
+      "noCharactersForHitDie": "Hit dice can only be rolled for player characters, not NPCs."
     },
     "contextMenu": {
       "addToFavorites": "Add to Flash Rolls Menu",
       "removeFromFavorites": "Remove from Flash Rolls Menu",
-      "toggleFavorite": "Toggle on Flash Menu"
+      "toggleFavorite": "Toggle on Flash Menu",
+      "blockFromMenu": "Block from Flash Rolls Menu",
+      "unblockFromMenu": "Unblock from Flash Rolls Menu"
     },
     "chat": {
       "requestedBy": "[Requested by {gm}]"
@@ -197,7 +202,7 @@
         "rollLocally": "Roll Locally",
         "hitDie": {
           "refillTitle": "No Hit Dice Available",
-          "refillMessage": "No hit dice available for {actors}. has no hit dice available. Would you like to refill their hit dice and send the request?",
+          "refillMessage": "No hit dice available for {actors}. Would you like to refill their hit dice and send the request?",
           "refillMessageLocal": "No hit dice available for {actors}. Would you like to refill their hit dice and roll?",
           "refillAndSend": "Refill & Send",
           "refillAndRoll": "Refill & Roll",
