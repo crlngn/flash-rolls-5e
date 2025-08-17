@@ -84,6 +84,9 @@
             <div class="actor-img">
               <img src="{{ actor.img }}" alt="{{ actor.name }}" />
             </div>
+            <div class="actor-stat-bar" data-stat="hp">
+              <span class="bar" style="width: {{ actor.hpPercent }}%;background-color: {{ actor.hpColor }};"></span>
+            </div>
           </div>
         </li>
       {{/each}}

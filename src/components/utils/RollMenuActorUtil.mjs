@@ -48,6 +48,23 @@ export class RollMenuActorUtil {
   }
 
   /**
+   * Get HP percentage and color for an actor
+   * @param {Actor} actor - The actor to get HP data for
+   * @returns {{hpPercent: number, hpColor: string}} HP percentage and color
+   */
+  static getActorHPData(actor) {
+    const hp = actor.system.attributes?.hp;
+    if (!hp || !hp.max) {
+      return { hpPercent: 100, hpColor: 'var(--fr5e-color-hp-high)' };
+    }
+    
+    const hpPercent = Math.round((hp.value / hp.max) * 100);
+    const hpColor = hpPercent > 50 ? 'var(--fr5e-color-hp-high)' : 'var(--fr5e-color-hp-low)';
+    
+    return { hpPercent, hpColor };
+  }
+
+  /**
    * Get valid actor IDs based on current tab
    * @param {Array<string>} selectedActorIds - Array of selected actor IDs
    * @param {string} currentTab - Current tab ('pc' or 'npc')

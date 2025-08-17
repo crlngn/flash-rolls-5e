@@ -84,17 +84,24 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     for (const actor of actors) {
       if (actor.type !== 'character' && actor.type !== 'npc') continue;
       
-      const createActorData = (token = null) => ({
-        id: actor.id,
-        uuid: actor.uuid,
-        name: token ? token.name : actor.name,
-        img: actor.img,
-        selected: this.selectedActors.has(token?.id || actor.id),
-        crlngnStats: RollMenuActorUtil.getActorStats(actor),
-        tokenId: token?.id || null,
-        isToken: !!token,
-        uniqueId: token?.id || actor.id
-      });
+      const createActorData = (token = null) => {
+        // Use token's actor for stats if available, otherwise use base actor
+        const actorForStats = token?.actor || actor;
+        const hpData = RollMenuActorUtil.getActorHPData(actorForStats);
+        return {
+          id: actor.id,
+          uuid: actor.uuid,
+          name: token ? token.name : actor.name,
+          img: actor.img,
+          selected: this.selectedActors.has(token?.id || actor.id),
+          crlngnStats: RollMenuActorUtil.getActorStats(actorForStats),
+          hpPercent: hpData.hpPercent,
+          hpColor: hpData.hpColor,
+          tokenId: token?.id || null,
+          isToken: !!token,
+          uniqueId: token?.id || actor.id
+        };
+      };
       
       // Check if owned by a player (not GM)
       const isPlayerOwned = Object.entries(actor.ownership)
@@ -361,8 +368,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }, 100);
   }
   
-  // Note: _onActorUpdate method removed - now handled by HooksUtil
-  
   /**
    * Handle item updates on actors
    * Re-renders the menu if the item affects character AC
@@ -399,10 +404,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       }, 500);
     }
   }
-  
-  // Note: _onSettingUpdate method removed - now handled by HooksUtil
-  
-  // Note: _onSceneUpdate method removed - now handled by HooksUtil
 
   /**
    * Handle clicks outside the menu
@@ -1538,16 +1539,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         if(hdData.value > 0){
           actualRollKey = hdData.largestAvailable;
         }
-        // if (hdData) {
-        //   const denominations = ['d6', 'd8', 'd10', 'd12', 'd20'];
-        //   for (const denom of denominations) {
-        //     const available = hdData[denom]?.value || 0;
-        //     if (available > 0) {
-        //       actualRollKey = denom;
-        //       break;
-        //     }
-        //   }
-        // }
         if (!actualRollKey) {
           LogUtil.warn('_initiateRoll - No hit dice available after orchestration refill', [actor.name]);
           NotificationManager.notify('warn', game.i18n.format("FLASH_ROLLS.notifications.noHitDice", { 

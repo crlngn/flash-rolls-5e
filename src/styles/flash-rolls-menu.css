@@ -196,6 +196,7 @@ body > .actor.drag-wrapper {
   align-items: flex-start;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   margin:  0 0 0.1em 0;
   padding: 0;
   gap: 6px;
@@ -267,12 +268,13 @@ body > .actor.drag-wrapper {
 
   .actor-data {
     align-self: stretch;
-    align-items: center;
+    align-items: flex-start;
     display: flex;
+    flex: 0 0 calc(100% - 3.15rem);
     flex-direction: column;
-    gap: 3px;
-    flex: 1 1 auto;
-    min-width: 0;
+    gap: 0.25rem;
+    row-gap: 0.1rem;
+    width: calc(100% - 3.15rem);
   
     .actor-name {
       width: 100%;
@@ -312,6 +314,23 @@ body > .actor.drag-wrapper {
       }
     }
   }
+
+  > .actor-stat-bar {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 4px;
+    background-color: var(--control-bg-color, rgba(0, 0, 0, 0.35));
+    border: 1px solid var(--control-bg-color, rgba(0, 0, 0, 1));
+    border-radius: 2px;
+
+    .bar{
+      height: 100%;
+      background-color: var(--dnd5e-color-success);
+      border-radius: 2px;
+      display: block;
+    }
+  }
+
 }
 #flash-rolls-menu > div > ul.actors > li.actor-list > ul > li.actor{
   margin-bottom: 0;
@@ -695,6 +714,7 @@ body.crlngn-tabs #flash-rolls-menu.docked-right {
   align-items: flex-start;
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   margin: 0;
   padding: 0;
   gap: 6px;

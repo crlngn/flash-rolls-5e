@@ -532,6 +532,7 @@ export class HooksUtil {
   }
 
   static _onActorUpdate(actor, changes, options, userId) {
+    LogUtil.log("HooksUtil._onActorUpdate", [actor, changes]);
     const ownershipChanged = changes['==ownership'] !== undefined;
     const statsChanged = changes.system?.attributes?.hp || 
                         changes.system?.attributes?.ac || 
@@ -545,9 +546,10 @@ export class HooksUtil {
       clearTimeout(this._actorUpdateTimeout);
     }
     this._actorUpdateTimeout = setTimeout(() => {
+      LogUtil.log("HooksUtil._onActorUpdate - Re-rendering roll requests menu due to actor update", [actor, changes]);
       RollRequestsMenu.refreshIfOpen();
       this._actorUpdateTimeout = null;
-    }, 100);
+    }, 250);
   }
 
   /**
