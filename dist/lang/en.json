@@ -77,7 +77,7 @@
         "hint": "Enable to skip the Roll Configuration windows when you request rolls from a player, or when rolling for groups of multiple NPCs. Will use default configurations."
       },
       "rollInterceptionEnabled": {
-        "label": "Intercept GM Rolls for Players",
+        "label": "Redirect GM Rolls from Player sheets (GM)",
         "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owner player, if they are online."
       },
       "showOfflineNotifications": {

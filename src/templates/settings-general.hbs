@@ -47,9 +47,27 @@
   </div>
 
   <div class="form-group">
+    <label for="consumptionConfigMode">{{fields.consumptionConfigMode.label}}</label>
+    <select name="consumptionConfigMode" data-current-value="{{consumptionConfigMode}}">
+      {{#each fields.consumptionConfigMode.choices}}
+      <option value="{{@key}}" {{#if (eq @key ../consumptionConfigMode)}}selected{{/if}}>
+        {{this}}
+      </option>
+      {{/each}}
+    </select>
+    <p class="hint">{{{fields.consumptionConfigMode.hint}}}</p> 
+  </div>
+
+  <div class="form-group">
     <label for="showOnlyPCsWithToken">{{fields.showOnlyPCsWithToken.label}}</label>
     <input type="checkbox" name="showOnlyPCsWithToken" {{#if showOnlyPCsWithToken}}checked{{/if}} />
     <p class="hint">{{{fields.showOnlyPCsWithToken.hint}}}</p> 
+  </div>
+
+  <div class="form-group">
+    <label for="publicPlayerRolls">{{fields.publicPlayerRolls.label}}</label>
+    <input type="checkbox" name="publicPlayerRolls" {{#if publicPlayerRolls}}checked{{/if}} />
+    <p class="hint">{{{fields.publicPlayerRolls.hint}}}</p> 
   </div>
   
   {{!-- <div class="form-group">

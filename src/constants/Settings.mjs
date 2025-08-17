@@ -24,18 +24,22 @@ export const getSettings = () => {
         'rollInterceptionEnabled',
         'useGMTargetTokens',
         'templateAutoTarget',
+        'consumptionConfigMode',
         'showOfflineNotifications',
         'initiateCombatOnRequest',
-        'showOnlyPCsWithToken'
+        'showOnlyPCsWithToken',
+        'publicPlayerRolls'
       ],
       default: {
         showMenuOnLoad: false,
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
         templateAutoTarget: 1,
+        consumptionConfigMode: 4,
         showOfflineNotifications: true,
         initiateCombatOnRequest: true,
-        showOnlyPCsWithToken: true
+        showOnlyPCsWithToken: true,
+        publicPlayerRolls: true
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -127,7 +131,7 @@ export const getSettings = () => {
       },
       default: 4,
       scope: SETTING_SCOPE.world,
-      config: true
+      config: false
     },
 
     skipRollDialog: {
@@ -168,7 +172,7 @@ export const getSettings = () => {
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.world,
-      config: true
+      config: false
     },
 
     showOfflineNotifications: {
@@ -248,9 +252,9 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.showMenuOnLoad.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: false,
-      scope: SETTING_SCOPE.client,
-      config: true
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
     }
   };
 };
