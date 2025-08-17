@@ -492,7 +492,6 @@ export class ChatMessageUtils {
       return;
     }
     
-    // Queue updates to prevent race conditions
     const currentUpdate = this.updateQueue.get(groupRollId) || Promise.resolve();
     const nextUpdate = currentUpdate.then(() => this._performGroupRollUpdate(groupRollId, uniqueId, roll));
     this.updateQueue.set(groupRollId, nextUpdate);
@@ -549,7 +548,25 @@ export class ChatMessageUtils {
     
     const flagData = message.getFlag(MODULE_ID, 'rollData');
     
-    const resultIndex = flagData.results.findIndex(r => r.uniqueId === uniqueId);
+    let resultIndex = flagData.results.findIndex(r => r.uniqueId === uniqueId);
+    
+    // If no match found by uniqueId, try multiple fallback strategies
+    if (resultIndex === -1) {
+      // Strategy 1: Try matching by actorId directly
+      resultIndex = flagData.results.findIndex(r => r.actorId === uniqueId);
+      
+      // Strategy 2: If uniqueId is a tokenId, try finding by tokenId property
+      if (resultIndex === -1) {
+        resultIndex = flagData.results.findIndex(r => r.tokenId === uniqueId);
+      }
+      
+      // Strategy 3: Try extracting actorId from speaker and match that
+      if (resultIndex === -1 && message.speaker?.actor) {
+        const speakerActorId = message.speaker.actor;
+        resultIndex = flagData.results.findIndex(r => r.actorId === speakerActorId);
+      }
+    }
+    
     if (resultIndex !== -1) {
       flagData.results[resultIndex].rolled = true;
       flagData.results[resultIndex].showDice = false;
@@ -565,7 +582,6 @@ export class ChatMessageUtils {
         //   diceTotal.remove();
         // }
         flagData.results[resultIndex].rollBreakdown = rollBreakdown;
-        LogUtil.log('Roll breakdown rendered', [flagData.results[resultIndex].rollBreakdown]);
       } catch (error) {
         LogUtil.error('Error rendering roll breakdown', error);
         flagData.results[resultIndex].rollBreakdown = null;
@@ -713,7 +729,6 @@ export class ChatMessageUtils {
     const uniqueId = tokenId || actorId;
     const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') || actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
 
-    LogUtil.log('interceptRollMessage #1', [actor, message.getFlag(MODULE_ID, 'groupRollId'), actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId]);
     if (!groupRollId) {
       LogUtil.log('interceptRollMessage #2 - no groupRollId in flag', [actor.name]);
       return;
@@ -829,6 +844,13 @@ export class ChatMessageUtils {
     if (!game.user.isGM && requestData.groupRollId && actor) {
       await actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
       LogUtil.log('addGroupRollFlag - Stored tempGroupRollId on actor for player', [requestData.groupRollId, actor.id]);
+      
+      // Also set the flag on the base actor if this is a token actor
+      // This ensures the flag is found when dialogs are shown and roll context changes
+      if (actor.isToken && actor.actor) {
+        await actor.actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
+        LogUtil.log('addGroupRollFlag - Also stored tempGroupRollId on base actor for player', [requestData.groupRollId, actor.actor.id]);
+      }
       
       if (!this.groupRollMessages.has(requestData.groupRollId)) {
         const messages = game.messages.contents;

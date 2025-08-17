@@ -1546,7 +1546,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {Object} rollProcessConfig 
    */
   async _handleGMRollsWithTokens(actorEntries, requestType, rollKey, rollProcessConfig) {
-    LogUtil.log('_handleGMRollsWithTokens', [actorEntries.length, requestType, rollKey, rollProcessConfig]);
+    LogUtil.log('_handleGMRollsWithTokens', [actorEntries, requestType, rollKey, rollProcessConfig]);
     
     for (const entry of actorEntries) {
       if (entry.tokenId) {
@@ -1600,7 +1600,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     LogUtil.log('_initiateRoll', [actor, requestType, rollKey, rollProcessConfig]);
     try {
       const normalizedType = requestType.toLowerCase();
-      actor = rollProcessConfig.subject || actor;
+      // actor = rollProcessConfig.subject || actor;
       let actualRollKey = rollKey;
       if (normalizedType === ROLL_TYPES.HIT_DIE) {
         const hdData = actor.system.attributes.hd;

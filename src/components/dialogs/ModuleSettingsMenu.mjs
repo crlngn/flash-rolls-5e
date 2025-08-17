@@ -29,7 +29,7 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     window: {
       icon: "fas fa-cog",
       title: "FLASH_ROLLS.settings.moduleSettingsMenu.title",
-      contentClasses: ["standard-form", "crlngn", "tabbed-settings"],
+      contentClasses: ["standard-form", "crlngn", "flash5e", "tabbed-settings"],
       resizable: true
     },
     position: {
