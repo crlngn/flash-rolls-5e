@@ -113,7 +113,7 @@
       },
       "showOnlyPCsWithToken": {
         "label": "Show Only PCs with Tokens",
-        "hint": "When enabled, the PC tab in the roll menu will only show player characters that have tokens in the current scene."
+        "hint": "When enabled, the PC tab in the roll menu will only show player characters that have tokens in the current scene. If disabled, all characters with player ownership will be shown."
       },
       "favoriteActorsList": {
         "label": "Favorite Actors List",
