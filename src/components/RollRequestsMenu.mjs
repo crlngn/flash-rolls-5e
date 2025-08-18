@@ -309,13 +309,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
     
     this._attachListeners();
-
     const dropZones = this.element.querySelectorAll('.actor-list');
-    LogUtil.log('_onRender - Found drop zones:', [dropZones]);
     
-    dropZones.forEach((zone, index) => {
-      LogUtil.log(`_onRender - Setting up manual listeners for drop zone ${index}:`, [zone]);
-      
+    dropZones.forEach((zone, index) => {      
       zone.removeEventListener('dragover', this._boundDragOver);
       zone.removeEventListener('drop', this._boundDrop);
       zone.removeEventListener('dragenter', this._boundDragEnter);
@@ -348,6 +344,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     });
 
     adjustMenuOffset();
+
+    SettingsUtil.updateColorScheme();
+    this.element.classList.add('theme-' + SettingsUtil.coreColorScheme);
     
     if (this.optionsExpanded) {
       const optionsToggle = this.element.querySelector('.options-toggle');
@@ -1781,6 +1780,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (this.#instance && this.#instance.rendered) {
       LogUtil.log('RollRequestsMenu.refreshIfOpen - refreshing menu');
       this.#instance.render();
+      SettingsUtil.updateColorScheme();
+      this.#instance.element.classList.add('theme-' + SettingsUtil.coreColorScheme);
     }
   }
 

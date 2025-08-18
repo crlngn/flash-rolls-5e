@@ -502,6 +502,9 @@ export class HooksUtil {
       
       LogUtil.log('HooksUtil._onSettingUpdate - Re-rendering roll requests menu due to setting change', [setting.key]);
       RollRequestsMenu.refreshIfOpen();
+    }else if(setting.key === `core.uiConfig`){
+      SettingsUtil.updateColorScheme();
+      RollRequestsMenu.refreshIfOpen();
     }
   }
 

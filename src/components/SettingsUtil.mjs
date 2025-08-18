@@ -7,6 +7,8 @@ import { LogUtil } from "./LogUtil.mjs";
  * Utility class for managing module settings
  */
 export class SettingsUtil {
+  static coreColorScheme = "dark";
+  
   /**
    * Register all module settings
    * @static
@@ -44,6 +46,7 @@ export class SettingsUtil {
         LogUtil.log(`Setting ${setting.tag} already registered or error:`, error);
       }
     });
+    
   }
 
   /**
@@ -67,6 +70,15 @@ export class SettingsUtil {
         game.settings.registerMenu(MODULE_ID, tabbedMenuData.tag, tabbedMenuObj);
       }
     }
+
+    SettingsUtil.updateColorScheme();
+  }
+
+  static updateColorScheme(){
+    // const uiConfig = SettingsUtil.get("uiConfig", "core"); 
+    const foundryUiConfig = game.settings.get('core','uiConfig'); 
+    SettingsUtil.coreColorScheme = foundryUiConfig?.colorScheme?.interface || "dark";
+    LogUtil.log('SettingsUtil.updateColorScheme', [foundryUiConfig, SettingsUtil.coreColorScheme]);
   }
   
   /**

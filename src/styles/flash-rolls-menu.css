@@ -17,6 +17,16 @@
   background: transparent;
   transition: right 0.25s ease-in-out;
 
+  input {
+    background: var(--fr5e-menu-background);
+    color: var(--fr5e-text-color);
+    border: 1px solid var(--fr5e-menu-background);
+
+    &:focus, &:hover{
+      border: 1px solid var(--color-warm-2);
+    }
+  }
+
   &.hidden{
     display: none;
   }
@@ -30,17 +40,8 @@
     right: 0;
     bottom: 0;
     top: auto;
-    background: var(--control-bg-color, transparent);
+    background: var(--fr5e-menu-background, transparent);
   }
-}
-
-#interface.theme-dark #flash-rolls-menu,
-body.theme-dark > #flash-rolls-menu {
-  color: var(--color-text-light-highlight, var(--color-light-1));
-}
-#interface.theme-light #flash-rolls-menu,
-body.theme-light > #flash-rolls-menu {
-  color: var(--color-text-dark-highlight, var(--color-dark-1));
 }
 
 #flash-rolls-menu > div {
@@ -66,12 +67,13 @@ body.theme-light > #flash-rolls-menu {
   max-height: 100%;
   height: auto;
   overflow-y: hidden;
-  border: 1px solid var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  border: 1px solid var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
   font-size: var(--font-size-13);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  background: var(--fr5e-menu-background);
+  color: var(--fr5e-text-color);
 
   &.actors{
     padding: 2em 1em 1.5em 1em;
@@ -188,7 +190,7 @@ body.theme-light > #flash-rolls-menu {
 }
 
 body > .actor.drag-wrapper {
-  background-color: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  background-color: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
 }
 
 .actor.drag-wrapper,
@@ -321,8 +323,8 @@ body > .actor.drag-wrapper {
     flex: 0 0 100%;
     width: 100%;
     height: 4px;
-    background-color: var(--control-bg-color, rgba(0, 0, 0, 0.35));
-    border: 1px solid var(--control-bg-color, rgba(0, 0, 0, 1));
+    background-color: var(--fr5e-menu-background, rgba(0, 0, 0, 0.35));
+    border: 1px solid var(--fr5e-menu-background, rgba(0, 0, 0, 1));
     border-radius: 2px;
 
     .bar{
@@ -594,8 +596,9 @@ body > .actor.drag-wrapper {
   left: 0;
   right: 0;
   height: 1.2em;
-  background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
-  border: 1px solid var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  background: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
+  border: 1px solid var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
+  color: var(--fr5e-text-color);
   border-bottom: none;
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
@@ -613,8 +616,7 @@ body > .actor.drag-wrapper {
   }
   
   &:hover {
-    background: var(--control-bg-color-hover, rgba(30, 30, 30, 0.95));
-    
+    opacity: 0.8;
     i {
       opacity: 0.8;
     }
@@ -654,7 +656,7 @@ body > .actor.drag-wrapper {
   --flash-rolls-menu-offset: 0px;
   
   .drag-handle {
-    background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+    background: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
     
     i {
       opacity: 0.8;
@@ -677,7 +679,7 @@ body > .actor.drag-wrapper {
   animation: border-animate 0.5s infinite linear;
   
   .drag-handle {
-    background: var(--control-bg-color-hover, rgba(30, 30, 30, 0.95));
+    opacity: 0.8;
   }
 }
 
@@ -750,7 +752,7 @@ body.crlngn-tabs #flash-rolls-menu.docked-right {
 /* Dragged wrapper styling when outside menu hierarchy */
 .actor-drag-wrapper.dragging {
   /* Preserve styling when dragged */
-  background: var(--control-bg-color, rgba(20, 20, 20, 0.9));
+  background: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
   border-radius: 3px;
   border: 1px solid var(--color-warm-2);
   color: var(--color-text-light-highlight, var(--color-light-1));
