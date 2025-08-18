@@ -192,11 +192,11 @@ export class ActivityUtil {
           };
 
           // For damage-only and save activities on player side, use() internally triggers rollDamage
-          // So we only need to call use() and skip the explicit rollDamage call later
+          // So we call use() and skip the explicit rollDamage call later
           let damageHandledByUse = false;
           if(!game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE || activity.type === ACTIVITY_TYPES.DAMAGE || !activity?.attack)){
             await activity.use(config.usage, config.dialog, config.message);
-            damageHandledByUse = true;
+            damageHandledByUse = activity.type === ACTIVITY_TYPES.DAMAGE;
           }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
@@ -227,7 +227,6 @@ export class ActivityUtil {
               if(!damageHandledByUse){
                 await activity.rollDamage(damageConfig, config.dialog, config.message);
               }
-              // }
             }
           } catch (error) {
             LogUtil.error(['executeActivityRoll - damage roll error', error]);
