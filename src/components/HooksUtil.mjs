@@ -806,7 +806,7 @@ export class HooksUtil {
       return;
     }
     
-    if(activity.type === ACTIVITY_TYPES.SAVE){ // && (dialog.isRollRequest || config.isRollRequest)
+    if(game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE)){ 
       const isOwnerActive = actorOwner && actorOwner.active && !actorOwner.isGM;
 
       LogUtil.log("_onPostUseActivity #1", [activity, config]);

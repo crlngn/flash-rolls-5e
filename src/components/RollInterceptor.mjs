@@ -107,16 +107,16 @@ export class RollInterceptor {
       }
     }
     
-    if(rollType === ROLL_TYPES.DAMAGE){
-      // Check if this damage roll is from a local execution
-      const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
-      config.scaling = true;
-      LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config, config.subject?.item, moduleFlags]);
-      if(moduleFlags){
-        LogUtil.log('RollInterceptor._handlePreRoll - found module flags, skipping interception', [moduleFlags]);
-        return;
-      }
-    }
+    // if(rollType === ROLL_TYPES.DAMAGE){
+    //   // Check if this damage roll is from a local execution
+    //   const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+    //   config.scaling = true;
+    //   LogUtil.log('RollInterceptor._handlePreRoll - is Damage roll', [config, config.subject?.item, moduleFlags]);
+    //   if(moduleFlags){
+    //     LogUtil.log('RollInterceptor._handlePreRoll - found module flags, skipping interception', [moduleFlags]);
+    //     return;
+    //   }
+    // }
     // Override rollType if this is actually an initiative roll
     if (isInitiativeRoll && rollType === ROLL_TYPES.ABILITY) {
       LogUtil.log('RollInterceptor._handlePreRoll - Overriding ability to initiative', [hookNames]);
@@ -176,11 +176,6 @@ export class RollInterceptor {
       this._showGMConfigDialog(actor, owner, rollType, config, dialog, message); 
       return false;
     }
-    
-    // if (dialog.configure===false || !config.isRollRequest || config.skipRollDialog===true || config.fastForward===true) {
-    //   LogUtil.log('_handlePreRoll - skipping interception (config flags)', [dialog.configure, config]);
-    //   return;
-    // }
 
     if (config.sendRequest===false) { //|| config.fastForward===true || config.skipRollDialog===true || 
       LogUtil.log('_handlePreRoll - skipping interception', [dialog.configure, config.sendRequest]);

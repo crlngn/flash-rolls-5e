@@ -210,7 +210,6 @@ export const RollHandlers = {
 
   /**
    * Handle activity-based rolls (attack, damage, item save)
-   * SIMPLIFIED VERSION: No attack-specific options
    * @param {Actor5e} actor - The actor performing the roll
    * @param {string} rollType - The type of roll from ROLL_TYPES
    * @param {Object} requestData - The roll request data

@@ -247,12 +247,12 @@ export const getSettings = () => {
     },
 
     showMenuOnLoad: {
-      tag: "show-menu-on-load",
+      tag: "show-menu-on-world-load",
       label: game.i18n.localize("FLASH_ROLLS.settings.showMenuOnLoad.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.showMenuOnLoad.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
+      default: false,
       scope: SETTING_SCOPE.world,
       config: false
     }
