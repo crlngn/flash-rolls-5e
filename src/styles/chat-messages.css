@@ -63,8 +63,8 @@
   }
 
   .actor-image {
-    width: 36px;
-    height: 36px;
+    width: 2em;
+    height: 2em;
     object-fit: cover;
     margin-right: 0.25em;
   }

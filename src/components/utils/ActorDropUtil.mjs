@@ -74,10 +74,6 @@ export class ActorDropUtil {
     event.preventDefault();
     event.stopPropagation(); // Prevent bubbling to parent elements
     
-    LogUtil.log('ActorDropUtil.handleDrop - DROP EVENT TRIGGERED!', [event, event.currentTarget, event.target]);
-    LogUtil.log('ActorDropUtil.handleDrop - dataTransfer types:', [event.dataTransfer.types]);
-    LogUtil.log('ActorDropUtil.handleDrop - dataTransfer items length:', [event.dataTransfer.items.length]);
-    
     for (let i = 0; i < event.dataTransfer.types.length; i++) {
       const type = event.dataTransfer.types[i];
       const data = event.dataTransfer.getData(type);
@@ -102,8 +98,7 @@ export class ActorDropUtil {
         ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.notifications.actorNotFound") || "Actor not found");
         return;
       }
-
-      LogUtil.log('ActorDropUtil.handleDrop - Processing actor', [actor.name, actor.id]);
+      LogUtil.log('ActorDropUtil.handleDrop - Processing actor', [actor]);
 
       const isPC = isPlayerOwned(actor);
       const targetTab = isPC ? 'pc' : 'npc';
