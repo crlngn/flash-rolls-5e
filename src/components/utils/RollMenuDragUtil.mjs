@@ -271,8 +271,21 @@ export class RollMenuDragUtil {
    */
   static applyCustomPosition(menu, position) {
     if (!position || !position.isCustom) return;
+
+    const menuSize = menu.element.getBoundingClientRect();
     
     LogUtil.log('RollMenuDragUtil.applyCustomPosition', [position]);
+    if(position.x < 0){
+      position.x = 0;
+    }else if (position.x > window.innerWidth - menuSize.width){
+      position.x = window.innerWidth - menuSize.width;
+    }
+    
+    if(position.y < 0){
+      position.y = 0;
+    }else if (position.y > window.innerHeight - menuSize.height){
+      position.y = window.innerHeight - menuSize.height;
+    }
     
     menu.isCustomPosition = true;
     menu.customPosition = position;
@@ -322,6 +335,28 @@ export class RollMenuDragUtil {
    * @param {Object|null} position 
    */
   static async saveCustomPosition(position) {
+    if (!position) {
+      await game.user.setFlag(MODULE.ID, 'menuCustomPosition', null);
+      return;
+    }
+
+    const menu = document.querySelector('.flash-rolls-menu');
+    if (menu) {
+      const menuSize = menu.getBoundingClientRect();
+
+      if(position.x < 0){
+        position.x = 0;
+      }else if (position.x > window.innerWidth - menuSize.width){
+        position.x = window.innerWidth - menuSize.width;
+      }
+      
+      if(position.y < 0){
+        position.y = 0;
+      }else if (position.y > window.innerHeight - menuSize.height){
+        position.y = window.innerHeight - menuSize.height;
+      }
+    }
+    
     await game.user.setFlag(MODULE.ID, 'menuCustomPosition', position);
   }
   

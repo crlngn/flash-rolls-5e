@@ -5,12 +5,10 @@ import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../constants/Settings.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
 import { ActivityUtil } from './ActivityUtil.mjs';
-import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from './dialogs/gm-dialogs/index.mjs';
 import { SidebarUtil } from './SidebarUtil.mjs';
 import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, adjustMenuOffset, getActorData } from './helpers/Helpers.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { RollHelpers } from './helpers/RollHelpers.mjs';
-import { CustomRollDialog } from './dialogs/CustomRollDialog.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
 import { GeneralUtil } from './helpers/GeneralUtil.mjs';
 import { ModuleHelpers } from './helpers/ModuleHelpers.mjs';
@@ -245,49 +243,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _renderFrame(options) {
     const frame = await super._renderFrame(options);
     
+    // Load and store custom position for use in _onRender
     const customPosition = this.customPosition || RollMenuDragUtil.loadCustomPosition();
-    if (customPosition?.isCustom && frame) {
-      if (customPosition.dockedRight) {
-        frame.style.position = 'fixed';
-        frame.style.top = `${customPosition.y}px`;
-        frame.style.left = '';
-        frame.style.right = '';
-        frame.style.bottom = '';
-        frame.classList.add('docked-right');
-        
-        const chatNotifications = document.querySelector('#chat-notifications');
-        if (chatNotifications) {
-          chatNotifications.insertBefore(frame, chatNotifications.firstChild);
-        }
-        
-        adjustMenuOffset();
-        this.isCustomPosition = true;
-        this.customPosition = customPosition;
-      } else {
-        frame.style.position = 'fixed';
-        frame.style.top = `${customPosition.y}px`;
-        frame.style.left = `${customPosition.x}px`;
-        frame.style.right = 'auto';
-        frame.style.bottom = 'auto';
-        frame.classList.add('custom-position');
-        
-        const remInPixels = parseFloat(getComputedStyle(document.documentElement).fontSize) * 15;
-        if (customPosition.x < remInPixels) {
-          frame.classList.add('left-edge');
-        }
-        
-        document.body.appendChild(frame);
-        const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
-        
-        GeneralUtil.addCSSVars('--flash-rolls-menu-offset', isCrlngnUIOn ? '0px' : '16px');
-        this.isCustomPosition = true;
-        this.customPosition = customPosition;
-      }
-    } else {
-      const chatNotifications = document.querySelector('#chat-notifications');
-      if (chatNotifications && frame) {
-        chatNotifications.insertBefore(frame, chatNotifications.firstChild);
-      }
+    if (customPosition?.isCustom) {
+      this.isCustomPosition = true;
+      this.customPosition = customPosition;
+    }
+    
+    // Default placement in chat notifications area
+    const chatNotifications = document.querySelector('#chat-notifications');
+    if (chatNotifications && frame) {
+      chatNotifications.insertBefore(frame, chatNotifications.firstChild);
     }
     
     return frame;
@@ -298,10 +264,10 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * Verifies if roll controls are visible and adjusts the offset of the menu
    */
   _onRender(context, options) {
-    LogUtil.log('_onRender');
     super._onRender(context, options);
     
     LogUtil.log('_onRender - DragDrop handlers:', [this._dragDrop]);
+    RollMenuDragUtil.applyCustomPosition(this, this.customPosition);
     if (this._dragDrop && this._dragDrop.length > 0) {
       this._dragDrop.forEach((handler, index) => {
         LogUtil.log(`_onRender - DragDrop handler ${index}:`, [handler, handler.dropSelector, handler.callbacks]);
@@ -970,60 +936,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this._triggerRoll(requestType, rollKey);
   }
 
-
-
-  /**
-   * Get roll configuration from dialog or create default
-   * @param {Actor[]} actors - Actors being rolled for
-   * @param {string} rollMethodName - The roll method name
-   * @param {string} rollKey - The roll key
-   * @param {boolean} skipRollDialog - Whether to skip dialogs
-   * @param {Array} pcActors - PC actors with owners
-   * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration or null if cancelled
-   */
-  async _getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors) {
-    const SETTINGS = getSettings();
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
-    
-    if (!skipRollDialog && rollMethodName !== ROLL_TYPES.CUSTOM) {
-      let DialogClass;
-      if ([ROLL_TYPES.SKILL, ROLL_TYPES.TOOL].includes(rollMethodName)) {
-        DialogClass = GMSkillToolConfigDialog;
-      } else if (rollMethodName === ROLL_TYPES.HIT_DIE) {
-        DialogClass = GMHitDieConfigDialog;
-      } else {
-        DialogClass = GMRollConfigDialog;
-      }
-      const config = await DialogClass.initConfiguration(actors, rollMethodName, rollKey, { 
-        skipRollDialog,
-        sendRequest: rollRequestsEnabled || false 
-      });
-      LogUtil.log('_getRollConfiguration', [config]);
-      
-      return config;
-    } else {
-      const config = {
-        rolls: [{
-          parts: [],
-          data: {},
-          options: {}
-        }],
-        advantage: false,
-        disadvantage: false,
-        rollMode: game.settings.get("core", "rollMode"),
-        chatMessage: true,
-        isRollRequest: false,
-        skipRollDialog: true,
-        sendRequest: rollRequestsEnabled && pcActors.length > 0
-      };
-      
-      if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
-        config.target = 10;
-      }
-      
-      return config;
-    }
-  }
 
   /**
    * Defines who rolls for each selected actor (GM or player)
@@ -1733,17 +1645,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     return this;
   }
   
-  /**
-   * Show custom roll dialog
-   * @returns {Promise<string|null>} The roll formula or null if cancelled
-   */
-  async _showCustomRollDialog() {
-    LogUtil.log('_showCustomRollDialog');
-    return CustomRollDialog.prompt({
-      formula: "",
-      readonly: false
-    });
-  }
 
   /**
    * Toggle the roll requests menu open/closed
@@ -1782,6 +1683,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       this.#instance.render();
       SettingsUtil.updateColorScheme();
       this.#instance.element.classList.add('theme-' + SettingsUtil.coreColorScheme);
+
+      RollMenuDragUtil.applyCustomPosition(this.#instance, this.#instance.customPosition);
     }
   }
 
