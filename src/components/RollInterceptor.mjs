@@ -3,7 +3,7 @@ import { getSettings } from '../constants/Settings.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { LogUtil } from './LogUtil.mjs';
 import { SocketUtil } from './SocketUtil.mjs';
-import { MODULE_ID, DEBUG_TAG, ROLL_TYPES } from '../constants/General.mjs';
+import { MODULE_ID, DEBUG_TAG, ROLL_TYPES, ACTIVITY_TYPES } from '../constants/General.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from './dialogs/gm-dialogs/index.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from './helpers/RollValidationHelpers.mjs';
@@ -171,6 +171,14 @@ export class RollInterceptor {
     }
 
     const isMidiActive = config.midiOptions !== null && config.midiOptions !== undefined;
+    if(config.midiOptions?.fastForward){
+      config.midiOptions = {
+        ...config.midiOptions,
+        consume: {
+          spellSlot: false
+        }
+      }
+    }
     if(isMidiActive && game.user.isGM){
       LogUtil.log('_handlePreRoll - isMidiActive', [isMidiActive]);
       this._showGMConfigDialog(actor, owner, rollType, config, dialog, message); 
@@ -522,40 +530,6 @@ export class RollInterceptor {
     }
   }
   
-  // /**
-  //  * Show configuration dialog to GM before sending roll request
-  //  * @param {Actor} actor 
-  //  * @param {User} owner 
-  //  * @param {string} rollType 
-  //  * @param {Object} config 
-  //  * @param {Object} dialog 
-  //  * @param {Object} message 
-  //  */
-  // static async _showConfigurationDialog(actor, owner, rollType, config, dialog, message) {
-  //   LogUtil.log('RollInterceptor._showConfigurationDialog', [actor, owner, rollType, config, dialog, message]);
-
-  //   try {
-  //     const rollWrapper = async (finalConfig) => {
-  //       this._sendRollRequest(actor, owner, rollType, finalConfig);
-  //       return new Roll("1d20").evaluate({async: false}); // Return a dummy roll
-  //     };
-      
-  //     // Replace the roll method in config with our wrapper
-  //     const modifiedConfig = {
-  //       ...config,
-  //       _rollMethod: rollWrapper,
-  //       configured: false
-  //     };
-      
-  //     const DialogClass = dialog.cls;
-  //     const rollDialog = new DialogClass(modifiedConfig, dialog.options);
-  //     const result = await rollDialog.render(true);
-  //   } catch (error) {
-  //     LogUtil.error("RollInterceptor._showConfigurationDialog - error", [error]);
-  //     this._sendRollRequest(actor, owner, rollType, config);
-  //   }
-  // }
-  
   /**
    * Send a roll request to the player
    * @param {Actor} actor 
@@ -614,11 +588,24 @@ export class RollInterceptor {
     // Build the request data with proper rollProcessConfig
     // Filter out circular references that midi-qol adds
     const cleanConfig = { ...config };
+
+    if(cleanConfig.midiOptions && cleanConfig.activity && cleanConfig.activity.type === ACTIVITY_TYPES.DAMAGE){
+      LogUtil.log('_sendRollRequest - Damage activity', [cleanConfig]);
+      cleanConfig.midiOptions = {
+        ...cleanConfig.midiOptions,
+        workflowOptions: {
+          ...cleanConfig.midiOptions.workflowOptions,
+          fastForward: false,
+          fastForwardAttack: false,
+          fastForwardDamage: false,
+        }
+      };
+    }
     delete cleanConfig.subject;
     delete cleanConfig.workflow;
     delete cleanConfig.item;
     delete cleanConfig.activity;
-    
+
     const requestData = {
       type: "rollRequest",
       requestId: foundry.utils.randomID(),
@@ -655,6 +642,10 @@ export class RollInterceptor {
         ...config,
         sendRequest: false 
       });
+
+      setTimeout(() => {
+        GeneralUtil.removeTemplateForItem(config.subject?.item);
+      }, 3000); 
       return;
     }
     

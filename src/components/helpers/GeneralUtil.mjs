@@ -1,3 +1,4 @@
+import { getSettings } from "../../constants/Settings.mjs";
 import { LogUtil } from "../LogUtil.mjs";
 import { SettingsUtil } from "../SettingsUtil.mjs";
 
@@ -61,11 +62,17 @@ export class GeneralUtil {
    * @param {string} varValue 
    */
   static addCSSVars(varName, varValue) {
-    let bodyStyle = document.querySelector('#flash5e-vars');
+    let bodyStyle = document.querySelector('style#flash5e-vars');
     
     if (!bodyStyle) {
       const body = document.querySelector('body.flash5e');
       if(!body){return}
+      
+      const existingStyle = body.querySelector('style#flash5e-vars');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+      
       bodyStyle = document.createElement('style');
       bodyStyle.id = 'flash5e-vars';
       bodyStyle.textContent = 'body.flash5e {\n}\n';
@@ -544,5 +551,22 @@ export class GeneralUtil {
     
     mergeObject(dialogConfig, options);
     return foundry.applications.api.DialogV2.confirm(dialogConfig);
+  }
+
+  /**
+   * Removes the MeasuredTemplate 
+   * @param {Item5e} item 
+   */
+  static removeTemplateForItem (item) {
+    LogUtil.log("removeTemplateForItem - A", [item]);
+    const SETTINGS = getSettings();
+    const removeTemplateSettingOn = SettingsUtil.get(SETTINGS.removeTemplate.tag);
+    LogUtil.log("removeTemplateForItem - B", [removeTemplateSettingOn]);
+    if(!removeTemplateSettingOn){ return; }
+    const templates = canvas.templates.objects.children.filter(mt => {
+      return mt.document.flags.dnd5e.item === item?.uuid;
+    });
+
+    canvas.scene.deleteEmbeddedDocuments('MeasuredTemplate', templates.map(i=>i.id));
   }
 }

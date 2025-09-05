@@ -24,10 +24,12 @@ export const getSettings = () => {
         'rollInterceptionEnabled',
         'useGMTargetTokens',
         'templateAutoTarget',
+        'removeTemplate',
         'consumptionConfigMode',
         'showOfflineNotifications',
         'initiateCombatOnRequest',
         'showOnlyPCsWithToken',
+        'compactMode',
         'publicPlayerRolls'
       ],
       default: {
@@ -35,10 +37,12 @@ export const getSettings = () => {
         rollInterceptionEnabled: true,
         useGMTargetTokens: true,
         templateAutoTarget: 1,
+        removeTemplate: true,
         consumptionConfigMode: 4,
         showOfflineNotifications: true,
         initiateCombatOnRequest: true,
         showOnlyPCsWithToken: true,
+        compactMode: true,
         publicPlayerRolls: true
       },
       scope: SETTING_SCOPE.world,
@@ -219,6 +223,17 @@ export const getSettings = () => {
       config: false
     },
 
+    compactMode: {
+      tag: "prevent-fade-out",
+      label: game.i18n.localize("FLASH_ROLLS.settings.compactMode.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.compactMode.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
     templateAutoTarget: { 
       tag: "template-auto-target", 
       label: game.i18n.localize("FLASH_ROLLS.settings.templateAutoTarget.label"),
@@ -231,6 +246,17 @@ export const getSettings = () => {
       },
       inputType: SETTING_INPUT.select,
       default: 1,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    removeTemplate: {
+      tag: "remove-template",
+      label: game.i18n.localize("FLASH_ROLLS.settings.removeTemplate.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.removeTemplate.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
       scope: SETTING_SCOPE.world,
       config: false
     },

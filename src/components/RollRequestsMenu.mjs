@@ -32,6 +32,18 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   static #instance = null;
 
+  /**
+   * Debounce timer for refresh operations
+   * @type {number|null}
+   */
+  static #refreshDebounceTimer = null;
+
+  /**
+   * Debounce delay in milliseconds
+   * @type {number}
+   */
+  static #REFRESH_DEBOUNCE_DELAY = 250;
+
   constructor(options = {}) {
     LogUtil.log('RollRequestsMenu.constructor', [options]);
     super(options);
@@ -52,7 +64,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
   static DEFAULT_OPTIONS = {
     id: 'flash-rolls-menu',
-    classes: ['flash-rolls-menu'],
+    classes: ['flash-rolls-menu', 'placeable-hud'],
     tag: 'div',
     window: {
       frame: false,
@@ -227,7 +239,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       showNames: true,
       actorsLocked: this.isLocked,
       optionsExpanded: this.optionsExpanded,
-      isGM: game.user.isGM
+      isGM: game.user.isGM,
+      isCompact: SettingsUtil.get(SETTINGS.compactMode.tag)
     };
     
     this._lastPreparedContext = preparedContext;
@@ -265,6 +278,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   _onRender(context, options) {
     super._onRender(context, options);
+
+    const menu = document.querySelector("#flash-rolls-menu");
+    if(menu){
+      const SETTINGS = getSettings();
+      const isCompactMode = SettingsUtil.get(SETTINGS.compactMode.tag);
+      if(isCompactMode){
+        menu.classList.add("compact");
+      }else{
+        menu.classList.remove("compact");
+      }
+    }
     
     LogUtil.log('_onRender - DragDrop handlers:', [this._dragDrop]);
     RollMenuDragUtil.applyCustomPosition(this, this.customPosition);
@@ -331,13 +355,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
     this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
     this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
-    
-    const dragHandle = this.element.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
-    if (dragHandle) {
-      dragHandle.addEventListener('mousedown', (e) => {
-        RollMenuDragUtil.handleDragStart(e, this);
-      });
-    }
     
     ActorDragUtil.initializeActorDrag(this);
     this._updateRequestTypesVisibilityNoRender();
@@ -438,6 +455,14 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     html.querySelector('#flash5e-actors-all')?.addEventListener('change', this._onToggleSelectAll.bind(this));
     html.querySelector('#flash5e-actors-lock')?.addEventListener('click', this._onToggleLock.bind(this));
     html.querySelector('.options-toggle-btn')?.addEventListener('click', this._onToggleOptions.bind(this));
+    
+    const dragHandle = html.querySelector(RollMenuDragUtil.DRAG_HANDLE_SELECTOR);
+    if (dragHandle && !dragHandle.hasAttribute('data-drag-initialized')) {
+      dragHandle.setAttribute('data-drag-initialized', 'true');
+      dragHandle.addEventListener('mousedown', (e) => {
+        RollMenuDragUtil.handleDragStart(e, this);
+      });
+    }
     
     const tabs = html.querySelectorAll('.actor-tab');
     tabs.forEach(tab => {
@@ -1674,18 +1699,44 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Refresh the menu if it's currently open
+   * Refresh the menu if it's currently open (debounced)
    * @static
+   * @param {boolean} immediate - If true, refresh immediately without debouncing
    */
-  static refreshIfOpen() {
-    if (this.#instance && this.#instance.rendered) {
-      LogUtil.log('RollRequestsMenu.refreshIfOpen - refreshing menu');
-      this.#instance.render();
-      SettingsUtil.updateColorScheme();
-      this.#instance.element.classList.add('theme-' + SettingsUtil.coreColorScheme);
-
-      RollMenuDragUtil.applyCustomPosition(this.#instance, this.#instance.customPosition);
+  static refreshIfOpen(immediate = false) {
+    if (!this.#instance || !this.#instance.rendered) {
+      return;
     }
+
+    if (immediate) {
+      this._performRefresh();
+      return;
+    }
+
+    if (this.#refreshDebounceTimer) {
+      clearTimeout(this.#refreshDebounceTimer);
+    }
+
+    this.#refreshDebounceTimer = setTimeout(() => {
+      this._performRefresh();
+      this.#refreshDebounceTimer = null;
+    }, this.#REFRESH_DEBOUNCE_DELAY);
+  }
+
+  /**
+   * Perform the actual refresh operation
+   * @static
+   * @private
+   */
+  static _performRefresh() {
+    if (!this.#instance || !this.#instance.rendered) {
+      return;
+    }
+
+    LogUtil.log('RollRequestsMenu._performRefresh - refreshing menu');
+    this.#instance.render();
+    SettingsUtil.updateColorScheme();
+    this.#instance.element.classList.add('theme-' + SettingsUtil.coreColorScheme);
   }
 
   /**

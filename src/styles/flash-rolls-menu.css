@@ -17,6 +17,10 @@
   background: transparent;
   transition: right 0.25s ease-in-out;
 
+  .floating-info { 
+    display: none;
+  }
+
   input {
     background: var(--fr5e-menu-background);
     color: var(--fr5e-text-color);
@@ -76,9 +80,16 @@
   color: var(--fr5e-text-color);
 
   &.actors{
-    padding: 2em 1em 1.5em 1em;
+    padding: 1.25em 1em 1.5em 1em;
   }
 }
+
+/*
+#flash-rolls-menu.compact > div > ul,
+#flash-rolls-menu.compact > div > .request-types-accordion {
+  width: 5rem;
+  min-width: 5rem;
+}*/
 
 /* Hide accordion by default */
 #flash-rolls-menu > div > .request-types-accordion:not(.hover-visible) {
@@ -144,6 +155,7 @@
     align-items: center;
     width: 100%;
     justify-content: space-between;
+    
     label[for=flash5e-actors-all] {
       margin-right: auto;
       cursor: pointer;
@@ -189,8 +201,68 @@
   }
 }
 
+#flash-rolls-menu.compact > div > ul.actors {
+  width: 5rem;
+  max-width: 5rem;
+  min-width: 5rem;
+  padding: 1.2em 0.5em 1.5em 0.5rem;
+  z-index:10;
+}
+#flash-rolls-menu.compact > div *:not(img){
+  overflow: visible;
+}
+
+#flash-rolls-menu.compact > div .request-types-accordion{
+  overflow: auto;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list {
+  overflow: visible !important;
+}
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li {
+  position: relative;
+  z-index:10;
+}
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li .actor {
+  position: relative;
+}
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li .actor > div.actor-data {
+  display: none;
+  position: absolute;
+  width: 11.5rem;
+  background: var(--fr5e-menu-background);
+  right: 4.9rem;
+  left: auto;
+  top: -1rem;
+  padding: 0.5em;
+  font-size: var(--font-size-12);
+  border-radius: 4px;
+  border: 1px solid var(--color-warm-2);
+  z-index: 100;
+  color: var(--fr5e-text-color);
+}
+#flash-rolls-menu.compact.left-edge > div > ul.actors > li.actor-list > ul > li .actor > div.actor-data {
+  left: 4.9rem;
+  right: auto;
+}
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li .actor:hover > div.actor-data {
+  display: block;
+}
+
 body > .actor.drag-wrapper {
   background-color: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
+
+  .actor-data {
+    display: none !important;
+  }
+}
+
+/* Hide actor-data when dragging */
+.actor.drag-wrapper.dragging .actor-data,
+.actor-drag-wrapper.dragging .actor-data {
+  display: none !important;
 }
 
 .actor.drag-wrapper,
@@ -260,6 +332,7 @@ body > .actor.drag-wrapper {
     justify-content: center;
     overflow: hidden;
     padding: 1px;
+    position: relative;
 
     img{
       object-fit: cover;
@@ -267,6 +340,14 @@ body > .actor.drag-wrapper {
       height: 100%;
       border: 0;
       pointer-events: none;
+    }
+    i.favorite {
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      z-index:10;
+      text-shadow: 0px 2px 4px rgba(0, 0, 0, 0.35);
+      color: rgba(200,200,200,0.7);
     }
   }
 
@@ -349,36 +430,34 @@ body > .actor.drag-wrapper {
   order: 3;
 
   button {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 0;
     color: inherit;
-    border: 1px solid transparent;
+    border: 1px solid rgba(0,0,0,0.1);
     cursor: pointer;
     box-shadow: none;
     padding: 2px 4px;
     line-height: 1.5;
     width: 4em;
-    margin: -1px 0 0 0;
-    border-color: transparent;
     outline: 0;
 
 
     &:hover{
       background: rgba(0, 0, 0, 0.6);
       color: var(--color-light-1);
-      border-color: transparent;
+      border: 1px solid transparent;
     }
     &.active{
       background: var(--color-warm-2);
       color: var(--color-light-1);
-      border-color: transparent;
+      border: 1px solid transparent;
     }
   }
 }
 
 #flash-rolls-menu > div > ul.actors > li .selection-row > input[type="checkbox"] {
   margin: 0 0.7em 0 0;
-  font-size: 1em;
+  font-size: var(--font-size-12);
   font-family: var(--font-sans);
   width: 1.35em;
   height: 1.35em;
@@ -419,6 +498,16 @@ body > .actor.drag-wrapper {
 /* Request Types Menu */
 #flash-rolls-menu > div > ul.request-types {
   left: calc(-12.5rem + 1px);
+  top: 0;
+  height: 100%;
+  max-height: 70vh;
+  min-height: 280px;
+  position: absolute;
+  display: none;
+  overflow-y: auto;
+}
+#flash-rolls-menu.compact > div > ul.request-types {
+  left: calc(-5rem + 1px);
   top: 0;
   height: 100%;
   max-height: 70vh;
@@ -493,10 +582,14 @@ body > .actor.drag-wrapper {
   position: relative;
   height: 4em;
   width: 100%;
+  margin-top: 0.25rem;
   z-index: 1;
 
   .search-input{
     padding-right: 2.5em;
+    font-size: var(--font-size-13);
+    font-weight: 400;
+    box-shadow: 2px 2px 4px inset rgba(0, 0, 0, 0.3);
   }
   .icon{
     position: absolute;
@@ -607,7 +700,7 @@ body > .actor.drag-wrapper {
   align-items: center;
   justify-content: center;
   pointer-events: all;
-  z-index: 1;
+  z-index: 101;
   
   i {
     color: var(--color-text-light-highlight, var(--color-light-1));
@@ -654,9 +747,14 @@ body > .actor.drag-wrapper {
   max-width: 12.5rem;
   overflow: visible;
   --flash-rolls-menu-offset: 0px;
+
+  &.compact{
+    max-width: 5rem;
+  }
   
   .drag-handle {
-    background: var(--fr5e-menu-background, rgba(20, 20, 20, 0.9));
+    background:  rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     
     i {
       opacity: 0.8;
@@ -803,18 +901,25 @@ body.crlngn-tabs #flash-rolls-menu.docked-right {
 #flash-rolls-menu .actor-list.drag-over::before {
   content: "Drop Actor Here";
   position: absolute;
+  display: block;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(255,255,255, 0.5);
-  color: white;
-  padding: 8px 16px;
+  background: var(--fr5e-menu-background);
+  color: var(--fr5e-text-color);
+  padding: 8px 8px;
   /*border-radius: 4px;*/
   font-weight: bold;
-  font-size: 0.9rem;
-  z-index: 10;
+  font-size: 0.8rem;
+  z-index: 200;
   pointer-events: none;
-  white-space: nowrap;
+  width: 6rem;
+  text-align: center;
+}
+#flash-rolls-menu.compact .actor-list.drag-over::before {
+  content: "Drag & Drop";
+  width: 3.6rem;
+  padding: 8px 4px;
 }
 
 /* Prevent multiple drop messages from nested elements */
@@ -835,6 +940,93 @@ body.crlngn-tabs #flash-rolls-menu.docked-right {
 #flash-rolls-menu .actor-list.drag-over,
 #flash-rolls-menu ul.actors.drag-over {
   animation: drop-zone-pulse 1.5s infinite ease-in-out;
+}
+
+#flash-rolls-menu.compact .floating-info{
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: -100%;
+  background: var(--fr5e-menu-background);
+  color: var(--fr5e-text-color);
+}
+#flash-rolls-menu.compact > div > ul.actors > li.options {
+  max-height: 1.75em;
+  margin-bottom: 0.5rem;
+  order: 1;
+  &.expanded {
+    max-height: 10em;
+  }
+}
+
+#flash-rolls-menu.compact > div > ul.actors > li.options-toggle{
+  margin-bottom: 0.1rem;
+  margin-top: 0;
+  border-bottom: 1px solid hsla(0, 0%, 100%, .06);
+}
+#flash-rolls-menu.compact > div > ul.actors > li.options,
+#flash-rolls-menu.compact > div > ul.actors > li.options-toggle {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  flex-direction: row;
+}
+#flash-rolls-menu.compact > div > ul.actors .options-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 0.5em;
+  width: 100%;
+
+  i.icon-option, button{
+    display: flex;
+    width: 50%;
+    height: 1.25rem;
+    min-height: 1.25rem;
+    align-self: center;
+    justify-content: center;
+  }
+}
+
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li > .actor {
+  gap: 2px;
+  padding: 0.1rem;
+}
+#flash-rolls-menu.compact > div > ul.actors > li.actor-list > ul > li > .actor > .actor-img{
+  width: 100%;
+  max-height: 3rem;
+}
+
+#flash-rolls-menu.compact > div > ul.actors > li.options .selection-row,
+#flash-rolls-menu.compact > div > ul.actors > li.options-toggle .selection-row {
+  width: 50%;
+  flex: 0 0 50%;
+  padding-top: 0.35rem;
+  align-items: center;
+  justify-content: center;
+
+  span.icon-label {
+    display: flex;
+    margin-left: auto;
+    align-items: center;
+  }
+}
+#flash-rolls-menu.compact > div > ul.actors > li.options .selection-row label[for=flash5e-actors-all] {
+  margin-right: 0;
+}
+
+#flash-rolls-menu.compact .flash5e-switch-compact{
+  cursor: pointer;
+  &:has(input:checked){
+    color: var(--color-warm-2);
+  }
+  input {
+    opacity: 0;
+    position: absolute;
+    margin: 0;
+    width: 1.2rem;
+    pointer-events: none;
+  }
 }
 
 @keyframes drop-zone-pulse {

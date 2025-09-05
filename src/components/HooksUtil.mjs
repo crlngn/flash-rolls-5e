@@ -171,6 +171,7 @@ export class HooksUtil {
     this._registerHook(HOOKS_DND5E.POST_USE_ACTIVITY, this._onPostUseActivity.bind(this));
     this._registerHook(HOOKS_DND5E.PRE_ROLL_HIT_DIE_V2, this._onPreRollHitDieV2.bind(this));
     this._registerHook(HOOKS_DND5E.POST_ROLL_CONFIG, this._onPostRollConfig.bind(this));
+    // this._registerHook(HOOKS_DND5E.ROLL_DAMAGE_V2, this._onPostRollDamage.bind(this));
   }
   
   /**
@@ -226,6 +227,13 @@ export class HooksUtil {
       message.data._requestedBy = config._requestedBy;
     }
   }
+
+  // static _onPostRollDamage(rolls, config, dialog, message) {
+  //   LogUtil.log("_onPostRollDamage", [config]);
+  //   setTimeout(() => {
+  //     GeneralUtil.removeTemplateForItem(config.subject?.item);
+  //   }, 3000); 
+  // }
   
   /**
    * Handle data before creating chat message for requested rolls
@@ -338,9 +346,9 @@ export class HooksUtil {
    * Used to add custom situational bonus from data, since the default DnD5e dialog does not seem to handle that
    */
   static _onRenderRollConfigDialog(app, html, data) {
-    console.trace("Flash Rolls 5e - _onRenderRollConfigDialog");
+    console.trace("Flash Rolls 5e - _onRenderRollConfigDialog", [ app, data ]);
     if (app._flashRollsApplied) return;
-    LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
+    // LogUtil.log("_onRenderRollConfigDialog #0", [ app, data ]);
     
     // const isDamageRoll = app instanceof dnd5e.applications.dice.DamageRollConfigurationDialog;
     // LogUtil.log("_onRenderRollConfigDialog - isDamageRoll?", [isDamageRoll, app.constructor.name]);
@@ -409,10 +417,19 @@ export class HooksUtil {
    * Intercept rendered chat messages to handle group rolls
    */
   static _onRenderChatMessageHTML(message, html, context) {
-    // LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
+    LogUtil.log("_onRenderChatMessageHTML", [message, html, context]);
     ChatMessageUtils.interceptRollMessage(message, html, context);
     
     this._addSelectTargetsButton(message, html);
+
+    if(game.user.isGM){
+      const item = context.subject?.item;
+      if (!item) return;
+      setTimeout(() => {
+        GeneralUtil.removeTemplateForItem(item);
+      }, 3000); 
+    }
+    
   }
   
   /**
@@ -483,15 +500,8 @@ export class HooksUtil {
    * @param {string} userId - The user ID who performed the action
    */
   static _onTokenChange(token, options, userId) {
-    if (this._tokenChangeTimeout) {
-      clearTimeout(this._tokenChangeTimeout);
-    }
-    
-    this._tokenChangeTimeout = setTimeout(() => {
-      LogUtil.log('HooksUtil._onTokenChange - Re-rendering roll requests menu due to token create/delete');
-      RollRequestsMenu.refreshIfOpen();
-      this._tokenChangeTimeout = null;
-    }, 200);
+    LogUtil.log('HooksUtil._onTokenChange - Re-rendering roll requests menu due to token create/delete');
+    RollRequestsMenu.refreshIfOpen();
   }
 
   static _onSettingUpdate(setting, value, options, userId) {
@@ -526,14 +536,9 @@ export class HooksUtil {
                         changes.system?.attributes?.prof;
 
     if (!statsChanged && !ownershipChanged) return;
-    if (this._actorUpdateTimeout) {
-      clearTimeout(this._actorUpdateTimeout);
-    }
-    this._actorUpdateTimeout = setTimeout(() => {
-      LogUtil.log("HooksUtil._onActorUpdate - Re-rendering roll requests menu due to actor update", [actor, changes]);
-      RollRequestsMenu.refreshIfOpen();
-      this._actorUpdateTimeout = null;
-    }, 250);
+    
+    LogUtil.log("HooksUtil._onActorUpdate - Re-rendering roll requests menu due to actor update", [actor, changes]);
+    RollRequestsMenu.refreshIfOpen();
   }
 
   /**
@@ -710,10 +715,26 @@ export class HooksUtil {
    * Handle pre-roll damage hook to restore GM-configured options
    */
   static _onPreRollDamageV2(config, dialogOptions, messageOptions) {
-    console.trace("Flash Rolls 5e - _onPreRollDamageV2 triggered #0", [config]);
-    LogUtil.log("_onPreRollDamageV2 triggered", [config, dialogOptions, messageOptions]);
-    
+    // console.trace("Flash Rolls 5e - _onPreRollDamageV2 triggered #0", [config]);
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+    LogUtil.log("_onPreRollDamageV2 triggered #0", [config, dialogOptions, messageOptions]);
+    
+    if(config.midiOptions && !game.user.isGM
+      && config.subject?.type === ACTIVITY_TYPES.DAMAGE
+    ){
+      dialogOptions.configure = true;
+      // config.midiOptions = {
+      //   ...config.midiOptions,
+      //   fastForwardDamage: false,
+      //   workflowOptions: {
+      //     ...config.midiOptions.workflowOptions,
+      //     fastForwardDamage: false,
+      //     autoRollAttack: false,
+      //     autoRollDamage: false,
+      //     forceCompletion: false
+      //   }
+      // }
+    }
     if (stored) {
       LogUtil.log("_onPreRollDamageV2 - Found stored request config from flag", [stored, stored.situational]);
       
@@ -721,6 +742,8 @@ export class HooksUtil {
         LogUtil.log("_onPreRollDamageV2 - Not a roll request, skipping", [stored]);
         return;
       }
+      
+      LogUtil.log("_onPreRollDamageV2 triggered #1", [config, dialogOptions, messageOptions]);
 
       if (stored.critical) config.critical = stored.critical;
       messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
@@ -750,25 +773,26 @@ export class HooksUtil {
    * Handle pre-use activity hook to prevent usage messages when GM intercepts rolls
    */
   static _onPreUseActivity(activity, config, dialog, message) {
-    LogUtil.log("_onPreUseActivity triggered", [activity, config, dialog, message]);
+    // console.trace("Flash Rolls 5e - _onPreUseActivity triggered #0", [activity, config, dialog, message]);
+    LogUtil.log("_onPreUseActivity #0", [activity, config, dialog, message]);   
     const SETTINGS = getSettings();
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
-
-    LogUtil.log("_onPreUseActivity - Settings", [requestsEnabled, rollInterceptionEnabled]);
+    if (!requestsEnabled || !rollInterceptionEnabled) return;  
     activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig'); 
     activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig'); 
     activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig'); 
 
+    const actor = activity.actor;
+    if (!actor) return;
+    LogUtil.log("_onPreUseActivity #1", [activity, config, dialog, message]);
     // if(GeneralUtil.isModuleOn(MODULE_ID, 'midi-qol')){
     //   // message.create = false;
     // }
-    if (!game.user.isGM || !requestsEnabled || !rollInterceptionEnabled) return; 
-    
-    const actor = activity.actor;
-    if (!actor) return;
 
     const consumptionConfigMode = SettingsUtil.get(SETTINGS.consumptionConfigMode.tag);
+    // LogUtil.log("_onPreUseActivity - Settings", [consumptionConfigMode, requestsEnabled, rollInterceptionEnabled]);
+    LogUtil.log("_onPreUseActivity #2", [activity, config, dialog, message]);
 
     switch (consumptionConfigMode) {
       case 1:
@@ -784,6 +808,43 @@ export class HooksUtil {
         dialog.configure = true;
         break;
     }
+
+    if(game.user.isGM){
+      config.consume = {
+        action: false,
+        resources: [],
+        spellSlot: false
+      }
+    }
+    if(config.midiOptions && 
+      (activity.type === ACTIVITY_TYPES.DAMAGE || activity.type === ACTIVITY_TYPES.SAVE)){
+      dialog.configure = false;
+      activity.midiOptions = {
+        ...config.midiOptions,
+        fastForwardDamage: false,
+        workflowOptions: {
+          // ...activity.midiOptions.workflowOptions,
+          fastForwardDamage: false,
+          autoRollAttack: false,
+          autoRollDamage: false,
+          forceCompletion: false
+        }
+      }
+      config.midiOptions = {
+        ...config.midiOptions,
+        fastForwardDamage: false,
+        workflowOptions: {
+          ...config.midiOptions.workflowOptions,
+          fastForwardDamage: false,
+          autoRollAttack: false,
+          autoRollDamage: false
+        }
+      }
+      // return false;
+      LogUtil.log("_onPreUseActivity - activity", [activity]);
+    }
+
+    if(!game.user.isGM) return;
     
     const actorOwner = GeneralUtil.getActorOwner(actor);
     
@@ -802,27 +863,40 @@ export class HooksUtil {
 
     LogUtil.log("_onPostUseActivity #0", [activity, config, dialog, message]);
 
+    if(!game.user.isGM && config.midiOptions){
+      config.midiOptions = {
+        ...config.midiOptions,
+        fastForwardDamage: false,
+        workflowOptions: {
+          ...config.midiOptions.workflowOptions,
+          fastForwardDamage: false,
+          autoRollAttack: false,
+          autoRollDamage: false,
+          forceCompletion: false
+        }
+      }
+    }
+
     if(!requestsEnabled || !rollInterceptionEnabled) return;
     const actorOwner = GeneralUtil.getActorOwner(activity.actor);
     if (!actorOwner?.active || actorOwner.isGM) {
-      LogUtil.log("Preventing usage message - no owning player for actor", [actor.name]);
+      LogUtil.log("Preventing usage message - no owning player for actor", [activity.actor]);
       return;
     }
     
-    if(game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE)){ 
+    if(game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE || activity.type === ACTIVITY_TYPES.DAMAGE)){ 
       const isOwnerActive = actorOwner && actorOwner.active && !actorOwner.isGM;
-
-      LogUtil.log("_onPostUseActivity #1", [activity, config]);
-      if(activity.damage && activity.damage.parts?.length > 0){
-        LogUtil.log("_onPostUseActivity #2 - roll triggered", [activity, config]);
-        config.scaling = true;
-        activity.rollDamage(config, {
-          ...dialog,
-          configure: !game.user.isGM || (isOwnerActive && !skipRollDialog)
-        }, message)
-      }
-      
+      config.scaling = true;
     }
+
+      // LogUtil.log("_onPostUseActivity #1", [activity, config]);
+      // if(activity.damage?.parts?.length > 0){
+      //   LogUtil.log("_onPostUseActivity #2 - roll triggered", [activity, config]);
+      //   activity.rollDamage(config, {
+      //     ...dialog,
+      //     configure: !game.user.isGM || (isOwnerActive && !skipRollDialog)
+      //   }, message)
+      // }
   }
   
   /**
@@ -901,5 +975,4 @@ export class HooksUtil {
       delete HooksUtil.throttleTimers[throttleKey];
     }, 50);
   }
-  
 }

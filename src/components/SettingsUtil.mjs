@@ -2,6 +2,7 @@ import { MODULE_ID } from "../constants/General.mjs";
 import { getSettings, SETTING_SCOPE } from "../constants/Settings.mjs";
 import { getSettingMenus } from "../constants/SettingMenus.mjs";
 import { LogUtil } from "./LogUtil.mjs";
+import RollRequestsMenu from "./RollRequestsMenu.mjs";
 
 /**
  * Utility class for managing module settings
@@ -55,19 +56,18 @@ export class SettingsUtil {
    */
   static registerSettingsMenu() {
     const settingMenus = Object.entries(getSettingMenus());
-    const tabbedMenu = settingMenus.find(entry => entry[0] === 'moduleSettingsMenu');
-    if (tabbedMenu) {
-      const tabbedMenuData = tabbedMenu[1];
-      if ((tabbedMenuData.restricted && game.user?.isGM) || !tabbedMenuData.restricted) {
-        const tabbedMenuObj = {
-          name: tabbedMenuData.tag,
-          label: tabbedMenuData.label, 
-          hint: tabbedMenuData.hint,
-          icon: tabbedMenuData.icon, 
-          type: tabbedMenuData.propType,
-          restricted: tabbedMenuData.restricted
+    
+    for (const [menuKey, menuData] of settingMenus) {
+      if ((menuData.restricted && game.user?.isGM) || !menuData.restricted) {
+        const menuObj = {
+          name: menuData.tag,
+          label: menuData.label, 
+          hint: menuData.hint,
+          icon: menuData.icon, 
+          type: menuData.propType,
+          restricted: menuData.restricted
         };
-        game.settings.registerMenu(MODULE_ID, tabbedMenuData.tag, tabbedMenuObj);
+        game.settings.registerMenu(MODULE_ID, menuData.tag, menuObj);
       }
     }
 
@@ -148,6 +148,9 @@ export class SettingsUtil {
       case SETTINGS.rollRequestsEnabled.tag:
         SettingsUtil.applyRollRequestsEnabled(newValue);
         break;
+      case SETTINGS.compactMode.tag:
+        SettingsUtil.applyCompactMode(newValue);
+        break;
       default:
         break;
     }
@@ -164,5 +167,14 @@ export class SettingsUtil {
       requestsIcon.classList.remove("active");
       // requestsIcon.setAttribute("aria-pressed", "false");
     }
+  }
+
+  static applyCompactMode(newValue){
+    const SETTINGS = getSettings();
+    const isCompactMode = newValue || SettingsUtil.get(SETTINGS.compactMode.tag);
+
+    LogUtil.log('applyCompactMode', [isCompactMode]);
+    
+    RollRequestsMenu.refreshIfOpen();
   }
 }

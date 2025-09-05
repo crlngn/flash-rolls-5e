@@ -137,6 +137,19 @@
             "label": "Disable auto targetting"
           }
         }
+      },
+      "removeTemplate": {
+        "label": "Remove Template after Damage",
+        "hint": "When enabled, the template will be removed when the damage roll is executed. On Roll Requests, the template will be removed after request is sent to player"
+      },
+      "supportPatreon": {
+        "label": "Support the developer",
+        "buttonLabel": "Patreon support",
+        "hint": "If you like Flash Rolls 5e and my other modules, consider giving your support to the development on Patreon."
+      },
+      "compactMode": {
+        "label": "Use Compact Mode",
+        "hint": "Use compact layout for the roll requests menu. The character information will only show on hover."
       }
     },
     "groupRoll": {
@@ -219,6 +232,8 @@
         }
       },
       "menus": {
+        "npcs": "NPCs",
+        "pcs": "PCs",
         "rollRequestsTitle": "Roll Requests",
         "dragHandleTooltip": "Drag menu",
         "noActors": "No actors in this list.",

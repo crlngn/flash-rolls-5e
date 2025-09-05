@@ -45,9 +45,9 @@
     {{#if supportsDC}}
       <div class="group-roll-dc-control" data-show-to-players="{{showDCToPlayers}}">
         <div class="dc-input-container">
-          <label for="dc-input-{{messageId}}" class="dc-input-label">DC:</label>
+          <label for="dc-input-{{messageId}}-{{groupRollId}}" class="dc-input-label">DC:</label>
           <input type="number" 
-                 id="dc-input-{{messageId}}" 
+                 id="dc-input-{{messageId}}-{{groupRollId}}" 
                  class="dc-input dc-input-gm-only" 
                  placeholder="Set DC" 
                  value="{{dc}}"

@@ -1,17 +1,68 @@
 <div>
+  {{!-- {{#if isCompact}}
+    <div class="floating-info">
+      Test
+    </div>
+  {{/if}} --}}
   {{!-- Drag Handle --}}
   <div class="drag-handle" tootlip="{{localize 'FLASH_ROLLS.ui.menus.dragHandleTooltip'}}">
     <i class="fas fa-grip-horizontal"></i>
   </div>
   
   <ul class="actors">
+
+
+    {{#if isCompact}}
+    <li class="options-toggle">
+      <div class="options-row">
+        <i class="icon-option icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="flash5e-actors-lock"></i>
+        <button type="button" class="options-toggle-btn">
+          <i class="fas fa-arrow-down-arrow-up"></i>
+        </button>
+      </div>
+    </li>
+    {{/if}}
+    {{#if isCompact}}
+    <li class="options">
+      <div class="selection-row">
+        <label for="flash-rolls-toggle" class="flash5e-switch-compact">
+          <input type="checkbox" name="flash-rolls-toggle" id="flash-rolls-toggle" {{#if rollRequestsEnabled}}checked{{/if}} />
+          <span class="icon-label fas fa-bolt" data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.toggleRollRequests'}}" data-tooltip-direction="UP" data-tooltip-delay="500"></span>
+        </label>
+      </div>
+
+      {{!-- Select All Toggle --}}
+      <div class="selection-row">
+        <label for="flash5e-actors-all" class="flash5e-switch-compact">
+          <input type="checkbox" name="flash5e-actors-all" id="flash5e-actors-all" {{#if selectAllOn}}checked{{/if}}>
+          <span class="icon-label fas fa-object-group" data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.selectAll'}}" data-tooltip-direction="UP"></span>
+        </label>
+      </div>
+
+      {{!-- Skip Dialogs Toggle --}}
+      <div class="selection-row">
+        <label for="flash5e-skip-dialogs" class="flash5e-switch-compact">
+          <input type="checkbox" name="flash5e-skip-dialogs" id="flash5e-skip-dialogs" {{#if skipRollDialog}}checked{{/if}}>
+          <span class="icon-label fas fa-dice-d20" data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.skipRollDialog'}}" data-tooltip-direction="UP" data-tooltip-delay="500"></span>
+        </label>
+      </div>
+
+      {{!-- Group Rolls Toggle --}}
+      <div class="selection-row">
+        <label for="flash5e-group-rolls-msg" class="flash5e-switch-compact">
+          <input type="checkbox" name="flash5e-group-rolls-msg" id="flash5e-group-rolls-msg" {{#if groupRollsMsgEnabled}}checked{{/if}}>
+          <span class="icon-label fas fa-users-rectangle" data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.groupRollsMsg'}}" data-tooltip-direction="UP" data-tooltip-delay="500"></span>
+        </label>
+      </div>
+    </li>
+    {{else}}
     <li class="options">
       <div class="selection-row">
         <label for="flash-rolls-toggle" class="flash5e-switch">
           <input type="checkbox" name="flash-rolls-toggle" id="flash-rolls-toggle" {{#if rollRequestsEnabled}}checked{{/if}} />
           <div class="track"></div>
           <div class="handle"></div>
-          {{localize "FLASH_ROLLS.ui.inputs.toggleRollRequests"}}
+          <span>{{localize "FLASH_ROLLS.ui.inputs.toggleRollRequests"}}</span>
         </label>
         <i class="icon fas {{#if actorsLocked}}fa-lock-keyhole{{else}}fa-lock-keyhole-open{{/if}}" id="flash5e-actors-lock"></i>
       </div>
@@ -22,7 +73,7 @@
           <input type="checkbox" name="flash5e-skip-dialogs" id="flash5e-skip-dialogs" {{#if skipRollDialog}}checked{{/if}}>
           <div class="track"></div>
           <div class="handle"></div>
-          {{localize "FLASH_ROLLS.ui.inputs.skipRollDialog"}}
+          <span>{{localize "FLASH_ROLLS.ui.inputs.skipRollDialog"}}</span>
         </label>
       </div>
 
@@ -32,11 +83,12 @@
           <input type="checkbox" name="flash5e-group-rolls-msg" id="flash5e-group-rolls-msg" {{#if groupRollsMsgEnabled}}checked{{/if}}>
           <div class="track"></div>
           <div class="handle"></div>
-          {{localize "FLASH_ROLLS.ui.inputs.groupRollsMsg"}}
+          <span>{{localize "FLASH_ROLLS.ui.inputs.groupRollsMsg"}}</span>
         </label>
       </div>
     </li>
-    
+    {{/if}}    
+    {{#unless isCompact}}
     <li class="options-toggle">
       {{!-- Select All Toggle --}}
       <div class="selection-row">
@@ -44,13 +96,18 @@
           <input type="checkbox" name="flash5e-actors-all" id="flash5e-actors-all" {{#if selectAllOn}}checked{{/if}}>
           <div class="track"></div>
           <div class="handle"></div>
-          {{localize "FLASH_ROLLS.ui.inputs.selectAll"}}
+          {{#if isCompact}}
+          <span class="icon-label fas fa-object-group" data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.selectAll'}}" data-tooltip-direction="LEFT"></span>
+          {{else}}
+          <span>{{localize "FLASH_ROLLS.ui.inputs.selectAll"}}</span>
+          {{/if}}
         </label>
       </div>
       <button type="button" class="options-toggle-btn">
         <i class="fas fa-arrow-down-arrow-up"></i>
       </button>
     </li>
+    {{/unless}}
 
     <li class="actor-list">
       <ul>
@@ -71,9 +128,7 @@
                data-selected="{{actor.selected}}">
             <div class="actor-data">
               {{#if ../showNames}}<span class="actor-name">
-                {{#if actor.isFavorite}}
-                <i class="fas fa-bolt" title="Favorite"></i>
-                {{/if}}{{ actor.name }}
+                {{ actor.name }}
                 </span>
               {{/if}}
               <ul class="actor-stats">
@@ -86,6 +141,9 @@
               </ul>
             </div>
             <div class="actor-img">
+              {{#if actor.isFavorite}}
+                <i class="fas fa-bolt favorite" title="Favorite"></i>
+              {{/if}}
               <img src="{{ actor.img }}" alt="{{ actor.name }}" />
             </div>
             <div class="actor-stat-bar" data-stat="hp">
@@ -97,10 +155,23 @@
       </ul>
     </li>
 
+    {{#if isCompact}}
     <li class="actors-tabs">
-      <button class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc">NPCs</button>
-      <button class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc">PCs</button>
+      <button class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc" 
+        data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.npcs'}}" data-tooltip-direction="UP">
+        <i class="fas fa-skull-cow"></i>
+      </button>
+      <button class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc" 
+        data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.pcs'}}" data-tooltip-direction="UP">
+        <i class="fas fa-users"></i>
+      </button>
     </li>
+    {{else}}
+    <li class="actors-tabs">
+      <button class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc">{{localize 'FLASH_ROLLS.ui.menus.npcs'}}</button>
+      <button class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc">{{localize 'FLASH_ROLLS.ui.menus.pcs'}}</button>
+    </li>
+    {{/if}}
   </ul>
 
   <!-- Request Types with Accordion -->

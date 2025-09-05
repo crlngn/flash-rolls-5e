@@ -336,7 +336,7 @@ body.flash5e {
   }
 }
 
-.standard-form.flash5e:not(.crlngn) {
+.standard-form.flash5e {
   .form-content{
     max-height: 70vh;
     overflow: auto;

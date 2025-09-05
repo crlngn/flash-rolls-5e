@@ -86,7 +86,7 @@ export class RollMenuDragUtil {
    * @param {Object} dragData 
    */
   static handleDragMove(event, menu, dragData) {
-    if (!menu.isDragging) return;
+    if (!menu.isDragging || !menu.element) return;
     const deltaX = event.clientX - dragData.startX;
     const deltaY = event.clientY - dragData.startY;
     

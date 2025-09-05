@@ -152,23 +152,31 @@ export class ActivityUtil {
           
           try {
             config.message.create = true;
-            await activity.use(config.usage, config.dialog, config.message);
-            LogUtil.log('FLASH_ROLLS TEST', [config]);
-            if(isMidiActive) {
-              const MidiQOL = ModuleHelpers.getMidiQOL();
-              if (MidiQOL) {
-                // const workflow = await ActivityUtil.syntheticItemRoll(item, {
-                //   ...config,
-                //   midiOptions: {
-                //     autoFastAttack: false,
-                //     autoFastDamage: false,
-                //     autoRollAttack: false,
-                //     autoRollDamage: false
-                //   }
-                // });
-                return
+
+            if(isMidiActive){
+              config.usage.consume = {
+                spellSlot: false,
+                action: false,
+                resources: []
               }
             }
+            
+            await activity.use(config.usage, config.dialog, config.message);
+            // if(isMidiActive) {
+            //   const MidiQOL = ModuleHelpers.getMidiQOL();
+            //   if (MidiQOL) {
+            //     // const workflow = await ActivityUtil.syntheticItemRoll(item, {
+            //     //   ...config,
+            //     //   midiOptions: {
+            //     //     autoFastAttack: false,
+            //     //     autoFastDamage: false,
+            //     //     autoRollAttack: false,
+            //     //     autoRollDamage: false
+            //     //   }
+            //     // });
+            //     return
+            //   }
+            // }
           } catch (error) {
             LogUtil.error('executeActivityRoll - attack roll error', [error]);
           } finally {
@@ -180,6 +188,17 @@ export class ActivityUtil {
           LogUtil.log('executeActivityRoll - damage roll #0', [activity, config]);
           if(!isMidiActive) {
             config.message.create = true;
+          }else{
+            config.usage = {
+              ...config.usage,
+              consume: {
+                ...config.usage.consume,
+                spellSlot:false,
+                action: false,
+                resources: []
+              }
+            }
+            config.dialog.configure = true;
           }
           // Extract the roll configuration from the usage config
           damageConfig = {
@@ -190,13 +209,26 @@ export class ActivityUtil {
             create: config.message?.create !== false,
             scaling: config.usage.scaling
           };
+          config.usage = {
+            ...config.usage,
+            consume: {
+              ...config.usage.consume,
+              spellSlot:false,
+              action: false,
+              resources: []
+            }
+          }
 
           // For damage-only and save activities on player side, use() internally triggers rollDamage
           // So we call use() and skip the explicit rollDamage call later
-          let damageHandledByUse = false;
-          if(!game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE || activity.type === ACTIVITY_TYPES.DAMAGE || !activity?.attack)){
-            await activity.use(config.usage, config.dialog, config.message);
-            damageHandledByUse = activity.type === ACTIVITY_TYPES.DAMAGE;
+          let damageHandledByUse = activity.type === ACTIVITY_TYPES.DAMAGE || activity.type === ACTIVITY_TYPES.SAVE || !activity?.attack;
+          if(isMidiActive && damageHandledByUse){
+            await this.midiActivityRoll(activity, config.usage);
+          } else if(!game.user.isGM && (activity.type === ACTIVITY_TYPES.SAVE || activity.type === ACTIVITY_TYPES.DAMAGE || !activity?.attack)){
+            await activity.use(config.usage, {
+              ...config.dialog,
+              configure: true
+            }, config.message);
           }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - damage config with situational', [damageConfig]);
@@ -206,16 +238,22 @@ export class ActivityUtil {
               const MidiQOL = ModuleHelpers.getMidiQOL();
               if (MidiQOL) {
                 const workflow = MidiQOL.Workflow?.getWorkflow(activity.uuid);
-                LogUtil.log('executeActivityRoll - workflow', [workflow]);
-                if(workflow){
+                workflow.midiOptions = {
+                  fastForward: false,
+                  // autoFastAttack: false,
+                  autoFastDamage: false,
+                  // autoRollAttack: false,
+                  autoRollDamage: false
+                }
+                LogUtil.log('executeActivityRoll - workflow', [damageHandledByUse]);
+                if(workflow && !damageHandledByUse){ 
                   const damageRoll = await workflow.activity.rollDamage({
                     ...damageConfig,
-                    workflow: workflow,
-                    // autoFastAttack: false,
-                    // autoFastDamage: false,
-                    // autoRollAttack: false,
-                    // autoRollDamage: false
-                  });
+                    workflow: workflow
+                  }, {
+                    ...config.dialog,
+                    configure: true
+                  }, {});
                 }
                 
                 // await activity.rollDamage(damageConfig, config.dialog, config.message);
@@ -225,6 +263,11 @@ export class ActivityUtil {
               LogUtil.log('executeActivityRoll - damage roll', [activity, damageConfig, config]);
               // Only call rollDamage if it wasn't already handled by use() on player side
               if(!damageHandledByUse){
+                config.dialog.consume = {
+                  spellSlot:false,
+                  action: false,
+                  resources: []
+                }
                 await activity.rollDamage(damageConfig, config.dialog, config.message);
               }
             }
@@ -277,8 +320,8 @@ export class ActivityUtil {
     return formulas.length > 0 ? formulas.join(' + ') : null;
   }
 
-  static async syntheticItemRoll(item, config = {}) {
-    LogUtil.log('syntheticItemRoll', [item, config]);
+  static async midiActivityRoll(activity, config = {}) {
+    LogUtil.log('midiActivityRoll', [activity, config]);
     
     const MidiQOL = ModuleHelpers.getMidiQOL();
     if (!MidiQOL) {
@@ -287,34 +330,52 @@ export class ActivityUtil {
     }
     
     let defaultConfig = {
-        consumeUsage: false,
-        consumeSpellSlot: false
+      consume: {
+        action: false,
+        resources: [],
+        spellSlot: false
+      }
     };
     let defaultOptions = {
+      consume: {
+        action: false,
+        resources: [],
+        spellSlot: false
+      },
       fastForward: false,
       fastForwardAttack: false,
       dialogOptions: {
         fastForward: false,
         fastForwardAttack: false,
-        // fastForwardDamage: false
+        fastForwardDamage: false
       },
       // targetUuids: targets.map(i => i.document.uuid),
       configureDialog: true,
       // ignoreUserTargets: true,
-      workflowOptions: {
-        // autoRollAttack: false,
-        // autoFastAttack: false,
-        // autoRollDamage: 'none',
-        // autoFastDamage: false,
+      midiOptions: {
+        autoRollAttack: false,
+        autoFastAttack: false,
+        autoRollDamage: 'none',
+        autoFastDamage: false,
         fastForward: false,
         fastForwardAttack: false,
-        // fastForwardDamage: false
+        fastForwardDamage: false,
+        autoConsumeResource: "none"
       }
     };
+    activity.midiProperties = {
+      ...activity.midiProperties,
+      forceDamageDialog: "always"
+    }
 
     // options = genericUtils.mergeObject(defaultOptions, options);
-    config = {...defaultConfig, ...config};
-    return await MidiQOL.completeItemUse(item, config, defaultOptions);
+    config = {...defaultOptions, ...config};
+
+    LogUtil.log('midiActivityRoll - config', [config]);
+
+    //defaultOptions
+    return await MidiQOL.completeActivityUse(activity, config, {});
+    // return await MidiQOL.completeItemUse(item, config, defaultOptions);
   }
 
 }
