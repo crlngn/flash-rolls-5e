@@ -390,6 +390,7 @@ body.flash5e {
 
 .standard-form.flash5e {
   gap: 0;
+  padding: 1.5rem 2rem;
   
   .form-content{
     max-height: 70vh;
@@ -403,7 +404,8 @@ body.flash5e {
   }
 }
 
-body:not(.crlngn-ui) #flash-rolls-settings {
+body:not(.crlngn-ui) #flash-rolls-settings,
+body:not(.crlngn-ui) #flash5e-premium-features-dialog {
   span.toggle-hint {
     display: block;
     width: auto;
@@ -422,7 +424,7 @@ body:not(.crlngn-ui) #flash-rolls-settings {
       background-color: rgba(0,0,0,0.5);
     }
   }
-  p.hint {
+  p.hint:not(.on) {
     display: none;
   }
   p.hint.shown {

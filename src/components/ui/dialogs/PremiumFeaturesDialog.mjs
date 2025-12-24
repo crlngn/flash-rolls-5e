@@ -102,8 +102,8 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     primary: {
       initial: "authentication",
       tabs: [
-        { id: "authentication", icon: "fab fa-patreon", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.authentication" },
-        { id: "ddbSettings", icon: "fab fa-d-and-d-beyond", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.ddbSettings" }
+        { id: "authentication", icon: "", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.authentication" },
+        { id: "ddbSettings", icon: "", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.ddbSettings" }
       ],
       labelPrefix: ""
     }
@@ -1093,6 +1093,13 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
    * Render callback
    */
   async _onRender(context, options) {
+    const hintToggles = this.element.querySelectorAll('.toggle-hint');
+    hintToggles.forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        this.element.querySelectorAll('p.hint:not(.on)').forEach(p => p.classList.toggle('shown'));
+      });
+    });
+
     const campaignIdInput = this.element.querySelector('input[name="ddbCampaignId"]');
     const userIdInput = this.element.querySelector('input[name="ddbUserId"]');
     const cobaltCookieInput = this.element.querySelector('input[name="ddbCobaltCookie"]');

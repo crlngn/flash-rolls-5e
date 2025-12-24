@@ -2,6 +2,16 @@
 /* Premium Features Dialog */
 #flash5e-premium-features-dialog {
   max-height: 80vh;
+  min-width: 500px;
+
+  h4 {
+    margin: 0;
+  }
+
+  nav.tabs {
+    margin-bottom: 1rem;
+    gap: 0;
+  }
 
   .window-content {
     max-height: calc(80vh - 30px);
@@ -35,7 +45,7 @@
   }
 
   .form-group {
-    margin: 0.75rem 0;
+    margin: 0.5rem 0;
 
     label {
       font-weight: 500;

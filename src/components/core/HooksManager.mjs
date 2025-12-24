@@ -776,16 +776,20 @@ export class HooksManager {
   static _onSettingUpdate(setting, value, options, userId) {
     const SETTINGS = getSettings();
     const MODULE = { ID: 'flash-rolls-5e' };
-    
+
     if (setting.key === `${MODULE.ID}.${SETTINGS.showOnlyPCsWithToken.tag}` ||
         setting.key === `${MODULE.ID}.${SETTINGS.compactMode.tag}` ||
         setting.key === `${MODULE.ID}.${SETTINGS.menuLayout.tag}`) {
-      
+
       LogUtil.log('HooksManager._onSettingUpdate - Re-rendering roll requests menu due to setting change', [setting.key]);
       RollRequestsMenu.refreshIfOpen();
     }else if(setting.key === `core.uiConfig`){
       SettingsUtil.updateColorScheme();
       RollRequestsMenu.refreshIfOpen();
+      GeneralUtil.confirmReload(
+        game.i18n.localize("FLASH_ROLLS.ui.reloadRequiredTitle"),
+        game.i18n.localize("FLASH_ROLLS.ui.uiConfigReloadLabel")
+      );
     }
   }
 

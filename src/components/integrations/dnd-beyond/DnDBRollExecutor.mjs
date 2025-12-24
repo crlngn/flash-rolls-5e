@@ -260,13 +260,52 @@ export class DnDBRollExecutor {
   }
 
   /**
-   * Execute an initiative roll
+   * Execute an initiative roll and add the actor to combat
    */
   static async _executeInitiative(actor, rollInfo) {
     const ddbRoll = rollInfo.rawRolls[0];
+    const initiativeTotal = ddbRoll.result?.total || 0;
+
+    let combat = game.combat;
+    if (!combat) {
+      if (game.user.isGM && canvas.scene) {
+        const cls = getDocumentClass("Combat");
+        combat = await cls.create({ scene: canvas.scene.id, active: true });
+      } else {
+        ui.notifications.warn("COMBAT.NoneActive", { localize: true });
+        return false;
+      }
+    }
+
+    let tokenActor = actor;
+    let token = null;
+    if (!actor.isToken) {
+      token = canvas.tokens.placeables.find(t => t.actor?.id === actor.id);
+      if (token) {
+        tokenActor = token.actor;
+      }
+    } else {
+      token = actor.token?.object || canvas.tokens.get(actor.token?.id);
+    }
+
+    let combatants = combat.getCombatantsByActor(tokenActor);
+    if (combatants.length === 0 && token) {
+      await combat.createEmbeddedDocuments("Combatant", [{
+        tokenId: token.id,
+        sceneId: token.scene?.id || canvas.scene?.id,
+        actorId: actor.id,
+        hidden: token.document?.hidden || false
+      }]);
+      combatants = combat.getCombatantsByActor(tokenActor);
+    }
+
+    if (combatants.length > 0) {
+      const combatant = combatants[0];
+      await combatant.update({ initiative: initiativeTotal });
+    }
 
     const roll = actor.getInitiativeRoll();
-    if (!roll) return false;
+    if (!roll) return true;
 
     await roll.evaluate();
     DnDBRollUtil.injectDnDBDiceValues(roll, ddbRoll);

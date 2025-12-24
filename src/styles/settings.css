@@ -1,5 +1,13 @@
 #flash-rolls-settings{
   min-width: 500px;
+
+  h4{
+    margin: 0;
+  }
+  nav.tabs {
+    margin-bottom: 1rem;
+    gap: 0;
+  }
 }
 #flash-rolls-settings .form-group.column {
   flex-direction: column;
