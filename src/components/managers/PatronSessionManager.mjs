@@ -4,7 +4,8 @@ import { LogUtil } from "../utils/LogUtil.mjs";
 const PROXY_BASE_URL = "https://proxy.carolingian.io";
 const HEARTBEAT_INTERVAL = 30000;
 const VALIDATION_CACHE_TIME = 60000;
-const SESSION_TOKEN_KEY = `${MODULE_ID}.sessionToken`;
+// Unified session token key shared across all Carolingian modules
+const SESSION_TOKEN_KEY = 'carolingian.sessionToken';
 
 export class PatronSessionManager {
   static _instance = null;

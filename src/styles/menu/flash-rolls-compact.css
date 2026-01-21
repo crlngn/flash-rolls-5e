@@ -24,13 +24,14 @@
   width: var(--fr5e-actions-width);
 }
 
-#flash-rolls-menu.compact .request-types-accordion {
-  width: var(--fr5e-width-accordion);
-  min-width: var(--fr5e-width-accordion);
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+#flash-rolls-menu.compact .request-types-accordion { 
+  width: var(--fr5e-width-accordion); 
+  min-width: var(--fr5e-width-accordion); 
+  max-width: var(--fr5e-max-width-accordion);
+  overflow: auto; 
+  display: flex; 
+  flex-direction: column; 
+  border: 1px solid rgba(255, 255, 255, 0.15); 
 }
 
 /* Compact Mode Actor Positioning */

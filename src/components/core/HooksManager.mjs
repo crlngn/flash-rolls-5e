@@ -977,7 +977,7 @@ export class HooksManager {
    * TEMPLATES
    */
   static onRefreshTemplate(template, options) {
-    if(!template.isOwner){ return; }
+    if(template.document.author !== game.user){ return; }
     const throttleKey = `refresh-template-${template.id}`;
     const SETTINGS = getSettings();
     const targettingSetting = SettingsUtil.get(SETTINGS.templateAutoTarget.tag);
