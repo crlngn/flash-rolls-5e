@@ -217,16 +217,40 @@ body.flash5e {
     border-radius: 4px 0 0 0;
   }
 
-  /*
-  #roll-privacy.vertical button#flash-rolls-icon {
-    border-top-right-radius: 4px;
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }*/
-
 }
 
+#sidebar-tabs {
+  z-index: 1;
+}
+/* Flash rolls icon in sidebar tabs (fallback when chat controls hidden) */
+#sidebar-tabs li.flash-rolls-tab-item {
+  display: flex;
+  align-items: center;
+
+  button#flash-rolls-icon.sidebar-tab-fallback {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-cool-5);
+    border: 1px solid var(--color-cool-4);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+
+    i {
+      pointer-events: none;
+    }
+
+    &.active {
+      background: var(--color-warm-2);
+      color: var(--color-light-1);
+    }
+
+    &:hover {
+      background: var(--color-cool-4);
+    }
+  }
+}
 
 /* Dialog */
 .flash5e-custom-roll-dialog {
@@ -526,4 +550,13 @@ body:not(.crlngn-ui) #flash5e-premium-features-dialog {
     font-weight: 700;
     color: var(--color-text-primary);
   }
+}
+
+/* Hide secondary controls when Flash Rolls control is active */
+#scene-controls:has(button.layer[data-control="flashRolls"][aria-pressed="true"]) #scene-controls-tools {
+  display: none !important;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  overflow: hidden;
 }

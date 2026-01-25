@@ -23,6 +23,12 @@
   </div>
 
   <div class="form-group">
+    <label for="showNPCRequestPrompt">{{fields.showNPCRequestPrompt.label}}</label>
+    <input type="checkbox" name="showNPCRequestPrompt" id="showNPCRequestPrompt" {{#if showNPCRequestPrompt}}checked{{/if}} />
+    <p class="hint">{{fields.showNPCRequestPrompt.hint}}</p>
+  </div>
+
+  <div class="form-group">
     <label for="showOfflineNotifications">{{fields.showOfflineNotifications.label}}</label>
     <input type="checkbox" name="showOfflineNotifications" id="showOfflineNotifications" {{#if showOfflineNotifications}}checked{{/if}} />
     <p class="hint">{{fields.showOfflineNotifications.hint}}</p>
@@ -53,6 +59,12 @@
       <label for="initiateCombatOnRequest">{{fields.initiateCombatOnRequest.label}}</label>
       <input type="checkbox" name="initiateCombatOnRequest" id="initiateCombatOnRequest" {{#if initiateCombatOnRequest}}checked{{/if}} />
       <p class="hint">{{fields.initiateCombatOnRequest.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="autoRequestInitiativeOnCombatant">{{fields.autoRequestInitiativeOnCombatant.label}}</label>
+      <input type="checkbox" name="autoRequestInitiativeOnCombatant" id="autoRequestInitiativeOnCombatant" {{#if autoRequestInitiativeOnCombatant}}checked{{/if}} />
+      <p class="hint">{{fields.autoRequestInitiativeOnCombatant.hint}}</p>
     </div>
 
     <div class="form-group">

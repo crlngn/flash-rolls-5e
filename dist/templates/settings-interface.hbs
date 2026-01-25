@@ -17,6 +17,12 @@
   </div>
 
   <div class="form-group">
+    <label for="flashIconInSceneControls">{{fields.flashIconInSceneControls.label}}</label>
+    <input type="checkbox" name="flashIconInSceneControls" id="flashIconInSceneControls" {{#if flashIconInSceneControls}}checked{{/if}} />
+    <p class="hint">{{fields.flashIconInSceneControls.hint}}</p>
+  </div>
+
+  <div class="form-group">
     <label for="showTokenVisionOnHover">{{fields.showTokenVisionOnHover.label}}</label>
     <input type="checkbox" name="showTokenVisionOnHover" id="showTokenVisionOnHover" {{#if showTokenVisionOnHover}}checked{{/if}} />
     <p class="hint">{{fields.showTokenVisionOnHover.hint}}</p>

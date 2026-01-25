@@ -141,11 +141,17 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       this.customPosition = customPosition;
     }
     
+    const chatControlsHidden = SidebarController.areChatControlsHidden();
     const chatNotifications = document.querySelector('#chat-notifications');
-    if (chatNotifications && frame) {
-      chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+    const sidebar = document.querySelector('#sidebar');
+    if (frame) {
+      if (!chatControlsHidden && chatNotifications) {
+        chatNotifications.insertBefore(frame, chatNotifications.firstChild);
+      } else if (sidebar) {
+        sidebar.appendChild(frame);
+      }
     }
-    
+
     return frame;
   }
 
@@ -1188,9 +1194,13 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if(!this.element) { return; }
     
     if (this.isCustomPosition && this.element.parentElement === document.body) {
+      const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
-      if (chatNotifications) {
+      const sidebar = document.querySelector('#sidebar');
+      if (!chatControlsHidden && chatNotifications) {
         chatNotifications.insertBefore(this.element, chatNotifications.firstChild);
+      } else if (sidebar) {
+        sidebar.appendChild(this.element);
       }
       this.element.style.position = '';
       this.element.style.inset = '';

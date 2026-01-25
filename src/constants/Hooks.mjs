@@ -51,7 +51,9 @@ export const HOOKS_CORE = {
   UPDATE_ACTIVE_EFFECT: "updateActiveEffect",
   RENDER_APPLICATION: "renderApplication",
   PRE_CREATE_TOKEN: "preCreateToken",
-  CANVAS_READY: "canvasReady"
+  CANVAS_READY: "canvasReady",
+  GET_SCENE_CONTROL_BUTTONS: "getSceneControlButtons",
+  RENDER_SCENE_CONTROLS: "renderSceneControls"
 };
 
 /**

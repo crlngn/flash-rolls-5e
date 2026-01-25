@@ -74,11 +74,13 @@ export class HooksManager {
     Hooks.on(HOOKS_CORE.GET_CHAT_MESSAGE_CONTEXT_OPTIONS, (document, contextOptions) => {
       LogUtil.log("getChatMessageContextOptions hook", [document, contextOptions]);
       if (!game.user.isGM) return;
-      
+
       this._addGroupRollContextOptions(document, contextOptions);
     });
-    
+
     Hooks.on(HOOKS_CORE.CLIENT_SETTING_CHANGED, this._onClientSettingChanged.bind(this));
+    Hooks.on(HOOKS_CORE.GET_SCENE_CONTROL_BUTTONS, this._onGetSceneControlButtons.bind(this));
+    Hooks.on(HOOKS_CORE.RENDER_SCENE_CONTROLS, this._onRenderSceneControls.bind(this));
 
     this._registerTidy5eHooks();
 
@@ -382,6 +384,9 @@ export class HooksManager {
     this._registerHook(HOOKS_CORE.CREATE_ACTOR, this._onCreateActor.bind(this));
     this._registerHook(HOOKS_CORE.DELETE_ACTOR, this._onDeleteActor.bind(this));
     this._registerHook(HOOKS_CORE.RENDER_CHAT_INPUT, this._onRenderChatInput.bind(this));
+
+    // crlngn-ui integration - reposition flash rolls icon when chat controls visibility changes
+    Hooks.on('crlngn-ui.elementVisibilityChanged', this._onCrlngnElementVisibilityChanged.bind(this));
   }
 
   /**
@@ -402,6 +407,59 @@ export class HooksManager {
   static _onSidebarUpdate(tab) {
     LogUtil.log("_onSidebarUpdate", [tab]);
     updateSidebarClass(isSidebarExpanded());
+  }
+
+  /**
+   * Handle scene control buttons hook to add Flash Token Bar button
+   * @param {Record<string, SceneControl>} controls - The scene control configurations
+   */
+  static _onGetSceneControlButtons(controls) {
+    LogUtil.log("_onGetSceneControlButtons", [controls]);
+    SidebarController.addSceneControlButton(controls);
+  }
+
+  /**
+   * Handle scene controls render to add click handler for Flash Rolls button
+   * @param {SceneControls} app - The scene controls application
+   * @param {HTMLElement} html - The rendered HTML element
+   * @param {object} options - Render options
+   */
+  static _onRenderSceneControls(app, html, options) {
+    if (!game.user.isGM) return;
+
+    const currentControl = ui.controls?.control?.name;
+    if (currentControl && currentControl !== 'flashRolls') {
+      SidebarController._lastActiveControl = currentControl;
+    }
+
+    const flashRollsButton = html.querySelector('button.layer[data-control="flashRolls"]');
+    if (!flashRollsButton) return;
+
+    flashRollsButton.addEventListener('click', (event) => {
+      const currentControlBeforeClick = ui.controls?.control?.name;
+      if (currentControlBeforeClick && currentControlBeforeClick !== 'flashRolls') {
+        SidebarController._lastActiveControl = currentControlBeforeClick;
+      }
+
+      if (ui.controls.control?.name === 'flashRolls') {
+        event.preventDefault();
+        event.stopPropagation();
+        RollRequestsMenu.toggle();
+      }
+    }, { capture: true });
+  }
+
+  /**
+   * Handle crlngn-ui element visibility changes
+   * Repositions flash rolls icon when chat controls are shown/hidden
+   * @param {Object} changedSettings - Object containing the changed visibility settings
+   */
+  static _onCrlngnElementVisibilityChanged(changedSettings) {
+    LogUtil.log("_onCrlngnElementVisibilityChanged", [changedSettings]);
+
+    if ('v2-chat-log-controls-hide' in changedSettings) {
+      SidebarController.repositionFlashRollsIcon();
+    }
   }
   
   /**
@@ -783,7 +841,10 @@ export class HooksManager {
 
       LogUtil.log('HooksManager._onSettingUpdate - Re-rendering roll requests menu due to setting change', [setting.key]);
       RollRequestsMenu.refreshIfOpen();
-    }else if(setting.key === `core.uiConfig`){
+    } else if (setting.key === `${MODULE.ID}.${SETTINGS.flashIconInSceneControls.tag}`) {
+      LogUtil.log('HooksManager._onSettingUpdate - Repositioning flash rolls icon', [setting.key]);
+      SidebarController.repositionFlashRollsIcon();
+    } else if(setting.key === `core.uiConfig`){
       SettingsUtil.updateColorScheme();
       RollRequestsMenu.refreshIfOpen();
       GeneralUtil.confirmReload(
@@ -1100,12 +1161,45 @@ export class HooksManager {
   }
 
   /**
-   * Handle combatant creation for movement control
+   * Handle combatant creation for movement control and auto-initiative requests
    * @param {Combatant} combatant - The combatant document
    * @param {object} options - Creation options
    * @param {string} userId - The user ID who created the combatant
    */
   static _onCreateCombatant(combatant, options, userId) {
     TokenMovementManager.onCreateCombatant(combatant, options, userId);
+    this._handleAutoInitiativeRequest(combatant, options, userId);
+  }
+
+  /**
+   * Handle automatic initiative request for newly added combatants
+   * @param {Combatant} combatant - The combatant document
+   * @param {object} options - Creation options
+   * @param {string} userId - The user ID who created the combatant
+   */
+  static async _handleAutoInitiativeRequest(combatant, options, userId) {
+    if (!game.user.isGM) return;
+    if (combatant.initiative !== null) return;
+
+    const SETTINGS = getSettings();
+    const autoRequestInitiative = SettingsUtil.get(SETTINGS.autoRequestInitiativeOnCombatant.tag);
+
+    if (!autoRequestInitiative) return;
+
+    const actor = combatant.actor;
+    if (!actor) return;
+
+    const actorId = actor.id;
+    const isPC = actor.type === 'character' && actor.hasPlayerOwner;
+    const skipRollDialog = RollHelpers.shouldSkipRollDialog({ isPC, sendRequest: isPC });
+
+    LogUtil.log('HooksManager._handleAutoInitiativeRequest', [actor.name, actorId, 'isPC:', isPC]);
+
+    FlashAPI.requestRoll({
+      requestType: 'initiative',
+      actorIds: [actorId],
+      skipRollDialog,
+      sendAsRequest: isPC
+    });
   }
 }

@@ -4,6 +4,7 @@ import { adjustMenuOffset } from '../../helpers/Helpers.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
+import { SidebarController } from '../SidebarController.mjs';
 
 /**
  * Handles drag and positioning of the Roll Requests Menu
@@ -11,7 +12,7 @@ import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 export class RollMenuDragManager {
   static SNAP_DISTANCE = 50; // pixels
   static DRAG_HANDLE_SELECTOR = '.drag-handle';
-  static LIGHTNING_BOLT_SELECTOR = '#flash-rolls-icon';
+  // static LIGHTNING_BOLT_SELECTOR = '#flash-rolls-icon';
   
   /**
    * Initialize drag functionality for the menu
@@ -202,17 +203,29 @@ export class RollMenuDragManager {
     const snapInfo = this.calculateSnapDistance(menu);
     
     if (snapInfo.type === 'both-edges') {
+      const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
-      if (chatNotifications && menu.element) {
-        chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+      const sidebar = document.querySelector('#sidebar');
+      if (menu.element) {
+        if (!chatControlsHidden && chatNotifications) {
+          chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+        } else if (sidebar) {
+          sidebar.appendChild(menu.element);
+        }
       }
       await this.snapToDefault(menu);
     } else if (snapInfo.type === 'bottom-edge') {
       await this.snapToBottomEdge(menu);
     } else if (snapInfo.type === 'right-edge') {
+      const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
-      if (chatNotifications && menu.element) {
-        chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+      const sidebar = document.querySelector('#sidebar');
+      if (menu.element) {
+        if (!chatControlsHidden && chatNotifications) {
+          chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+        } else if (sidebar) {
+          sidebar.appendChild(menu.element);
+        }
       }
       await this.snapToRightEdge(menu, dragData.currentTop);
     } else {
@@ -255,13 +268,13 @@ export class RollMenuDragManager {
       return { type: 'none', distance: Infinity };
     }
 
-    const lightningBolt = document.querySelector(this.LIGHTNING_BOLT_SELECTOR);
+    const sidebar = document.querySelector('#sidebar');
     const hotbar = document.querySelector('#hotbar');
 
-    if (!lightningBolt && !hotbar) return { type: 'none', distance: Infinity };
+    if (!sidebar && !hotbar) return { type: 'none', distance: Infinity };
 
     const menuRect = menu.element.getBoundingClientRect();
-    
+
     if (hotbar) {
       const hotbarRect = hotbar.getBoundingClientRect();
       const bottomDistance = Math.abs(hotbarRect.top - menuRect.bottom);
@@ -269,19 +282,19 @@ export class RollMenuDragManager {
       const menuRight = menuRect.right;
       const hotbarLeft = hotbarRect.left;
       const hotbarRight = hotbarRect.right;
-      
+
       const horizontalOverlap = (menuLeft < hotbarRight && menuRight > hotbarLeft);
-      
+
       if (horizontalOverlap && bottomDistance <= this.SNAP_DISTANCE) {
         return { type: 'bottom-edge', distance: 0 };
       }
     }
-    
-    if (lightningBolt) {
-      const boltRect = lightningBolt.getBoundingClientRect();
-      const horizontalDistance = Math.abs(boltRect.left - menuRect.right);
+
+    if (sidebar) {
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const horizontalDistance = Math.abs(sidebarRect.left - menuRect.right);
       const verticalDistance = window.innerHeight - menuRect.bottom;
-      
+
       if (horizontalDistance <= this.SNAP_DISTANCE) {
         if (verticalDistance <= this.SNAP_DISTANCE) {
           return { type: 'both-edges', distance: 0 };
@@ -289,7 +302,7 @@ export class RollMenuDragManager {
         return { type: 'right-edge', distance: 0 };
       }
     }
-    
+
     return { type: 'none', distance: Infinity };
   }
   
@@ -483,9 +496,13 @@ export class RollMenuDragManager {
     menu.customPosition = position;
     
     if (position.dockedRight) {
+      const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
-      if (chatNotifications) {
+      const sidebar = document.querySelector('#sidebar');
+      if (!chatControlsHidden && chatNotifications) {
         chatNotifications.insertBefore(menu.element, chatNotifications.firstChild);
+      } else if (sidebar) {
+        sidebar.appendChild(menu.element);
       }
       
       menu.element.style.position = 'fixed';

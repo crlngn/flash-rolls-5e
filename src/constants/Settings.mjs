@@ -70,7 +70,8 @@ export const getSettings = () => {
         'menuIconsLayout',
         'maxIconsPerRow',
         'teleportAnimationPath',
-        'lockMenuPosition'
+        'lockMenuPosition',
+        'flashIconInSceneControls'
       ],
       default: {
         showMenuOnLoad: true,
@@ -81,7 +82,8 @@ export const getSettings = () => {
         menuIconsLayout: iconsMenuDefault,
         maxIconsPerRow: 5,
         teleportAnimationPath: '',
-        lockMenuPosition: false
+        lockMenuPosition: false,
+        flashIconInSceneControls: false
       },
       scope: SETTING_SCOPE.world,
       config: false,
@@ -130,11 +132,13 @@ export const getSettings = () => {
       fields: [
         'rollInterceptionEnabled',
         'showRequestPrompt',
+        'showNPCRequestPrompt',
         'useGMTargetTokens',
         'consumptionConfigMode',
         'placeTemplateForPlayer',
         'showOfflineNotifications',
         'initiateCombatOnRequest',
+        'autoRequestInitiativeOnCombatant',
         'publicPlayerRolls',
         'useCondensedRollMessage',
         'removeSaveMsgAfterRoll'
@@ -142,11 +146,13 @@ export const getSettings = () => {
       default: {
         rollInterceptionEnabled: true,
         showRequestPrompt: true,
+        showNPCRequestPrompt: false,
         useGMTargetTokens: true,
         consumptionConfigMode: 2,
         placeTemplateForPlayer: false,
         showOfflineNotifications: true,
         initiateCombatOnRequest: true,
+        autoRequestInitiativeOnCombatant: true,
         publicPlayerRolls: false,
         useCondensedRollMessage: false,
         removeSaveMsgAfterRoll: false
@@ -397,6 +403,16 @@ export const getSettings = () => {
       scope: SETTING_SCOPE.world,
       config: false
     },
+    showNPCRequestPrompt: {
+      tag: "show-npc-request-prompt",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showNPCRequestPrompt.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showNPCRequestPrompt.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
     publicPlayerRolls: {
       tag: "public-player-roll-messages",
       label: game.i18n.localize("FLASH_ROLLS.settings.publicPlayerRolls.label"),
@@ -434,6 +450,17 @@ export const getSettings = () => {
       tag: "initiate-combat-on-request",
       label: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.initiateCombatOnRequest.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    autoRequestInitiativeOnCombatant: {
+      tag: "auto-request-initiative-on-combatant",
+      label: game.i18n.localize("FLASH_ROLLS.settings.autoRequestInitiativeOnCombatant.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.autoRequestInitiativeOnCombatant.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: true,
@@ -514,6 +541,17 @@ export const getSettings = () => {
       tag: "lock-menu-position",
       label: game.i18n.localize("FLASH_ROLLS.settings.lockMenuPosition.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.lockMenuPosition.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    flashIconInSceneControls: {
+      tag: "flash-icon-in-scene-controls",
+      label: game.i18n.localize("FLASH_ROLLS.settings.flashIconInSceneControls.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.flashIconInSceneControls.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,

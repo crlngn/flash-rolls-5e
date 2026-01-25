@@ -586,16 +586,16 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
    * Handle Patreon authentication button click
    */
   static async #onAuthenticatePatreon(event, target) {
-    console.log(`${MODULE.ID} | Opening Patreon authentication popup`);
+    LogUtil.log("Opening Patreon authentication popup");
 
     const messageHandler = async (event) => {
       if (event.origin !== new URL(PROXY_BASE_URL).origin) {
-        console.log(`${MODULE.ID} | Ignoring message from unexpected origin: ${event.origin}`);
+        LogUtil.log("Ignoring message from unexpected origin", [event.origin]);
         return;
       }
 
       if (event.data && event.data.type === 'patreon-auth-success') {
-        console.log(`${MODULE.ID} | Received auth success message from popup`, event.data);
+        LogUtil.log("Received auth success message from popup", [event.data]);
         window.removeEventListener('message', messageHandler);
 
         try {
@@ -625,6 +625,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
               })
             );
             DnDBeyondIntegration.initialize();
+            if (status.ddbConnected) {
+              PatronSessionManager.getInstance().startHeartbeat();
+            }
           } else {
             ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.patreonNotVerified"));
           }
@@ -644,17 +647,17 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     );
 
     if (!authWindow) {
-      console.error(`${MODULE.ID} | Popup blocked`);
+      LogUtil.error("Popup blocked");
       window.removeEventListener('message', messageHandler);
       ui.notifications.error(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.popupBlocked"));
       return;
     }
 
-    console.log(`${MODULE.ID} | Popup opened, waiting for success message`);
+    LogUtil.log("Popup opened, waiting for success message");
 
     setTimeout(() => {
       window.removeEventListener('message', messageHandler);
-      console.log(`${MODULE.ID} | Message listener timeout after 2 minutes`);
+      LogUtil.log("Message listener timeout after 2 minutes");
     }, 120000);
   }
 

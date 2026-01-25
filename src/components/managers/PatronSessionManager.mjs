@@ -2,7 +2,7 @@ import { MODULE_ID } from "../../constants/General.mjs";
 import { LogUtil } from "../utils/LogUtil.mjs";
 
 const PROXY_BASE_URL = "https://proxy.carolingian.io";
-const HEARTBEAT_INTERVAL = 30000;
+const HEARTBEAT_INTERVAL = 60000;
 const VALIDATION_CACHE_TIME = 60000;
 // Unified session token key shared across all Carolingian modules
 const SESSION_TOKEN_KEY = 'carolingian.sessionToken';
@@ -37,7 +37,9 @@ export class PatronSessionManager {
     PatronSessionManager._loadSessionToken();
     const instance = PatronSessionManager.getInstance();
     await instance.validateSession();
-    instance.startHeartbeat();
+    if (PatronSessionManager._sessionToken && PatronSessionManager._patronStatus.isPatron && PatronSessionManager._patronStatus.ddbConnected) {
+      instance.startHeartbeat();
+    }
   }
 
   static _loadSessionToken() {
@@ -100,6 +102,11 @@ export class PatronSessionManager {
     if (PatronSessionManager._patronStatus.ddbConnected !== connected) {
       PatronSessionManager._patronStatus.ddbConnected = connected;
       Hooks.callAll(`${MODULE_ID}.patronStatusChanged`, PatronSessionManager.getStatus());
+      if (connected && PatronSessionManager._patronStatus.isPatron) {
+        PatronSessionManager.getInstance().startHeartbeat();
+      } else if (!connected) {
+        PatronSessionManager.getInstance().stopHeartbeat();
+      }
     }
   }
 
@@ -195,7 +202,7 @@ export class PatronSessionManager {
       const data = await response.json();
 
       if (!data.valid) {
-        LogUtil.warn("Session invalidated:", [data.reason]);
+        LogUtil.log("Session invalidated:", [data.reason]);
         await this.validateSession(true);
         return;
       }

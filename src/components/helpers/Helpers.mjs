@@ -519,9 +519,10 @@ export function addHDUpdate(updates, newUpdate){
  */
 export function adjustMenuOffset(isExpanded=true){
   const rollPrivacyVertical = document.querySelector('#chat-notifications #roll-privacy');
-  const controlsWidth = rollPrivacyVertical ? GeneralUtil.getFullWidth(rollPrivacyVertical) : 36;
+  const controlItemSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--control-item-size')) || 36;
+  const controlsWidth = rollPrivacyVertical ? GeneralUtil.getFullWidth(rollPrivacyVertical) : controlItemSize;
   const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
-  
+
   GeneralUtil.addCSSVars('--flash-rolls-menu-offset', (isCrlngnUIOn ? controlsWidth : controlsWidth + 16) + 'px');
 }
 

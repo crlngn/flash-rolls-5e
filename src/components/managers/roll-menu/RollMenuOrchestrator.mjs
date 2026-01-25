@@ -83,11 +83,14 @@ export class RollMenuOrchestrator {
 
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     const useCondensedRollMessage = SettingsUtil.get(SETTINGS.useCondensedRollMessage.tag);
+    const showNPCRequestPrompt = SettingsUtil.get(SETTINGS.showNPCRequestPrompt.tag);
     const isMultiActorRoll = allActors.length > 1;
 
     // Skip if groupRollId already exists (e.g., from contested rolls where the group message was already created)
     const groupMessageAlreadyExists = groupRollId && ChatMessageManager.groupRollMessages.has(groupRollId);
-    const shouldCreateGroupMessage = groupRollsMsgEnabled && !groupMessageAlreadyExists && (isMultiActorRoll || useCondensedRollMessage || config.groupRollId);
+    const needsGroupMessageForNPCs = !showNPCRequestPrompt && npcActors.length > 0;
+    const shouldCreateGroupMessage = !groupMessageAlreadyExists &&
+      ((groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.groupRollId)) || needsGroupMessageForNPCs);
     if (shouldCreateGroupMessage) {
       await ChatMessageManager.createGroupRollMessage(
         allActorEntries,
@@ -151,14 +154,17 @@ export class RollMenuOrchestrator {
     // Handle NPC actors using traditional GM rolls
     if (npcActors.length > 0) {
       config.skipRollDialog = true;
-      config.groupRollId = (groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll)) ? groupRollId : null;
+      const useGroupIdForNPC = groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll);
+      config.groupRollId = (useGroupIdForNPC || !showNPCRequestPrompt) ? groupRollId : null;
 
-      const npcActorIds = npcActors.map(actor => actor.id);
-      const npcActorEntries = actorsData.filter(entry =>
-        entry && entry.actor && npcActorIds.includes(entry.actor.id)
-      );
+      if (showNPCRequestPrompt) {
+        const npcActorIds = npcActors.map(actor => actor.id);
+        const npcActorEntries = actorsData.filter(entry =>
+          entry && entry.actor && npcActorIds.includes(entry.actor.id)
+        );
 
-      await RollMenuExecutor.handleGMRollsWithTokens(npcActorEntries, rollMethodName, rollKey, config);
+        await RollMenuExecutor.handleGMRollsWithTokens(npcActorEntries, rollMethodName, rollKey, config);
+      }
     }
   }
 

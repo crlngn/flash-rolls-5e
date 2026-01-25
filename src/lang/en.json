@@ -120,8 +120,8 @@
         "hint": "When enabled, NPC actor names will be replaced with '???' for players in group roll messages. Only applies to NPCs that are visible (not hidden by the 'Hide NPC rolls' setting). GM always sees the actual names."
       },
       "interceptTidySheetsGroupRolls": {
-        "label": "Intercept Tidy5e Sheets Group Rolls",
-        "hint": "When enabled, group skill rolls from Tidy5e Sheets will use Flash Rolls' group roll system instead of the default chat prompt. Requires Tidy5e Sheets module."
+        "label": "Intercept Group Rolls from Tidy5e Sheets ",
+        "hint": "When enabled, group skill rolls from Tidy5e Sheets will use Flash Token Bar group roll system instead of the default chat prompt. Requires Tidy5e Sheets module."
       },
       "groupRollResultMode": {
         "label": "Group Roll Result Mode",
@@ -187,6 +187,10 @@
       "showRequestPrompt": {
         "label": "Prompt Player on Request",
         "hint": "When enabled, the roll will be immediately triggered on player side and show the roll dialog for them to click on. When disabled, player will only get the chat message on chat log and must click to roll."
+      },
+      "showNPCRequestPrompt": {
+        "label": "Auto-Roll for GM-Controlled Characters",
+        "hint": "When enabled, GM-controlled characters (NPCs) will roll immediately when requested. When disabled, only a chat message is shown and the GM must click to roll."
       },
       "showOfflineNotifications": {
         "label": "Show Offline Notifications",
@@ -278,6 +282,10 @@
       "initiateCombatOnRequest": {
         "label": "Initiate Combat when Requesting Initiative",
         "hint": "Enable to automatically initiate the a combat encounter when using the menu to request initiative rolls."
+      },
+      "autoRequestInitiativeOnCombatant": {
+        "label": "Auto-Request Initiative for New Combatants",
+        "hint": "When enabled, automatically sends initiative roll requests to players when their characters are added to combat. NPCs will roll locally."
       },
       "showOnlyPCsWithToken": {
         "label": "Only Show Actors with Tokens",
@@ -503,6 +511,10 @@
         "label": "Prevent Menu Drag When Locked",
         "hint": "When enabled, toggling the 'Lock Menu' icon will also prevent the menu from being dragged to a new position. The menu will remain fixed in place until unlocked."
       },
+      "flashIconInSceneControls": {
+        "label": "Show Toggle Button in Scene Controls",
+        "hint": "When enabled, the Flash Token Bar toggle button will appear in the left-side Scene Controls instead of the chat controls area. Useful when chat controls are hidden."
+      },
       "legacyTokenAssociationsMigrated": {
         "label": "Legacy Token Associations Migration Status",
         "hint": "Internal flag tracking whether legacy token associations have been migrated to the new scene-based format."
@@ -558,7 +570,7 @@
         "showCode": "Show Code"
       },
       "inputs": {
-        "lockMenu": "Lock Menu",
+        "lockMenu": "Lock Visibility",
         "toggleRollRequests": "Request Rolls",
         "skipRollDialog": "Skip Roll Dialog",
         "groupRollsMsg": "Group Rolls",
