@@ -9,6 +9,7 @@ This is a Foundry VTT module that facilitates rolling for GMs, adding the follow
 - Request skill checks, saving throws, etc. from single or multiple player actors, adding DCs and bonuses before the request
 - Help new players who are unfamiliar with Foundry or tend to slow down combat
 - Target tokens from template drawing
+- Roll from DnD Beyond sheets (requires Patreon account)
 
 ### Roll for multiple NPCs and request for all players, all at once:
 
