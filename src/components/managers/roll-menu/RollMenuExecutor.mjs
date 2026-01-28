@@ -117,8 +117,9 @@ export class RollMenuExecutor {
         }
       };
       
+      const isInitiativeRoll = normalizedType === ROLL_TYPES.INITIATIVE || normalizedType === ROLL_TYPES.INITIATIVE_DIALOG;
       const dialogConfig = {
-        configure: !rollProcessConfig.fastForward && !rollProcessConfig.skipRollDialog,
+        configure: isInitiativeRoll ? !rollProcessConfig.skipRollDialog : (!rollProcessConfig.fastForward && !rollProcessConfig.skipRollDialog),
         isRollRequest: true
       };
       

@@ -426,7 +426,11 @@ export class TokenTeleportManager {
       });
     }
 
-    await this._sourceScene.updateEmbeddedDocuments('Token', updates, { animate: false });
+    const movement = {};
+    for (const update of updates) {
+      movement[update._id] = { constrainOptions: { ignoreWalls: true, ignoreCost: true } };
+    }
+    await this._sourceScene.updateEmbeddedDocuments('Token', updates, { animate: false, movement });
 
     if (animationPath || this._hasJB2A()) {
       await this._playArrivalAnimations(arrivalPositions);
