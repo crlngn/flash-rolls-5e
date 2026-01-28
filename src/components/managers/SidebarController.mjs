@@ -125,7 +125,7 @@ export class SidebarController {
             if (previousButton) {
               previousButton.setAttribute('aria-pressed', 'true');
             }
-            ui.controls.initialize({ control: previousControl });
+            ui.controls.render({ control: previousControl });
           }, 0);
         }
       }

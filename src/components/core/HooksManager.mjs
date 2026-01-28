@@ -1171,13 +1171,21 @@ export class HooksManager {
     this._handleAutoInitiativeRequest(combatant, options, userId);
   }
 
+  /** @type {{timer: number|null, actorIds: string[], groupRollId: string|null}} */
+  static _pendingAutoInitiative = {
+    timer: null,
+    actorIds: [],
+    groupRollId: null
+  };
+
   /**
-   * Handle automatic initiative request for newly added combatants
+   * Handle automatic initiative request for newly added combatants.
+   * Batches multiple combatants added within a short window into a single group roll.
    * @param {Combatant} combatant - The combatant document
    * @param {object} options - Creation options
    * @param {string} userId - The user ID who created the combatant
    */
-  static async _handleAutoInitiativeRequest(combatant, options, userId) {
+  static _handleAutoInitiativeRequest(combatant, options, userId) {
     if (!game.user.isGM) return;
     if (combatant.initiative !== null) return;
 
@@ -1189,17 +1197,63 @@ export class HooksManager {
     const actor = combatant.actor;
     if (!actor) return;
 
-    const actorId = actor.id;
-    const isPC = actor.type === 'character' && actor.hasPlayerOwner;
-    const skipRollDialog = RollHelpers.shouldSkipRollDialog({ isPC, sendRequest: isPC });
+    LogUtil.log('HooksManager._handleAutoInitiativeRequest', [actor.name, actor.id]);
 
-    LogUtil.log('HooksManager._handleAutoInitiativeRequest', [actor.name, actorId, 'isPC:', isPC]);
+    if (!this._pendingAutoInitiative.groupRollId) {
+      this._pendingAutoInitiative.groupRollId = this._findPendingInitiativeGroupRollId() || foundry.utils.randomID();
+    }
+    this._pendingAutoInitiative.actorIds.push(actor.id);
+
+    clearTimeout(this._pendingAutoInitiative.timer);
+    this._pendingAutoInitiative.timer = setTimeout(() => {
+      this._processAutoInitiativeBatch();
+    }, 300);
+  }
+
+  /**
+   * Find an existing initiative group roll message to merge new combatants into.
+   * Checks both pending rolls and recently completed group messages.
+   * @returns {string|null} The groupRollId if found, null otherwise
+   */
+  static _findPendingInitiativeGroupRollId() {
+    for (const [groupRollId, pendingData] of ChatMessageManager.pendingRolls.entries()) {
+      if (pendingData.rollType !== 'initiative') continue;
+
+      const existingMessage = ChatMessageManager.groupRollMessages.get(groupRollId);
+      if (!existingMessage) continue;
+
+      return groupRollId;
+    }
+
+    for (const [groupRollId, existingMessage] of ChatMessageManager.groupRollMessages.entries()) {
+      const rollData = existingMessage.getFlag(MODULE_ID, 'rollData');
+      if (rollData?.rollType === 'initiative') {
+        return groupRollId;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Process the batched auto-initiative requests as a single group roll
+   */
+  static async _processAutoInitiativeBatch() {
+    const { actorIds, groupRollId } = this._pendingAutoInitiative;
+    this._pendingAutoInitiative = { timer: null, actorIds: [], groupRollId: null };
+
+    if (actorIds.length === 0) return;
+
+    const uniqueActorIds = [...new Set(actorIds)];
+
+    LogUtil.log('HooksManager._processAutoInitiativeBatch', [uniqueActorIds.length, 'actors, groupRollId:', groupRollId]);
 
     FlashAPI.requestRoll({
       requestType: 'initiative',
-      actorIds: [actorId],
-      skipRollDialog,
-      sendAsRequest: isPC
+      actorIds: uniqueActorIds,
+      skipRollDialog: true,
+      sendAsRequest: true,
+      groupRollId
     });
   }
 }

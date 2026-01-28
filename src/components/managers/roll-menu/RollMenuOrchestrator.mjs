@@ -86,12 +86,12 @@ export class RollMenuOrchestrator {
     const showNPCRequestPrompt = SettingsUtil.get(SETTINGS.showNPCRequestPrompt.tag);
     const isMultiActorRoll = allActors.length > 1;
 
-    // Skip if groupRollId already exists (e.g., from contested rolls where the group message was already created)
     const groupMessageAlreadyExists = groupRollId && ChatMessageManager.groupRollMessages.has(groupRollId);
     const needsGroupMessageForNPCs = !showNPCRequestPrompt && npcActors.length > 0;
     const shouldCreateGroupMessage = !groupMessageAlreadyExists &&
       ((groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.groupRollId)) || needsGroupMessageForNPCs);
-    if (shouldCreateGroupMessage) {
+    const shouldMergeIntoExisting = groupMessageAlreadyExists && allActorEntries.length > 0;
+    if (shouldCreateGroupMessage || shouldMergeIntoExisting) {
       await ChatMessageManager.createGroupRollMessage(
         allActorEntries,
         rollMethodName,
@@ -126,7 +126,7 @@ export class RollMenuOrchestrator {
 
     // Player Rolls: Actors owned by active players
     for (const { actor, owner } of onlinePlayerActors) {
-      const useGroupId = groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll) ? groupRollId : null;
+      const useGroupId = (config.groupRollId || (groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll))) ? groupRollId : null;
 
       LogUtil.log('orchestrateRollsForActors - Sending to player', {
         actor: actor.name,
@@ -154,7 +154,7 @@ export class RollMenuOrchestrator {
     // Handle NPC actors using traditional GM rolls
     if (npcActors.length > 0) {
       config.skipRollDialog = true;
-      const useGroupIdForNPC = groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll);
+      const useGroupIdForNPC = config.groupRollId || (groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll));
       config.groupRollId = (useGroupIdForNPC || !showNPCRequestPrompt) ? groupRollId : null;
 
       if (showNPCRequestPrompt) {
