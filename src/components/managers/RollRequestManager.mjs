@@ -8,6 +8,7 @@ import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { DiceConfigUtil } from "../utils/DiceConfigUtil.mjs";
 import { ModuleHelpers } from "../helpers/ModuleHelpers.mjs";
+import { ChatMessageManager } from "./ChatMessageManager.mjs";
 
 /**
  * @typedef {Object} RollRequestData
@@ -212,9 +213,10 @@ export class RollRequestManager {
 
         LogUtil.log('executePlayerRollRequest - Skipping prompt (showRequestPrompt disabled)', [actor.name]);
         if (requestData.groupRollId) {
-          await actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
+          const mapKey = actor.isToken ? (actor.token?.id || actor.id) : actor.id;
+          ChatMessageManager.setTempGroupRollId(mapKey, requestData.groupRollId);
           if (actor.isToken && actor.actor) {
-            await actor.actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
+            ChatMessageManager.setTempGroupRollId(actor.actor.id, requestData.groupRollId);
           }
           LogUtil.log('executePlayerRollRequest - Set tempGroupRollId for manual roll interception', [requestData.groupRollId, actor.name]);
         }

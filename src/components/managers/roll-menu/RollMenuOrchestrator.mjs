@@ -125,12 +125,23 @@ export class RollMenuOrchestrator {
     }
 
     // Player Rolls: Actors owned by active players
+    const lateOfflineActors = [];
     for (const { actor, owner } of onlinePlayerActors) {
+      if (!owner.active) {
+        LogUtil.log('orchestrateRollsForActors - Owner went offline, will roll locally', {
+          actor: actor.name,
+          owner: owner.name
+        });
+        lateOfflineActors.push(actor);
+        continue;
+      }
+
       const useGroupId = (config.groupRollId || (groupRollsMsgEnabled && (isMultiActorRoll || useCondensedRollMessage || config.isContestedRoll))) ? groupRollId : null;
 
       LogUtil.log('orchestrateRollsForActors - Sending to player', {
         actor: actor.name,
         owner: owner.name,
+        ownerActive: owner.active,
         useGroupId,
         groupRollId
       });
@@ -146,6 +157,13 @@ export class RollMenuOrchestrator {
       await this.sendRollRequestToPlayer(actor, owner, rollMethodName, currentRollKey, config, true, useGroupId);
       successfulRequests.push({ actor, owner });
       await delay(100);
+    }
+
+    if (lateOfflineActors.length > 0) {
+      LogUtil.log('orchestrateRollsForActors - Processing late offline actors', lateOfflineActors.map(a => a.name));
+      config.skipRollDialog = true;
+      config.groupRollId = groupRollId;
+      await OfflinePlayerManager.processOfflineActors(lateOfflineActors, rollMethodName, rollKey, config);
     }
     if (successfulRequests.length > 0) {
       this.showConsolidatedNotification(successfulRequests, rollMethodName, rollKey);

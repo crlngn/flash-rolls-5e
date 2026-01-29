@@ -38,13 +38,52 @@ export class ChatMessageManager {
    * @type {Map<string, Promise>}
    */
   static updateQueue = new Map();
-  
+
+  /**
+   * In-memory map of actorId/tokenId to groupRollId for temporary roll associations.
+   * Uses memory instead of actor flags to prevent stale data persisting across sessions.
+   * @type {Map<string, string>}
+   */
+  static actorGroupRollMap = new Map();
+
   /**
    * Path to the group roll template
    * @type {string}
    */
   static templatePath = 'modules/flash-rolls-5e/templates/chat-msg-group-roll.hbs';
-  
+
+  /**
+   * Store a temporary groupRollId association for an actor
+   * @param {string} actorId - The actor ID (or token ID for unlinked tokens)
+   * @param {string} groupRollId - The group roll ID to associate
+   */
+  static setTempGroupRollId(actorId, groupRollId) {
+    if (actorId && groupRollId) {
+      this.actorGroupRollMap.set(actorId, groupRollId);
+      LogUtil.log('setTempGroupRollId', [actorId, groupRollId]);
+    }
+  }
+
+  /**
+   * Get the temporary groupRollId for an actor
+   * @param {string} actorId - The actor ID (or token ID for unlinked tokens)
+   * @returns {string|undefined} The associated groupRollId or undefined
+   */
+  static getTempGroupRollId(actorId) {
+    return actorId ? this.actorGroupRollMap.get(actorId) : undefined;
+  }
+
+  /**
+   * Clear the temporary groupRollId for an actor
+   * @param {string} actorId - The actor ID (or token ID for unlinked tokens)
+   */
+  static clearTempGroupRollId(actorId) {
+    if (actorId && this.actorGroupRollMap.has(actorId)) {
+      this.actorGroupRollMap.delete(actorId);
+      LogUtil.log('clearTempGroupRollId', [actorId]);
+    }
+  }
+
   /**
    * Initialize the ChatMessageManager
    */
@@ -121,13 +160,13 @@ export class ChatMessageManager {
             }
           }
         } else {
-          let storedGroupRollId = actor.getFlag(MODULE_ID, 'tempGroupRollId');
+          let storedGroupRollId = ChatMessageManager.getTempGroupRollId(actorId);
           LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Player side check', [actor.name, 'storedGroupRollId:', storedGroupRollId, 'isToken:', actor.isToken]);
           if (!storedGroupRollId && actor.isToken) {
-            const baseActor = game.actors.get(actor.actor?.id);
-            if (baseActor) {
-              storedGroupRollId = baseActor.getFlag(MODULE_ID, 'tempGroupRollId');
-              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Checking base actor for tempGroupRollId', [baseActor.id, storedGroupRollId]);
+            const baseActorId = actor.actor?.id;
+            if (baseActorId) {
+              storedGroupRollId = ChatMessageManager.getTempGroupRollId(baseActorId);
+              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Checking base actor for tempGroupRollId', [baseActorId, storedGroupRollId]);
             }
           }
 
@@ -147,11 +186,11 @@ export class ChatMessageManager {
             data.flags.rsr5e = { processed: true, quickRoll: false};
 
             if (storedGroupRollId) {
-              actor.unsetFlag(MODULE_ID, 'tempGroupRollId');
+              ChatMessageManager.clearTempGroupRollId(actorId);
               if (actor.isToken) {
-                const baseActor = game.actors.get(actor.actor?.id);
-                if (baseActor) {
-                  baseActor.unsetFlag(MODULE_ID, 'tempGroupRollId');
+                const baseActorId = actor.actor?.id;
+                if (baseActorId) {
+                  ChatMessageManager.clearTempGroupRollId(baseActorId);
                 }
               }
             }
@@ -603,6 +642,12 @@ export class ChatMessageManager {
             isNPC,
             sendRequest: isPC
           });
+        } else if (!game.user.isGM && !shouldSkipDialog) {
+          const SETTINGS = getSettings();
+          const fastForwardChatMsgRoll = SettingsUtil.get(SETTINGS.fastForwardChatMsgRoll.tag);
+          if (fastForwardChatMsgRoll) {
+            shouldSkipDialog = true;
+          }
         }
 
         this._handleGroupRollClick(diceBtn, message, shouldSkipDialog, hasAdvantage, hasDisadvantage);
@@ -933,7 +978,7 @@ export class ChatMessageManager {
     if (existingMessage) {
       LogUtil.log('createGroupRollMessage - Found existing message, merging actors', [groupRollId]);
       const pendingData = this.pendingRolls.get(groupRollId);
-      const existingActorIds = new Set(pendingData?.actorEntries.map(e => e.actorId) || []);
+      const existingActorIds = new Set(pendingData?.actorEntries?.map(e => e.actorId) || []);
       const newEntries = validEntries.filter(entry => !existingActorIds.has(entry.actor.id));
 
       if (newEntries.length === 0) {
@@ -946,6 +991,22 @@ export class ChatMessageManager {
 
       if (pendingData) {
         pendingData.actorEntries = mergedEntries;
+      } else {
+        const existingFlagDataForPending = existingMessage.getFlag(MODULE_ID, 'rollData');
+        const existingEntriesFromFlag = existingFlagDataForPending?.results?.map(r => ({
+          actorId: r.actorId,
+          uniqueId: r.uniqueId,
+          tokenId: r.tokenId
+        })) || [];
+        const allEntries = [...existingEntriesFromFlag, ...newEntriesData];
+        this.pendingRolls.set(groupRollId, {
+          actorEntries: allEntries,
+          rollType,
+          rollKey,
+          config,
+          results: new Map()
+        });
+        LogUtil.log('createGroupRollMessage - Created new pendingRolls entry for merged actors', [groupRollId, allEntries.length]);
       }
 
       const existingFlagData = existingMessage.getFlag(MODULE_ID, 'rollData');
@@ -1753,7 +1814,7 @@ export class ChatMessageManager {
     }
 
     const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') ||
-                        actor.getFlag(MODULE_ID, 'tempGroupRollId') ||
+                        ChatMessageManager.getTempGroupRollId(uniqueId) ||
                         actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
 
     if (!groupRollId) {
@@ -2047,9 +2108,10 @@ export class ChatMessageManager {
     LogUtil.log('addGroupRollFlag called', [messageConfig, requestData.groupRollId, this.isGroupRoll(requestData.groupRollId), rollType]);
 
     if (!game.user.isGM && requestData.groupRollId && actor) {
-      await actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
+      const mapKey = actor.isToken ? (actor.token?.id || actor.id) : actor.id;
+      ChatMessageManager.setTempGroupRollId(mapKey, requestData.groupRollId);
       if (actor.isToken && actor.actor) {
-        await actor.actor.setFlag(MODULE_ID, 'tempGroupRollId', requestData.groupRollId);
+        ChatMessageManager.setTempGroupRollId(actor.actor.id, requestData.groupRollId);
         LogUtil.log('addGroupRollFlag - Also stored tempGroupRollId on base actor for player', [requestData.groupRollId, actor.actor.id]);
       }
 

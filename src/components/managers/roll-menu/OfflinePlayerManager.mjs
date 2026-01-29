@@ -5,6 +5,7 @@ import { RollInterceptor } from '../../handlers/RollInterceptor.mjs';
 import { RollHandlers } from '../../handlers/RollHandlers.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
+import { getPlayerOwner } from '../../helpers/Helpers.mjs';
 
 /**
  * Handles offline player detection and roll execution
@@ -57,7 +58,7 @@ export class OfflinePlayerManager {
   static categorizeActorsByOnlineStatus(pcActors) {
     const onlinePlayerActors = [];
     const offlinePlayerActors = [];
-    
+
     const actorMap = new Map();
     for (const { actor, owner } of pcActors) {
       if (!actorMap.has(actor.id)) {
@@ -65,17 +66,23 @@ export class OfflinePlayerManager {
       }
       actorMap.get(actor.id).owners.push(owner);
     }
-    
+
     for (const { actor, owners } of actorMap.values()) {
       const onlineNonGMOwner = owners.find(owner => owner.active && !owner.isGM);
-      
+
+      LogUtil.log('categorizeActorsByOnlineStatus', [
+        actor.name,
+        'owners:', owners.map(o => `${o.name}(active:${o.active},isGM:${o.isGM})`),
+        'onlineNonGMOwner:', onlineNonGMOwner?.name || 'none'
+      ]);
+
       if (onlineNonGMOwner) {
         onlinePlayerActors.push({ actor, owner: onlineNonGMOwner });
       } else {
         offlinePlayerActors.push(actor);
       }
     }
-    
+
     return { onlinePlayerActors, offlinePlayerActors };
   }
   
@@ -87,25 +94,11 @@ export class OfflinePlayerManager {
    * @param {Object} config - Roll configuration
    */
   static async processOfflineActors(offlineActors, rollMethodName, rollKey, config) {
+    LogUtil.log('OfflinePlayerManager.processOfflineActors', [offlineActors.map(a => a.name), rollMethodName, rollKey]);
 
     for (const actor of offlineActors) {
-      const ownership = actor.ownership || {};
-      let owner = null;
-      
-      for (const [userId, level] of Object.entries(ownership)) {
-        if (level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER && userId !== "default") {
-          const potentialOwner = game.users.get(userId);
-          if (potentialOwner && !potentialOwner.isGM) {
-            owner = potentialOwner;
-            break;
-          }
-        }
-      }
-      
-      if (!owner) {
-        LogUtil.warn('OfflinePlayerManager.processOfflineActors - No owner found for actor', [actor.name]);
-        continue;
-      }
+      const owner = getPlayerOwner(actor);
+      LogUtil.log('OfflinePlayerManager.processOfflineActors - Processing actor', [actor.name, 'owner:', owner?.name || 'none']);
       
       const requestData = {
         rollKey: rollKey,

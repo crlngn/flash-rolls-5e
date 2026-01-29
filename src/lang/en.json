@@ -151,6 +151,10 @@
         "label": "Hide Messages from Automatic Save Request by Midi-QOL",
         "hint": "Activate this to reduce repetition especially with Midi-QoL. Save roll messages will be hidden 1 second after all rolls complete and then deleted. This prevents duplicate information with what's shown on Midi-QoL cards."
       },
+      "fastForwardChatMsgRoll": {
+        "label": "Fast Forward Roll from Chat Requests",
+        "hint": "When enabled, clicking on a roll request in chat messages will skip the roll dialog and roll immediately. Players can still hold modifier keys to roll with advantage/disadvantage."
+      },
       "useGMTargetTokens": {
         "label": "Use GM Targeted Tokens",
         "hint": "When players confirm a requested roll, this setting will force use of GM targeted tokens instead of player targeted tokens. If this setting is disabled, the GM targets will only be transferred if the player has no targets."

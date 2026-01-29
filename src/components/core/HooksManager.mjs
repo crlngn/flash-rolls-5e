@@ -1197,12 +1197,15 @@ export class HooksManager {
     const actor = combatant.actor;
     if (!actor) return;
 
-    LogUtil.log('HooksManager._handleAutoInitiativeRequest', [actor.name, actor.id]);
+    const tokenId = combatant.tokenId;
+    const uniqueId = tokenId || actor.id;
+
+    LogUtil.log('HooksManager._handleAutoInitiativeRequest', [actor.name, 'uniqueId:', uniqueId, 'tokenId:', tokenId]);
 
     if (!this._pendingAutoInitiative.groupRollId) {
       this._pendingAutoInitiative.groupRollId = this._findPendingInitiativeGroupRollId() || foundry.utils.randomID();
     }
-    this._pendingAutoInitiative.actorIds.push(actor.id);
+    this._pendingAutoInitiative.actorIds.push(uniqueId);
 
     clearTimeout(this._pendingAutoInitiative.timer);
     this._pendingAutoInitiative.timer = setTimeout(() => {

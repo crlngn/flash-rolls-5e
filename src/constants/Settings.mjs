@@ -141,7 +141,8 @@ export const getSettings = () => {
         'autoRequestInitiativeOnCombatant',
         'publicPlayerRolls',
         'useCondensedRollMessage',
-        'removeSaveMsgAfterRoll'
+        'removeSaveMsgAfterRoll',
+        'fastForwardChatMsgRoll'
       ],
       default: {
         rollInterceptionEnabled: true,
@@ -155,7 +156,8 @@ export const getSettings = () => {
         autoRequestInitiativeOnCombatant: true,
         publicPlayerRolls: false,
         useCondensedRollMessage: false,
-        removeSaveMsgAfterRoll: false
+        removeSaveMsgAfterRoll: false,
+        fastForwardChatMsgRoll: true
       },
       scope: SETTING_SCOPE.world,
       config: false,
@@ -486,6 +488,17 @@ export const getSettings = () => {
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    fastForwardChatMsgRoll: {
+      tag: "fast-forward-chat-msg-roll",
+      label: game.i18n.localize("FLASH_ROLLS.settings.fastForwardChatMsgRoll.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.fastForwardChatMsgRoll.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
       scope: SETTING_SCOPE.world,
       config: false
     },
