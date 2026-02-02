@@ -34,19 +34,21 @@ export class RollMenuOrchestrator {
     const onlinePlayerActors = [];
     let groupRollId = config.groupRollId || foundry.utils.randomID();
 
+    const sendRequest = config.sendRequest ?? config.sendAsRequest;
+
     LogUtil.log('RollMenuOrchestrator.orchestrateRollsForActors', [
       'groupRollId:', groupRollId,
       'config.groupRollId:', config.groupRollId,
       'config.isContestedRoll:', config.isContestedRoll,
-      'config.sendRequest:', config.sendRequest,
+      'sendRequest:', sendRequest,
       'pcActors:', pcActors.map(p => `${p.actor.name}(${p.owner?.name})`),
       'npcActors:', npcActors.map(n => n.name)
     ]);
-    
+
     const allActorEntries = [];
     const allActors = [];
 
-    if (config.sendRequest) {
+    if (sendRequest) {
       // Use unified offline player categorization
       const { onlinePlayerActors: online, offlinePlayerActors: offline } = 
         OfflinePlayerManager.categorizeActorsByOnlineStatus(pcActors);

@@ -146,16 +146,35 @@ export class ChatMessageManager {
 
         if (game.user.isGM) {
           const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
-          const checkIds = [actorId, baseActorId].filter(id => id);
+          const tokenId = speaker?.token;
+          const checkIds = [actorId, baseActorId, tokenId].filter(id => id);
+
+          LogUtil.log('ChatMessageManager.onPreCreateChatMessage - GM side searching pendingRolls', [
+            actor.name,
+            'checkIds:', checkIds,
+            'pendingRolls count:', ChatMessageManager.pendingRolls.size
+          ]);
 
           for (const [groupRollId, pendingData] of ChatMessageManager.pendingRolls.entries()) {
             const actorEntries = pendingData.actorEntries || (pendingData.actors ? pendingData.actors.map(id => ({ actorId: id })) : []);
-            if (checkIds.some(id => actorEntries.some(entry => entry.actorId === id))) {
-              data.flags = data.flags || {};
-              data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
-              data.flags[MODULE_ID].groupRollId = groupRollId;
-              data.flags.rsr5e = { processed: true, quickRoll: false};
-              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (GM)', [groupRollId, actorId]);
+
+            LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Checking pendingRoll', [
+              groupRollId,
+              'actorEntries:', actorEntries.map(e => `actorId:${e.actorId},uniqueId:${e.uniqueId},tokenId:${e.tokenId}`)
+            ]);
+
+            const hasMatch = actorEntries.some(entry =>
+              checkIds.includes(entry.actorId) ||
+              checkIds.includes(entry.uniqueId) ||
+              checkIds.includes(entry.tokenId)
+            );
+            if (hasMatch) {
+              message.updateSource({
+                [`flags.${MODULE_ID}.groupRollId`]: groupRollId,
+                ['flags.rsr5e.processed']: true,
+                ['flags.rsr5e.quickRoll']: false
+              });
+              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (GM) via updateSource', [groupRollId, actorId, tokenId]);
               break;
             }
           }
@@ -2018,7 +2037,7 @@ export class ChatMessageManager {
         matchesType = true;
       } else if (dndRollType === 'death' && pendingType === ROLL_TYPES.DEATH_SAVE) {
         matchesType = true;
-      } else if (dndRollType === 'initiative' && pendingType === ROLL_TYPES.INITIATIVE) {
+      } else if (dndRollType === 'initiative' && (pendingType === ROLL_TYPES.INITIATIVE || pendingType === ROLL_TYPES.INITIATIVE_DIALOG)) {
         matchesType = true;
       }
 
