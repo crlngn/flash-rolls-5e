@@ -428,7 +428,7 @@ export class TokenTeleportManager {
 
     const movement = {};
     for (const update of updates) {
-      movement[update._id] = { constrainOptions: { ignoreWalls: true, ignoreCost: true } };
+      movement[update._id] = { constrainOptions: { ignoreWalls: true, ignoreCost: true, ignoreTokens: true } };
     }
     await this._sourceScene.updateEmbeddedDocuments('Token', updates, { animate: false, movement });
 
