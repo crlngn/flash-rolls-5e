@@ -343,8 +343,10 @@ export class BaseActivityManager {
 
     if (!actor) return;
 
-    const showConsumptionDialog = showConsumptionConfig();
-    dialog.configure = dialog.configure ? showConsumptionDialog : false;
+    if (config.isRollRequest) {
+      const showConsumptionDialog = showConsumptionConfig();
+      dialog.configure = dialog.configure ? showConsumptionDialog : false;
+    }
 
     config.consume = getConsumptionConfig(config.consume || {}, true);
     config.create = getCreateConfig(config.create || {}, true);
