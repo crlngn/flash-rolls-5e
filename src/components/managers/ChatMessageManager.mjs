@@ -661,12 +661,8 @@ export class ChatMessageManager {
             isNPC,
             sendRequest: isPC
           });
-        } else if (!game.user.isGM && !shouldSkipDialog) {
-          const SETTINGS = getSettings();
-          const fastForwardChatMsgRoll = SettingsUtil.get(SETTINGS.fastForwardChatMsgRoll.tag);
-          if (fastForwardChatMsgRoll) {
-            shouldSkipDialog = true;
-          }
+        } else if (!game.user.isGM) {
+          shouldSkipDialog = true;
         }
 
         this._handleGroupRollClick(diceBtn, message, shouldSkipDialog, hasAdvantage, hasDisadvantage);

@@ -209,7 +209,7 @@ export class RollHooksHandler {
     config._flashRollsProcessed = true;
 
     LogUtil.log("RollHooksHandler.onPreRollAbilityCheck", [config, dialog, message]);
-    if (config.isRollRequest) {
+    if (config.isRollRequest && dialog.configure !== false) {
       dialog.configure = true;
     }
   }

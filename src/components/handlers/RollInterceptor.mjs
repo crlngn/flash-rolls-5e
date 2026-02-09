@@ -141,6 +141,11 @@ export class RollInterceptor {
       return;
     }
 
+    if (dialog?.configure === false) {
+      LogUtil.log('_onPreRollIntercept - skipping interception: dialog.configure is false (local execution)');
+      return;
+    }
+
     // === Calculate context for skip dialog decision ===
     const owner = GeneralUtil.getActorOwner(actor);
     const isOwnerActive = owner && owner?.active && !owner?.isGM;
