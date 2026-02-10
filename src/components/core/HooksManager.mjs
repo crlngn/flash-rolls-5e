@@ -527,8 +527,7 @@ export class HooksManager {
         if (!input.value && app.config?.rolls?.[0]?.data?.situational) {
           input.value = app.config.rolls[0].data.situational;
         }
-        
-        app.config.scaling = true;
+
         if (input.value) {
           app._flashRollsApplied = true;
 

@@ -237,7 +237,7 @@
           "rollActivation": "Request Activations",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "dndBeyond": "D&D Beyond Integration"
+          "dndBeyond": "D&D Beyond Integration (Premium)"
         }
       },
       "ddbImportOwnership": {
@@ -335,6 +335,23 @@
         "buttonLabel": "Patreon support",
         "hint": "If you like Flash Token Bar 5e and my other modules, consider giving your support to the development on Patreon."
       },
+      "exportSettings": {
+        "label": "Troubleshooting",
+        "buttonLabel": "Export settings",
+        "hint": "Export your Flash Token Bar 5e settings and active modules to a JSON file for troubleshooting.",
+        "success": "Settings exported successfully!"
+      },
+      "importSettings": {
+        "label": "Import Settings",
+        "buttonLabel": "Import settings",
+        "hint": "Import Flash Token Bar 5e settings from a JSON file. GM only.",
+        "success": "Successfully imported {count} settings!",
+        "partialSuccess": "Imported {applied} settings with {errors} errors.",
+        "invalidFile": "Invalid settings file. Must contain flashRollsSettings.",
+        "parseError": "Failed to parse settings file. Please check the file format.",
+        "reloadTitle": "Reload Required",
+        "reloadPrompt": "Settings have been imported. Reload the page to apply all changes?"
+      },
       "premiumFeatures": {
         "label": "Premium Features",
         "buttonLabel": "Premium Features",
@@ -360,7 +377,7 @@
         "logoutFailed": "Failed to logout. Please try again.",
         "testConnectionBtn": "Test Connection",
         "testGameLogBtn": "Test DDB Connection",
-        "ddbSettings": "D&D Beyond Integration",
+        "ddbSettings": "D&D Beyond Integration (Premium)",
         "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your cobalt cookie, campaign id and user id in the fields below.",
         "ddbWarningImportItems": "If you did not purchase official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium before importing the character.",
         "ddbWarningAfter": "If DDB Importer module is active, it is used for character import. If not available, Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items",

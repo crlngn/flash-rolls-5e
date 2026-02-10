@@ -29,7 +29,9 @@ export class VanillaActivityManager {
 
     if (needsDamageRoll) {
       LogUtil.log("VanillaActivityManager.triggerMissingRolls - Manually triggering damage/healing roll", [activity.type]);
-      await activity.rollDamage(config, {}, {});
+      const damageConfig = { ...config };
+      delete damageConfig.scaling;
+      await activity.rollDamage(damageConfig, {}, {});
     }
   }
 

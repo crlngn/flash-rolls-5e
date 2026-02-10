@@ -316,7 +316,9 @@ export class BaseActivityManager {
       } else {
         LogUtil.log("BaseActivityManager.onPostUseActivityGM - triggering vanilla save damage roll for local roll", [activity, config]);
         const shouldShowDialog = config.skipRollDialog !== undefined ? !config.skipRollDialog : (isOwnerActive && !skipRollDialog);
-        activity.rollDamage(config, {
+        const damageConfig = { ...config };
+        delete damageConfig.scaling;
+        activity.rollDamage(damageConfig, {
           configure: shouldShowDialog
         }, {});
       }
@@ -382,7 +384,9 @@ export class BaseActivityManager {
       } else {
         LogUtil.log("BaseActivityManager.onPostUseActivityPlayer - triggering vanilla save damage roll", [activity, config]);
         const shouldShowDialog = config.skipRollDialog !== undefined ? !config.skipRollDialog : true;
-        activity.rollDamage(config, {
+        const damageConfig = { ...config };
+        delete damageConfig.scaling;
+        activity.rollDamage(damageConfig, {
           configure: shouldShowDialog
         }, {
           create: true
