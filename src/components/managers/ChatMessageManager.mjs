@@ -145,37 +145,42 @@ export class ChatMessageManager {
         }
 
         if (game.user.isGM) {
-          const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
-          const tokenId = speaker?.token;
-          const checkIds = [actorId, baseActorId, tokenId].filter(id => id);
+          const existingGroupRollId = data.flags?.[MODULE_ID]?.groupRollId;
+          if (existingGroupRollId && ChatMessageManager.isGroupRoll(existingGroupRollId)) {
+            LogUtil.log('ChatMessageManager.onPreCreateChatMessage - groupRollId already set, skipping pendingRolls search', [existingGroupRollId]);
+          } else {
+            const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
+            const tokenId = speaker?.token;
+            const checkIds = [actorId, baseActorId, tokenId].filter(id => id);
 
-          LogUtil.log('ChatMessageManager.onPreCreateChatMessage - GM side searching pendingRolls', [
-            actor.name,
-            'checkIds:', checkIds,
-            'pendingRolls count:', ChatMessageManager.pendingRolls.size
-          ]);
-
-          for (const [groupRollId, pendingData] of ChatMessageManager.pendingRolls.entries()) {
-            const actorEntries = pendingData.actorEntries || (pendingData.actors ? pendingData.actors.map(id => ({ actorId: id })) : []);
-
-            LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Checking pendingRoll', [
-              groupRollId,
-              'actorEntries:', actorEntries.map(e => `actorId:${e.actorId},uniqueId:${e.uniqueId},tokenId:${e.tokenId}`)
+            LogUtil.log('ChatMessageManager.onPreCreateChatMessage - GM side searching pendingRolls', [
+              actor.name,
+              'checkIds:', checkIds,
+              'pendingRolls count:', ChatMessageManager.pendingRolls.size
             ]);
 
-            const hasMatch = actorEntries.some(entry =>
-              checkIds.includes(entry.actorId) ||
-              checkIds.includes(entry.uniqueId) ||
-              checkIds.includes(entry.tokenId)
-            );
-            if (hasMatch) {
-              message.updateSource({
-                [`flags.${MODULE_ID}.groupRollId`]: groupRollId,
-                ['flags.rsr5e.processed']: true,
-                ['flags.rsr5e.quickRoll']: false
-              });
-              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (GM) via updateSource', [groupRollId, actorId, tokenId]);
-              break;
+            for (const [groupRollId, pendingData] of ChatMessageManager.pendingRolls.entries()) {
+              const actorEntries = pendingData.actorEntries || (pendingData.actors ? pendingData.actors.map(id => ({ actorId: id })) : []);
+
+              LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Checking pendingRoll', [
+                groupRollId,
+                'actorEntries:', actorEntries.map(e => `actorId:${e.actorId},uniqueId:${e.uniqueId},tokenId:${e.tokenId}`)
+              ]);
+
+              const hasMatch = actorEntries.some(entry =>
+                checkIds.includes(entry.actorId) ||
+                checkIds.includes(entry.uniqueId) ||
+                checkIds.includes(entry.tokenId)
+              );
+              if (hasMatch) {
+                message.updateSource({
+                  [`flags.${MODULE_ID}.groupRollId`]: groupRollId,
+                  ['flags.rsr5e.processed']: true,
+                  ['flags.rsr5e.quickRoll']: false
+                });
+                LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (GM) via updateSource', [groupRollId, actorId, tokenId]);
+                break;
+              }
             }
           }
         } else {
@@ -708,6 +713,9 @@ export class ChatMessageManager {
     const rollType = dataset.type?.toLowerCase();
     const rollKey = dataset.rollKey;
     const groupRollId = dataset.groupRollId;
+    if (groupRollId) {
+      ChatMessageManager.setTempGroupRollId(uniqueId, groupRollId);
+    }
     const dc = dataset.dc ? parseInt(dataset.dc) : null;
     const gmAdvantage = dataset.gmAdvantage === 'true';
     const gmDisadvantage = dataset.gmDisadvantage === 'true';
@@ -1820,17 +1828,17 @@ export class ChatMessageManager {
     const rollKey = message.getFlag(MODULE_ID, 'rollKey');
     const roll = message.rolls?.[0];
 
-    if (!groupRollsMsgEnabled) {
+    const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') ||
+                        ChatMessageManager.getTempGroupRollId(uniqueId) ||
+                        actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
+
+    if (!groupRollsMsgEnabled && !(groupRollId && this.isGroupRoll(groupRollId))) {
       if (isFlashRollRequest && roll) {
         this._broadcastIndividualRollComplete(actor, roll, rollType, rollKey, tokenId);
         this._scheduleIndividualMessageRemoval(message, rollType);
       }
       return;
     }
-
-    const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') ||
-                        ChatMessageManager.getTempGroupRollId(uniqueId) ||
-                        actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
 
     if (!groupRollId) {
       LogUtil.log('interceptRollMessage #2 - no groupRollId in flag', [actor.name]);
@@ -2122,15 +2130,15 @@ export class ChatMessageManager {
 
     LogUtil.log('addGroupRollFlag called', [messageConfig, requestData.groupRollId, this.isGroupRoll(requestData.groupRollId), rollType]);
 
-    if (!game.user.isGM && requestData.groupRollId && actor) {
+    if (requestData.groupRollId && actor) {
       const mapKey = actor.isToken ? (actor.token?.id || actor.id) : actor.id;
       ChatMessageManager.setTempGroupRollId(mapKey, requestData.groupRollId);
       if (actor.isToken && actor.actor) {
         ChatMessageManager.setTempGroupRollId(actor.actor.id, requestData.groupRollId);
-        LogUtil.log('addGroupRollFlag - Also stored tempGroupRollId on base actor for player', [requestData.groupRollId, actor.actor.id]);
+        LogUtil.log('addGroupRollFlag - Also stored tempGroupRollId on base actor', [requestData.groupRollId, actor.actor.id]);
       }
 
-      if (!this.groupRollMessages.has(requestData.groupRollId)) {
+      if (!game.user.isGM && !this.groupRollMessages.has(requestData.groupRollId)) {
         const messages = game.messages.contents;
         const groupMessage = messages.find(m =>
           m.getFlag(MODULE_ID, 'groupRollId') === requestData.groupRollId &&
