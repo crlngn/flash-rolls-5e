@@ -838,7 +838,9 @@ export class RollMenuEventManager {
       totalActors++;
       const statusEffects = actor.effects.filter(effect =>
         effect.isTemporary || effect.statuses?.size > 0 || effect.flags?.core?.statusId ||
-        (effect.duration?.seconds > 0 || effect.duration?.rounds > 0 || effect.duration?.turns > 0)
+        (effect.duration?.seconds > 0 || effect.duration?.rounds > 0 || effect.duration?.turns > 0) ||
+        effect.flags?.dae?.specialDuration?.length > 0 ||
+        !effect.transfer
       );
       
       if (statusEffects.length > 0) {

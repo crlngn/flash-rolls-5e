@@ -3,7 +3,7 @@ import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { LogUtil } from '../utils/LogUtil.mjs';
 import { SocketUtil } from '../utils/SocketUtil.mjs';
-import { MODULE_ID, DEBUG_TAG, ROLL_TYPES, ACTIVITY_TYPES } from '../../constants/General.mjs';
+import { MODULE_ID, DEBUG_TAG, ROLL_TYPES, ACTIVITY_TYPES, FLASH_ROLL_MODES } from '../../constants/General.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from '../ui/dialogs/gm-dialogs/index.mjs';
 import { RollHandlers } from './RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from '../helpers/RollValidationHelpers.mjs';
@@ -34,6 +34,16 @@ export class RollInterceptor {
     if (!game.user.isGM) return;
     
     this.registerHooks();
+  }
+
+  /**
+   * Check if there's flags we should look into to prevent interception
+   */
+  static _checkPreventFlags(message){
+    if (message?.data?.flags?.['swipe-vtt']?.isPlayerRoll) {
+      return true;
+    }
+    return false;
   }
   
   /**
@@ -84,7 +94,7 @@ export class RollInterceptor {
    */
   static _onPreRollInterceptInitiative(rollType, actor, roll) {
     // LogUtil.log('_onPreRollInterceptInitiative', [rollType, actor, roll]);
-    return;
+    if (this._checkPreventFlags()) return;
   }
 
   /**
@@ -97,6 +107,8 @@ export class RollInterceptor {
    */
   static _onPreRollIntercept(rollType, config, dialog, message) {
     LogUtil.log('_onPreRollIntercept #0', [rollType, config, dialog, message]);
+    // skip interception for swipe-vtt
+    if (this._checkPreventFlags(message)) return;
     const SETTINGS = getSettings();
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
@@ -141,11 +153,6 @@ export class RollInterceptor {
       return;
     }
 
-    if (dialog?.configure === false) {
-      LogUtil.log('_onPreRollIntercept - skipping interception: dialog.configure is false (local execution)');
-      return;
-    }
-
     // === Calculate context for skip dialog decision ===
     const owner = GeneralUtil.getActorOwner(actor);
     const isOwnerActive = owner && owner?.active && !owner?.isGM;
@@ -163,6 +170,12 @@ export class RollInterceptor {
       isRollRequest: isRollRequestFlag
     });
 
+    const isExplicitLocalRoll = config?.isRollRequest === false || dialog?.isRollRequest === false || message?.isRollRequest === false;
+    if (dialog?.configure === false && (!isOwnerActive || isExplicitLocalRoll)) {
+      LogUtil.log('_onPreRollIntercept - skipping interception: dialog.configure is false (local execution)');
+      return;
+    }
+
     // === Handle non-interception mode (requests disabled or not intercepting) ===
     if (!requestsEnabled || !rollInterceptionEnabled) {
       dialog.configure = !shouldSkipDialog;
@@ -173,10 +186,10 @@ export class RollInterceptor {
     // === Only intercept on GM side ===
     if (!game.user.isGM) return;
 
-    // === Skip interception if shouldSkipDialog is true ===
-    if (shouldSkipDialog) {
+    // === Skip interception if shouldSkipDialog is true and no active player owner ===
+    if (shouldSkipDialog && !isOwnerActive) {
       dialog.configure = false;
-      LogUtil.log('_onPreRollIntercept - skipping interception (shouldSkipDialog)', [shouldSkipDialog]);
+      LogUtil.log('_onPreRollIntercept - skipping interception (shouldSkipDialog, no active owner)', [shouldSkipDialog]);
       return;
     }
 
@@ -672,6 +685,9 @@ export class RollInterceptor {
     delete cleanConfig.workflow;
     delete cleanConfig.item;
     delete cleanConfig.activity;
+    delete cleanConfig.skipRollDialog;
+    delete cleanConfig.isRollRequest;
+    delete cleanConfig.sendRequest;
 
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     const useCondensedRollMessage = SettingsUtil.get(SETTINGS.useCondensedRollMessage.tag);
@@ -722,7 +738,9 @@ export class RollInterceptor {
       // Execute roll locally since there's no player to send to
       const defaultDialogResult = {
         ...cleanConfig,
-        rollMode: config.rollMode || game.settings.get("core", "rollMode"),
+        rollMode: (!config.rollMode || config.rollMode === FLASH_ROLL_MODES.PLAYER_CHOICE)
+          ? game.settings.get("core", "rollMode")
+          : config.rollMode,
         skipRollDialog: RollHelpers.shouldSkipRollDialog({isPC: false, isNPC: true, sendRequest: false})
       };
       await this._executeInterceptedRoll(actor, rollType, config, defaultDialogResult);

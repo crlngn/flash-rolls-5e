@@ -74,6 +74,7 @@
       "ddbConnected": "Connected to D&D Beyond.",
       "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again."
     },
+    "rollModePlayerChoice": "Player's Choice",
     "contextMenu": {
       "addToFavorites": "Add to Flash Token Bar Menu",
       "removeFromFavorites": "Remove from Flash Token Bar Menu",
@@ -189,7 +190,7 @@
         "hint": "When enabled, rolls made by the GM for player characters will be automatically redirected to the owner player, if they are online, from character sheets or other modules."
       },
       "showRequestPrompt": {
-        "label": "Prompt Player on Request",
+        "label": "Show Roll Dialog to Player on Request",
         "hint": "When enabled, the roll will be immediately triggered on player side and show the roll dialog for them to click on. When disabled, player will only get the chat message on chat log and must click to roll."
       },
       "showNPCRequestPrompt": {
@@ -205,7 +206,7 @@
         "hint": "Enable to notify the GM when a request is successfully sent to the active player"
       },
       "consumptionConfigMode": {
-        "label": "Consumption Config Dialog",
+        "label": "Who Sees Consume/Template Dialog?",
         "hint": "Select if you want to skip the consumption dialog for players, GM or both. This is the dialog where you select concentration, spell slots, etc. When skipped, defaults will be used.",
         "choices": {
           "1": "Skip dialog for player and GM",
@@ -215,7 +216,7 @@
         }
       },
       "placeTemplateForPlayer": {
-        "label": "Place Template for Player",
+        "label": "Place Template for Player on Request",
         "hint": "When enabled, only GM will be prompted to place template. When disabled, the player will be prompted to place template, not the GM."
       },
       "moduleSettingsMenu": {
@@ -234,7 +235,9 @@
           "templateOptions": "Template (Spell / Area of Effect)",
           "tokenOptions": "Token Options",
           "otherOptions": "Other Options",
-          "rollActivation": "Request Activations",
+          "rollActivation": "Roll Ownership and Consumption",
+          "rollPrompting": "Roll & Request Prompts",
+          "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
           "dndBeyond": "D&D Beyond Integration (Premium)"

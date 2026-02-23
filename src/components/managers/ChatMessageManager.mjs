@@ -234,8 +234,17 @@ export class ChatMessageManager {
       }
     }
 
-    if (!game.user.isGM && data.rolls?.length > 0 && RollRequestManager.pendingRollResolver) {
-      RollRequestManager.onRollCompleted();
+    if (!game.user.isGM && data.rolls?.length > 0) {
+      if (RollRequestManager.pendingRollResolver) {
+        RollRequestManager.onRollCompleted();
+      }
+      const rollSpeaker = data.speaker;
+      if (rollSpeaker?.actor) {
+        RollRequestManager.cancelAutoRollTimeout(rollSpeaker.actor);
+      }
+      if (rollSpeaker?.token) {
+        RollRequestManager.cancelAutoRollTimeout(rollSpeaker.token);
+      }
     }
   }
 

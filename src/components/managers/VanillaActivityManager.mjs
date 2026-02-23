@@ -86,10 +86,12 @@ export class VanillaActivityManager {
             skipRollDialog: config.usage.skipRollDialog,
             consume: config.usage.consume
           };
+          const isRollRequest = config.usage._isFlashRollRequest === true;
+          const isLocalRoll = !isRollRequest;
           config.usage = {
             ...config.usage,
-            consume: getConsumptionConfig(config.usage.consume || {}, true),
-            create: getCreateConfig(config.usage.create || {}, true)
+            consume: getConsumptionConfig(config.usage.consume || {}, isLocalRoll),
+            create: getCreateConfig(config.usage.create || {}, isLocalRoll)
           }
           await activity.item.setFlag(MODULE_ID, 'tempDamageConfig', damageConfig);
           LogUtil.log('executeActivityRoll - flag set', [damageConfig]);

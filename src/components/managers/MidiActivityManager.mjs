@@ -2,7 +2,7 @@ import { LogUtil } from '../utils/LogUtil.mjs';
 import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
 import { ModuleHelpers } from '../helpers/ModuleHelpers.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
-import { getConsumptionConfig, getCreateConfig, isPlayerOwned } from '../helpers/Helpers.mjs';
+import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned } from '../helpers/Helpers.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 
@@ -149,8 +149,10 @@ export class MidiActivityManager {
     const hasWorkflowAttackRoll = workflow?.attackRoll || workflow?.attackRolls?.length > 0;
     const hasWorkflowDamageRoll = workflow?.damageRoll || workflow?.damageRolls?.length > 0;
 
+    const noWorkflowTargets = !workflow?.targets?.size;
+
     const isAutoAttack = this.#isAutoAttack(workflow);
-    if (activity.type === ACTIVITY_TYPES.ATTACK && !hasWorkflowAttackRoll && !isAutoAttack) {
+    if (activity.type === ACTIVITY_TYPES.ATTACK && !hasWorkflowAttackRoll && (!isAutoAttack || noWorkflowTargets)) {
       LogUtil.log("MidiActivityManager.triggerMissingRolls - Manually triggering attack roll");
       await activity.rollAttack(config, {}, {});
     }
@@ -161,7 +163,7 @@ export class MidiActivityManager {
     const needsDamageRoll = (activity.type === ACTIVITY_TYPES.SAVE || activity.type === ACTIVITY_TYPES.HEAL || activity.type === ACTIVITY_TYPES.DAMAGE)
       && (hasDamageParts || hasHealingFormula)
       && !hasWorkflowDamageRoll
-      && !isAutoDamage;
+      && (!isAutoDamage || noWorkflowTargets);
 
     if (needsDamageRoll) {
       LogUtil.log("MidiActivityManager.triggerMissingRolls - Manually triggering damage/healing roll", [activity.type]);
@@ -432,12 +434,12 @@ export class MidiActivityManager {
       midiOptions.autoRollDamage = 'onHit';
     }
 
+    const isRollRequest = config._isFlashRollRequest === true;
+    const isLocalRoll = !isRollRequest;
+
     const defaultConfig = {
-      consume: {
-        action: false,
-        resources: [],
-        spellSlot: false
-      },
+      consume: getConsumptionConfig(config.consume || {}, isLocalRoll),
+      concentration: getConcentrationConfig(config.concentration, isLocalRoll),
       midiOptions
     };
 

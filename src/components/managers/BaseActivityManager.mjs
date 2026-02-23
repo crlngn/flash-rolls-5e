@@ -3,7 +3,7 @@ import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.m
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
-import { getConsumptionConfig, getCreateConfig, isPlayerOwned, showConsumptionConfig, getTargetDescriptors, getPlayerOwner } from '../helpers/Helpers.mjs';
+import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, showConsumptionConfig, getTargetDescriptors, getPlayerOwner } from '../helpers/Helpers.mjs';
 import { DnDBRollExecutor } from '../integrations/dnd-beyond/DnDBRollExecutor.mjs';
 import { DnDBRollUtil } from '../integrations/dnd-beyond/DnDBRollUtil.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
@@ -207,10 +207,12 @@ export class BaseActivityManager {
     if (actorOwner && actorOwner.active && !actorOwner.isGM) {
       config._originalConsume = structuredClone(config.consume || {});
       config._originalCreate = structuredClone(config.create || {});
+      config._originalConcentration = config.concentration ? structuredClone(config.concentration) : undefined;
     }
 
     config.consume = getConsumptionConfig(config.consume || {}, isLocalRoll);
     config.create = getCreateConfig(config.create || {}, isLocalRoll);
+    config.concentration = getConcentrationConfig(config.concentration, isLocalRoll);
 
     const isDnDBRoll = DnDBIntegration.hasPendingRoll();
     if (actorOwner && !actorOwner.isGM && !isLocalRoll && !isDnDBRoll) {
@@ -286,7 +288,8 @@ export class BaseActivityManager {
         spell: config.spell || {},
         scaling: config.scaling,
         consume: config._originalConsume || config.consume || {},
-        create: config._originalCreate || config.create || {}
+        create: config._originalCreate || config.create || {},
+        concentration: config._originalConcentration ?? config.concentration
       };
 
       const cacheKey = activity.item.id;
@@ -345,13 +348,12 @@ export class BaseActivityManager {
 
     if (!actor) return;
 
-    if (config.isRollRequest) {
-      const showConsumptionDialog = showConsumptionConfig();
-      dialog.configure = dialog.configure ? showConsumptionDialog : false;
-    }
+    const isRollRequest = config._isFlashRollRequest === true;
+    const isLocalRoll = !isRollRequest;
 
-    config.consume = getConsumptionConfig(config.consume || {}, true);
-    config.create = getCreateConfig(config.create || {}, true);
+    config.consume = getConsumptionConfig(config.consume || {}, isLocalRoll);
+    config.create = getCreateConfig(config.create || {}, isLocalRoll);
+    config.concentration = getConcentrationConfig(config.concentration, isLocalRoll);
 
     if (this.isMidiActive) {
       MidiActivityManager.onPreUseActivityPlayer(activity, config, dialog, message);

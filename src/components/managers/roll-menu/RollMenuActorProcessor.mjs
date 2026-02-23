@@ -27,19 +27,19 @@ export class RollMenuActorProcessor {
     const npcActors = [];
     const groupActors = [];
     const currentScene = game.scenes.current;
-    
+    const primaryPartyMemberIds = this.getPrimaryPartyMemberIds();
+
     for (const actor of actors) {
-      // Process group and encounter actors separately
       if (actor.type === 'group' || actor.type === 'encounter') {
         const groupEntries = await this.processGroupActor(actor, currentScene, menu);
         groupActors.push(...groupEntries);
         continue;
       }
-      
+
       if (actor.type !== 'character' && actor.type !== 'npc') continue;
-      
+
       const isPlayerOwned = this.isPlayerOwnedActor(actor);
-      const actorEntries = await this.processActor(actor, currentScene, menu, isPlayerOwned);
+      const actorEntries = await this.processActor(actor, currentScene, menu, isPlayerOwned, primaryPartyMemberIds);
       
       if (isPlayerOwned) {
         pcActors.push(...actorEntries);
@@ -172,21 +172,33 @@ export class RollMenuActorProcessor {
   }
 
   /**
+   * Get the set of actor IDs that are members of the primary party group.
+   * @returns {Set<string>} Set of actor IDs belonging to the primary party
+   */
+  static getPrimaryPartyMemberIds() {
+    const party = game.actors.party;
+    const memberIds = new Set();
+    if (!party) return memberIds;
+    for (const member of party.system.members || []) {
+      if (member.actor?.id) {
+        memberIds.add(member.actor.id);
+      }
+    }
+    return memberIds;
+  }
+
+  /**
    * Check if an actor is player-owned (either via explicit ownership or assigned character)
    * @param {Actor} actor - The actor to check
    * @returns {boolean} True if player-owned
    */
   static isPlayerOwnedActor(actor) {
-    const hasExplicitOwnership = Object.entries(actor.ownership)
-      .some(([userId, level]) => {
-        const user = game.users.get(userId);
-        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-      });
-    if (hasExplicitOwnership) return true;
-    const isAssignedCharacter = game.users.some(user =>
-      !user.isGM && user.character?.id === actor.id
-    );
-    return isAssignedCharacter;
+    if (actor.hasPlayerOwner) return true;
+    const baseActorId = actor.isToken ? actor.baseActor?.id : null;
+    return game.users.some(user => {
+      const charId = user.character?.id;
+      return !user.isGM && (charId === actor.id || (baseActorId && charId === baseActorId));
+    });
   }
 
   /**
@@ -195,9 +207,10 @@ export class RollMenuActorProcessor {
    * @param {Scene} currentScene - Current active scene
    * @param {RollRequestsMenu} menu - Menu instance
    * @param {boolean} isPlayerOwned - Whether the actor is player-owned
+   * @param {Set<string>} primaryPartyMemberIds - Set of actor IDs in the primary party
    * @returns {Array} Array of actor data entries
    */
-  static async processActor(actor, currentScene, menu, isPlayerOwned) {
+  static async processActor(actor, currentScene, menu, isPlayerOwned, primaryPartyMemberIds) {
     if (ActorStatusManager.isBlocked(actor)) {
       return [];
     }
@@ -205,14 +218,15 @@ export class RollMenuActorProcessor {
     const SETTINGS = getSettings();
     const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
     const isFavorite = ActorStatusManager.isFavorite(actor);
+    const isPrimaryPartyMember = primaryPartyMemberIds.has(actor.id);
     const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
-    
+
     const actorEntries = [];
 
     if (isPlayerOwned) {
       if (isFavorite) {
         actorEntries.push(...this.processFavoriteActor(actor, tokensInScene, menu));
-      } else if (showOnlyPCsWithToken) {
+      } else if (showOnlyPCsWithToken && !isPrimaryPartyMember) {
         actorEntries.push(...this.processTokenOnlyActor(actor, tokensInScene, menu));
       } else {
         actorEntries.push(...this.processRegularActor(actor, tokensInScene, menu));

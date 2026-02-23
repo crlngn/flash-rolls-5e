@@ -131,21 +131,33 @@ export function showBatchedNotifications(pendingNotifications, getRollTypeDispla
 
 /**
  * Check if an actor is owned by a player (not GM)
- * Prioritizes players who have this actor as their assigned character
+ * Prioritizes players who have this actor as their assigned character,
+ * then falls back to effective OWNER permission via testUserPermission.
+ * Handles unlinked token actors by also checking the base actor ID.
  * @param {Actor} actor - The actor to check
  * @returns {User|null} The player owner, or null if not player-owned
  */
 export function getPlayerOwner(actor) {
-  const assignedUser = game.users.find(user => !user.isGM && user.active && user.character?.id === actor.id);
-  if (assignedUser) return assignedUser;
-  const offlineAssignedUser = game.users.find(user => !user.isGM && user.character?.id === actor.id);
-  if (offlineAssignedUser) return offlineAssignedUser;
-  const ownership = actor.ownership || {};
-  const owners = Object.entries(ownership)
-    .filter(([userId, level]) => level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER)
-    .map(([userId]) => game.users.get(userId))
-    .filter(user => user && !user.isGM);
-  return owners.find(user => user.active) || owners[0] || null;
+  if (!actor) return null;
+  const actorId = actor.id;
+  const baseActorId = actor.isToken ? actor.baseActor?.id : null;
+
+  const isAssignedTo = (user) => {
+    const charId = user.character?.id;
+    return charId === actorId || (baseActorId && charId === baseActorId);
+  };
+
+  const assignedActive = game.users.find(user => !user.isGM && user.active && isAssignedTo(user));
+  if (assignedActive) return assignedActive;
+
+  const activeOwner = game.users.find(user => !user.isGM && user.active && actor.testUserPermission(user, "OWNER"));
+  if (activeOwner) return activeOwner;
+
+  const assignedOffline = game.users.find(user => !user.isGM && !user.active && isAssignedTo(user));
+  if (assignedOffline) return assignedOffline;
+
+  const offlineOwner = game.users.find(user => !user.isGM && !user.active && actor.testUserPermission(user, "OWNER"));
+  return offlineOwner || null;
 }
 
 /**
@@ -239,14 +251,8 @@ export function formatMultiActorNotification(actorNames, action) {
  * @returns {boolean} True if owned by a player
  */
 export function isPlayerOwned(actor) {
-  // Skip non-character actors
   if (actor.type !== 'character' && actor.type !== 'npc') return false;
-  
-  return Object.entries(actor.ownership)
-    .some(([userId, level]) => {
-      const user = game.users.get(userId);
-      return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-    });
+  return actor.hasPlayerOwner;
 }
 
 /**
@@ -566,14 +572,24 @@ export function showConsumptionConfig(){
  * @returns 
  */
 export function getConsumptionConfig(consume, isLocalRoll=true){
-  // const showConsumptionDialog = showConsumptionConfig();
+  const SETTINGS = getSettings();
+  const placeTemplateForPlayer = SettingsUtil.get(SETTINGS.placeTemplateForPlayer.tag);
   let response = { ...consume };
 
-  if(game.user.isGM){
-    response.action = isLocalRoll ? consume.action : false;
-    response.resources = isLocalRoll ? consume.resources : [];
-    response.spellSlot = isLocalRoll ? consume.spellSlot : false;
+  if (isLocalRoll) return response;
+
+  const gmHandlesSideEffects = placeTemplateForPlayer;
+
+  if (game.user.isGM && !gmHandlesSideEffects) {
+    response.action = false;
+    response.resources = [];
+    response.spellSlot = false;
+  } else if (!game.user.isGM && gmHandlesSideEffects) {
+    response.action = false;
+    response.resources = [];
+    response.spellSlot = false;
   }
+
   return response;
 }
 
@@ -589,25 +605,47 @@ export function getCreateConfig(createConfig, isLocalRoll=true){
   const SETTINGS = getSettings();
   const placeTemplateForPlayer = SettingsUtil.get(SETTINGS.placeTemplateForPlayer.tag);
   const withTemplate = createConfig.measuredTemplate === true;
-  const isMidiActive = game.modules.get("midi-qol")?.active;
   const isDnDBRoll = createConfig._isDnDBRoll === true;
 
   let promptForTemplate;
   if (isDnDBRoll) {
     promptForTemplate = true;
+  } else if (isLocalRoll) {
+    promptForTemplate = true;
   } else if (game.user.isGM) {
-    promptForTemplate = isLocalRoll || placeTemplateForPlayer;
+    promptForTemplate = placeTemplateForPlayer;
   } else {
-    if (isMidiActive && placeTemplateForPlayer && withTemplate && !isLocalRoll) {
-      promptForTemplate = true;
-    } else {
-      promptForTemplate = !placeTemplateForPlayer;
-    }
+    promptForTemplate = !placeTemplateForPlayer;
   }
 
-  LogUtil.log("getCreateConfig", [createConfig, isLocalRoll, placeTemplateForPlayer, withTemplate, promptForTemplate, isMidiActive]);
+  LogUtil.log("getCreateConfig", [createConfig, isLocalRoll, placeTemplateForPlayer, withTemplate, promptForTemplate]);
   return {
     ...createConfig,
     measuredTemplate: withTemplate ? promptForTemplate : false
   }
+}
+
+/**
+ * Returns a concentration config object based on current situation
+ * Determines which side (GM or player) should handle concentration
+ * based on the placeTemplateForPlayer setting
+ * @param {Object|undefined} concentration
+ * @param {Boolean} isLocalRoll
+ * @returns {Object|undefined}
+ */
+export function getConcentrationConfig(concentration, isLocalRoll=true){
+  if (isLocalRoll) return concentration;
+
+  const SETTINGS = getSettings();
+  const placeTemplateForPlayer = SettingsUtil.get(SETTINGS.placeTemplateForPlayer.tag);
+  const gmHandlesSideEffects = placeTemplateForPlayer;
+
+  if (game.user.isGM && !gmHandlesSideEffects) {
+    return { begin: false };
+  }
+  if (!game.user.isGM && gmHandlesSideEffects) {
+    return { begin: false };
+  }
+
+  return concentration;
 }

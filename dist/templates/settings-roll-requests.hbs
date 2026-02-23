@@ -17,31 +17,29 @@
   </div>
 
   <div class="form-group">
-    <label for="showRequestPrompt">{{fields.showRequestPrompt.label}}</label>
-    <input type="checkbox" name="showRequestPrompt" id="showRequestPrompt" {{#if showRequestPrompt}}checked{{/if}} />
-    <p class="hint">{{fields.showRequestPrompt.hint}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="showNPCRequestPrompt">{{fields.showNPCRequestPrompt.label}}</label>
-    <input type="checkbox" name="showNPCRequestPrompt" id="showNPCRequestPrompt" {{#if showNPCRequestPrompt}}checked{{/if}} />
-    <p class="hint">{{fields.showNPCRequestPrompt.hint}}</p>
-  </div>
-
-  <div class="form-group">
     <label for="showOfflineNotifications">{{fields.showOfflineNotifications.label}}</label>
     <input type="checkbox" name="showOfflineNotifications" id="showOfflineNotifications" {{#if showOfflineNotifications}}checked{{/if}} />
     <p class="hint">{{fields.showOfflineNotifications.hint}}</p>
   </div>
 
   <fieldset>
-    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.rollActivation"}}</legend>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.rollPrompting"}}</legend>
 
     <div class="form-group">
-      <label for="publicPlayerRolls">{{fields.publicPlayerRolls.label}}</label>
-      <input type="checkbox" name="publicPlayerRolls" id="publicPlayerRolls" {{#if publicPlayerRolls}}checked{{/if}} />
-      <p class="hint">{{{fields.publicPlayerRolls.hint}}}</p>
+      <label for="showRequestPrompt">{{fields.showRequestPrompt.label}}</label>
+      <input type="checkbox" name="showRequestPrompt" id="showRequestPrompt" {{#if showRequestPrompt}}checked{{/if}} />
+      <p class="hint">{{fields.showRequestPrompt.hint}}</p>
     </div>
+
+    <div class="form-group">
+      <label for="showNPCRequestPrompt">{{fields.showNPCRequestPrompt.label}}</label>
+      <input type="checkbox" name="showNPCRequestPrompt" id="showNPCRequestPrompt" {{#if showNPCRequestPrompt}}checked{{/if}} />
+      <p class="hint">{{fields.showNPCRequestPrompt.hint}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.rollActivation"}}</legend>
 
     <div class="form-group">
       <label for="useGMTargetTokens">{{fields.useGMTargetTokens.label}}</label>
@@ -56,18 +54,6 @@
     </div>
 
     <div class="form-group">
-      <label for="initiateCombatOnRequest">{{fields.initiateCombatOnRequest.label}}</label>
-      <input type="checkbox" name="initiateCombatOnRequest" id="initiateCombatOnRequest" {{#if initiateCombatOnRequest}}checked{{/if}} />
-      <p class="hint">{{fields.initiateCombatOnRequest.hint}}</p>
-    </div>
-
-    <div class="form-group">
-      <label for="autoRequestInitiativeOnCombatant">{{fields.autoRequestInitiativeOnCombatant.label}}</label>
-      <input type="checkbox" name="autoRequestInitiativeOnCombatant" id="autoRequestInitiativeOnCombatant" {{#if autoRequestInitiativeOnCombatant}}checked{{/if}} />
-      <p class="hint">{{fields.autoRequestInitiativeOnCombatant.hint}}</p>
-    </div>
-
-    <div class="form-group">
       <label for="consumptionConfigMode">{{fields.consumptionConfigMode.label}}</label>
       <select name="consumptionConfigMode" id="consumptionConfigMode" data-current-value="{{consumptionConfigMode}}">
         {{#each fields.consumptionConfigMode.choices}}
@@ -79,6 +65,22 @@
       <p class="hint">{{{fields.consumptionConfigMode.hint}}}</p>
     </div>
 
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.initiativeOptions"}}</legend>
+
+    <div class="form-group">
+      <label for="initiateCombatOnRequest">{{fields.initiateCombatOnRequest.label}}</label>
+      <input type="checkbox" name="initiateCombatOnRequest" id="initiateCombatOnRequest" {{#if initiateCombatOnRequest}}checked{{/if}} />
+      <p class="hint">{{fields.initiateCombatOnRequest.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="autoRequestInitiativeOnCombatant">{{fields.autoRequestInitiativeOnCombatant.label}}</label>
+      <input type="checkbox" name="autoRequestInitiativeOnCombatant" id="autoRequestInitiativeOnCombatant" {{#if autoRequestInitiativeOnCombatant}}checked{{/if}} />
+      <p class="hint">{{fields.autoRequestInitiativeOnCombatant.hint}}</p>
+    </div>
   </fieldset>
 
   <fieldset>
@@ -100,6 +102,12 @@
       <label for="fastForwardChatMsgRoll">{{fields.fastForwardChatMsgRoll.label}}</label>
       <input type="checkbox" name="fastForwardChatMsgRoll" id="fastForwardChatMsgRoll" {{#if fastForwardChatMsgRoll}}checked{{/if}} />
       <p class="hint">{{{fields.fastForwardChatMsgRoll.hint}}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="publicPlayerRolls">{{fields.publicPlayerRolls.label}}</label>
+      <input type="checkbox" name="publicPlayerRolls" id="publicPlayerRolls" {{#if publicPlayerRolls}}checked{{/if}} />
+      <p class="hint">{{{fields.publicPlayerRolls.hint}}}</p>
     </div>
 
   </fieldset>

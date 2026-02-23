@@ -1,5 +1,5 @@
 import { LogUtil } from "../utils/LogUtil.mjs";
-import { ROLL_TYPES, MODULE_ID } from "../../constants/General.mjs";
+import { ROLL_TYPES, MODULE_ID, FLASH_ROLL_MODES } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { getPlayerOwner } from "./Helpers.mjs";
@@ -343,14 +343,13 @@ export const RollHelpers = {
    * @returns {string} Final roll mode
    */
   determineRollMode(isPublicRollsOn, messageRollMode) {
-    // If user explicitly selected a roll mode in the dialog, use it
     if (messageRollMode) {
       return messageRollMode;
     }
-    
-    // For GM dialogs, always default to the GM's core roll mode setting
-    // Individual actor roll modes will be determined later based on actor type
-    return game.settings.get("core", "rollMode");
+    if (isPublicRollsOn) {
+      return CONST.DICE_ROLL_MODES.PUBLIC;
+    }
+    return FLASH_ROLL_MODES.PLAYER_CHOICE;
   },
 
   /**
@@ -359,11 +358,7 @@ export const RollHelpers = {
    * @returns {boolean} Whether the actor is player owned
    */
   isPlayerOwned(actor) {
-    return Object.entries(actor.ownership)
-      .some(([userId, level]) => {
-        const user = game.users.get(userId);
-        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-      });
+    return actor.hasPlayerOwner;
   },
 
   /**

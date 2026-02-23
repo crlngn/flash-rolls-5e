@@ -1,5 +1,5 @@
-import { MODULE_ID, ROLL_TYPES } from "../../constants/General.mjs";
-import { getRollTypeDisplay, applyTargetTokens, NotificationManager } from "../helpers/Helpers.mjs";
+import { MODULE_ID, ROLL_TYPES, FLASH_ROLL_MODES } from "../../constants/General.mjs";
+import { getRollTypeDisplay, applyTargetTokens, NotificationManager, getConsumptionConfig, getCreateConfig, getConcentrationConfig, showConsumptionConfig } from "../helpers/Helpers.mjs";
 import { RollHandlers } from "../handlers/RollHandlers.mjs";
 import { LogUtil } from "../utils/LogUtil.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
@@ -205,57 +205,61 @@ export class RollRequestManager {
       const isActivityRoll = [ROLL_TYPES.ATTACK, ROLL_TYPES.DAMAGE, ROLL_TYPES.ITEM].includes(normalizedRollType);
 
       if (!showRequestPrompt && !game.user.isGM) {
-        if (isActivityRoll) {
+        if (isActivityRoll && !GeneralUtil.isModuleOn('midi-qol')) {
           LogUtil.log('executePlayerRollRequest - Activity roll with showRequestPrompt disabled, showing item card only', [actor.name, normalizedRollType]);
           await this.showItemCardOnly(actor, requestData);
           return;
         }
 
-        LogUtil.log('executePlayerRollRequest - Skipping prompt (showRequestPrompt disabled)', [actor.name]);
-        if (requestData.groupRollId) {
-          const mapKey = actor.isToken ? (actor.token?.id || actor.id) : actor.id;
-          ChatMessageManager.setTempGroupRollId(mapKey, requestData.groupRollId);
-          if (actor.isToken && actor.actor) {
-            ChatMessageManager.setTempGroupRollId(actor.actor.id, requestData.groupRollId);
-          }
-          LogUtil.log('executePlayerRollRequest - Set tempGroupRollId for manual roll interception', [requestData.groupRollId, actor.name]);
-        }
-
-        const actorUniqueId = requestData.isTokenActor ? requestData.actorId : actor.id;
-        const timeoutSeconds = this.getMidiPlayerSaveTimeout();
-        const hasWorkflow = requestData.fromMidiWorkflow || requestData.rollProcessConfig?.midiOptions?.workflowId;
-        if (normalizedRollType === ROLL_TYPES.SAVE && timeoutSeconds > 0 && hasWorkflow) {
-          LogUtil.log('executePlayerRollRequest - Setting up auto-roll for showRequestPrompt disabled', [actor.name, timeoutSeconds]);
-          const rollConfig = requestData.rollProcessConfig.rolls?.[0] || { parts: [], data: {}, options: {} };
-          const rollModeFromGM = requestData.rollProcessConfig.rollMode;
-          const defaultRollMode = game.settings.get("core", "rollMode");
-          const finalRollMode = rollModeFromGM || defaultRollMode;
-          const rollMetadata = {
-            [MODULE_ID]: {
-              isFlashRollRequest: true,
-              rollType: requestData.rollType,
-              rollKey: requestData.rollKey,
-              actorUniqueId: actorUniqueId,
-              fromMidiWorkflow: requestData.fromMidiWorkflow || false
+        if (!isActivityRoll) {
+          LogUtil.log('executePlayerRollRequest - Skipping prompt (showRequestPrompt disabled)', [actor.name]);
+          if (requestData.groupRollId) {
+            const mapKey = actor.isToken ? (actor.token?.id || actor.id) : actor.id;
+            ChatMessageManager.setTempGroupRollId(mapKey, requestData.groupRollId);
+            if (actor.isToken && actor.actor) {
+              ChatMessageManager.setTempGroupRollId(actor.actor.id, requestData.groupRollId);
             }
-          };
-          const speaker = ChatMessage.getSpeaker({ actor });
-          const messageConfig = {
-            rollMode: finalRollMode,
-            create: requestData.rollProcessConfig.chatMessage !== false,
-            flags: rollMetadata,
-            data: { speaker },
-            messageData: { speaker, flags: rollMetadata }
-          };
-          const handlerRequestData = {
-            rollKey: requestData.rollKey,
-            activityId: requestData.activityId,
-            config: requestData.rollProcessConfig,
-            groupRollId: requestData.groupRollId
-          };
-          this.setupAutoRollTimeout(actor, requestData, actorUniqueId, handlerRequestData, rollConfig, messageConfig);
+            LogUtil.log('executePlayerRollRequest - Set tempGroupRollId for manual roll interception', [requestData.groupRollId, actor.name]);
+          }
+
+          const actorUniqueId = requestData.isTokenActor ? requestData.actorId : actor.id;
+          const timeoutSeconds = this.getMidiPlayerSaveTimeout();
+          const hasWorkflow = requestData.fromMidiWorkflow || requestData.rollProcessConfig?.midiOptions?.workflowId;
+          if (normalizedRollType === ROLL_TYPES.SAVE && timeoutSeconds > 0 && hasWorkflow) {
+            LogUtil.log('executePlayerRollRequest - Setting up auto-roll for showRequestPrompt disabled', [actor.name, timeoutSeconds]);
+            const rollConfig = requestData.rollProcessConfig.rolls?.[0] || { parts: [], data: {}, options: {} };
+            const rollModeFromGM = requestData.rollProcessConfig.rollMode;
+            const defaultRollMode = game.settings.get("core", "rollMode");
+            const finalRollMode = (!rollModeFromGM || rollModeFromGM === FLASH_ROLL_MODES.PLAYER_CHOICE)
+              ? defaultRollMode
+              : rollModeFromGM;
+            const rollMetadata = {
+              [MODULE_ID]: {
+                isFlashRollRequest: true,
+                rollType: requestData.rollType,
+                rollKey: requestData.rollKey,
+                actorUniqueId: actorUniqueId,
+                fromMidiWorkflow: requestData.fromMidiWorkflow || false
+              }
+            };
+            const speaker = ChatMessage.getSpeaker({ actor });
+            const messageConfig = {
+              rollMode: finalRollMode,
+              create: requestData.rollProcessConfig.chatMessage !== false,
+              flags: rollMetadata,
+              data: { speaker },
+              messageData: { speaker, flags: rollMetadata }
+            };
+            const handlerRequestData = {
+              rollKey: requestData.rollKey,
+              activityId: requestData.activityId,
+              config: requestData.rollProcessConfig,
+              groupRollId: requestData.groupRollId
+            };
+            this.setupAutoRollTimeout(actor, requestData, actorUniqueId, handlerRequestData, rollConfig, messageConfig);
+          }
+          return;
         }
-        return;
       }
 
       const rollConfig = requestData.rollProcessConfig.rolls?.[0] || {
@@ -268,12 +272,14 @@ export class RollRequestManager {
       const hasNonDigitalDice = skipToRollResolver && DiceConfigUtil.hasNonDigitalDice();
 
       const dialogConfig = {
-        configure: !hasNonDigitalDice
+        configure: showRequestPrompt ? !hasNonDigitalDice : false
       };
 
       const rollModeFromGM = requestData.rollProcessConfig.rollMode;
       const defaultRollMode = game.settings.get("core", "rollMode");
-      const finalRollMode = rollModeFromGM || defaultRollMode;
+      const finalRollMode = (!rollModeFromGM || rollModeFromGM === FLASH_ROLL_MODES.PLAYER_CHOICE)
+        ? defaultRollMode
+        : rollModeFromGM;
 
       const actorUniqueId = requestData.isTokenActor ? requestData.actorId : actor.id;
       const rollMetadata = {
@@ -454,13 +460,29 @@ export class RollRequestManager {
 
     LogUtil.log('showItemCardOnly - Displaying item card', [item.name, activity.name]);
 
+    const rollProcessConfig = requestData.rollProcessConfig || {};
+    const consumeConfig = getConsumptionConfig(rollProcessConfig.consume || {}, false);
+    const createConfig = getCreateConfig(rollProcessConfig.create || {}, false);
+    const concentrationConfig = getConcentrationConfig(undefined, false);
+    const showDialog = showConsumptionConfig();
+
+    const rollModeFromGM = rollProcessConfig.rollMode;
+    const resolvedRollMode = (!rollModeFromGM || rollModeFromGM === FLASH_ROLL_MODES.PLAYER_CHOICE)
+      ? game.settings.get("core", "rollMode")
+      : rollModeFromGM;
+
     await activity.use({
-      consume: { resources: false, spellSlot: false, action: false },
-      create: { measuredTemplate: false }
+      consume: consumeConfig,
+      create: createConfig,
+      concentration: concentrationConfig,
+      _isFlashRollRequest: true,
+      ...(rollProcessConfig.spell && { spell: rollProcessConfig.spell }),
+      ...(rollProcessConfig.scaling !== undefined && { scaling: rollProcessConfig.scaling })
     }, {
-      configure: false
+      configure: showDialog
     }, {
-      create: true
+      create: true,
+      rollMode: resolvedRollMode
     });
   }
 }

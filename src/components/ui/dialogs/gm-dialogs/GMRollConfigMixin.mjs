@@ -1,6 +1,8 @@
 import { LogUtil } from "../../../utils/LogUtil.mjs";
-import { MODULE_ID } from "../../../../constants/General.mjs";
+import { MODULE_ID, FLASH_ROLL_MODES } from "../../../../constants/General.mjs";
 import { HOOKS_CORE } from "../../../../constants/Hooks.mjs";
+import { getSettings } from "../../../../constants/Settings.mjs";
+import { SettingsUtil } from "../../../utils/SettingsUtil.mjs";
 import { GeneralUtil } from "../../../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../../../core/FlashAPI.mjs";
 import { RollHelpers } from "../../../helpers/RollHelpers.mjs";
@@ -94,6 +96,38 @@ export function GMRollConfigMixin(Base) {
     }
     
     /**
+     * Prepare the configuration context to inject "Player's Choice" rollMode option
+     * @param {ApplicationRenderContext} context
+     * @param {HandlebarsRenderOptions} options
+     * @returns {Promise<ApplicationRenderContext>}
+     * @protected
+     * @override
+     */
+    async _prepareConfigurationContext(context, options) {
+      await super._prepareConfigurationContext(context, options);
+
+      const rollModeField = context.fields?.find(f => f.name === "rollMode");
+      if (rollModeField) {
+        const playerChoiceOption = {
+          value: FLASH_ROLL_MODES.PLAYER_CHOICE,
+          label: game.i18n.localize("FLASH_ROLLS.rollModePlayerChoice")
+        };
+        rollModeField.options = [playerChoiceOption, ...rollModeField.options];
+
+        const SETTINGS = getSettings();
+        const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
+        if (isPublicRollsOn) {
+          rollModeField.value = CONST.DICE_ROLL_MODES.PUBLIC;
+        } else if (!this.message.rollMode || this.message.rollMode === game.settings.get("core", "rollMode")) {
+          rollModeField.value = FLASH_ROLL_MODES.PLAYER_CHOICE;
+          this.message.rollMode = FLASH_ROLL_MODES.PLAYER_CHOICE;
+        }
+      }
+
+      return context;
+    }
+
+    /**
      * Finalize rolls based on the action button clicked.
      * @param {string} action - The action button that was clicked
      * @returns {D20Roll[]} Array of finalized rolls ready for execution
@@ -153,7 +187,7 @@ export function GMRollConfigMixin(Base) {
         config: {
           ...(situational && { situationalBonus: situational }),
           ...(dc && { dc: parseInt(dc) }),
-          ...(rollMode !== game.settings.get("core", "rollMode") && { rollMode }),
+          ...((rollMode === FLASH_ROLL_MODES.PLAYER_CHOICE || rollMode !== game.settings.get("core", "rollMode")) && { rollMode }),
           ...(ability && { ability }), // Include selected ability for skill/tool rolls
           sendAsRequest: !!sendRequest,
           skipRollDialog: true, // Always skip roll dialog for macros

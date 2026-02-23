@@ -529,25 +529,11 @@ export class GeneralUtil {
    * @returns {User|null}
    */
   static getActorOwner(actor) {
-    const ownership = actor.ownership || {};
-
-    for (const [userId, level] of Object.entries(ownership)) {
-      if (level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER) {
-        const user = game.users.get(userId);
-        if (user && !user.isGM) {
-          return user;
-        }
-      }
-    }
-
-    if(ownership?.default >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER){
-      const user = game.users.filter(user => !user.isGM)[0];
-      if (user) {
-        return user;
-      }
-    }
-    
-    return null;
+    if (!actor) return null;
+    const activeOwner = game.users.find(user => !user.isGM && user.active && actor.testUserPermission(user, "OWNER"));
+    if (activeOwner) return activeOwner;
+    const offlineOwner = game.users.find(user => !user.isGM && !user.active && actor.testUserPermission(user, "OWNER"));
+    return offlineOwner || null;
   }
 
   /**

@@ -214,9 +214,13 @@ export const RollHandlers = {
       const processConfig = RollHelpers.buildRollConfig(requestData, rollConfig, {}, dialogWillHandle);
 
       const rollOptions = processConfig.rolls?.[0]?.options || {};
+      const usageSource = game.user.isGM
+        ? requestData.config
+        : (({ skipRollDialog, isRollRequest, sendRequest, ...rest }) => rest)(requestData.config);
       const activityConfig = {
         usage: {
-          ...requestData.config,
+          ...usageSource,
+          ...(!game.user.isGM && { _isFlashRollRequest: true }),
           rollType: rollType,
           rolls: processConfig.rolls,
           ...(rollOptions.attackMode && { attackMode: rollOptions.attackMode }),
@@ -233,7 +237,7 @@ export const RollHandlers = {
         },
         message: messageConfig
       };
-      
+
       LogUtil.log('handleActivityRoll - final activity config', [activityConfig]);
 
       await BaseActivityManager.executeActivityRoll(

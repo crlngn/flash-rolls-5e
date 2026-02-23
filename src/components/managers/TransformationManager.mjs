@@ -341,8 +341,8 @@ export class TransformationManager {
 
     const jb2aModule = this._getJB2AModule();
     if (jb2aModule?.active) {
-      const modulePath = jb2aModule.id;
-      const filePath = `modules/${modulePath}/Library/Generic/Smoke/SmokePuff01_02_Regular_Grey_400x400.webm`;
+      const prefix = this._getJB2APrefix(jb2aModule);
+      const filePath = `${prefix}/${jb2aModule.id}/Library/Generic/Smoke/SmokePuff01_02_Regular_Grey_400x400.webm`;
 
       LogUtil.log(`Using JB2A transformation animation file path: ${filePath}`);
       return filePath;
@@ -350,6 +350,22 @@ export class TransformationManager {
 
     LogUtil.warn("JB2A module not found, transformation animations disabled");
     return null;
+  }
+
+  /**
+   * Get the JB2A file path prefix from the module's location setting
+   * @param {Module} jb2aModule - The JB2A module
+   * @returns {string} The prefix for JB2A file paths
+   * @private
+   */
+  static _getJB2APrefix(jb2aModule) {
+    try {
+      const location = game.settings.get(jb2aModule.id, 'jb2aLocation');
+      if (location && location !== 'modules' && location !== '') {
+        return location.replace(/\/+$/, '');
+      }
+    } catch (e) { }
+    return 'modules';
   }
 
   /**

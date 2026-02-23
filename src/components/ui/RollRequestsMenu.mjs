@@ -393,11 +393,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     if (!actor || actor.documentName !== 'Actor') return;
     
     const currentTab = this.currentTab;
-    const isPlayerOwned = Object.entries(actor.ownership)
-      .some(([uid, level]) => {
-        const user = game.users.get(uid);
-        return user && !user.isGM && level >= CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER;
-      });
+    const isPlayerOwned = actor.hasPlayerOwner;
     
     const shouldUpdate = (currentTab === 'pc' && isPlayerOwned) || 
                          (currentTab === 'npc' && !isPlayerOwned && hasTokenInScene(actor)) ||

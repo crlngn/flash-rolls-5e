@@ -1,4 +1,4 @@
-import { MODULE, ROLL_TYPES } from '../../../constants/General.mjs';
+import { MODULE, ROLL_TYPES, FLASH_ROLL_MODES } from '../../../constants/General.mjs';
 import { LogUtil } from '../../utils/LogUtil.mjs';
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
@@ -505,14 +505,17 @@ export class RollMenuOrchestrator {
     delete cleanConfig.workflow;
     delete cleanConfig.item;
     delete cleanConfig.activity;
+    delete cleanConfig.skipRollDialog;
+    delete cleanConfig.isRollRequest;
+    delete cleanConfig.sendRequest;
     
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag) === true;
 
     if (!cleanConfig.rollMode) {
       const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
-      if (isPublicRollsOn) {
-        cleanConfig.rollMode = CONST.DICE_ROLL_MODES.PUBLIC;
-      }
+      cleanConfig.rollMode = isPublicRollsOn
+        ? CONST.DICE_ROLL_MODES.PUBLIC
+        : FLASH_ROLL_MODES.PLAYER_CHOICE;
     }
     
     const requestData = {

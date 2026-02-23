@@ -61,7 +61,7 @@
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--fr5e-secondary-bg-05);
 }
 
 #flash-rolls-menu .main-content ul.action-icons li {

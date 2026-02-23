@@ -1,4 +1,4 @@
-import { ROLL_TYPES } from '../../../constants/General.mjs';
+import { ROLL_TYPES, FLASH_ROLL_MODES } from '../../../constants/General.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
 import { LogUtil } from '../../utils/LogUtil.mjs';
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
@@ -124,11 +124,14 @@ export class RollMenuExecutor {
       };
       
       let finalRollMode = rollProcessConfig.rollMode || game.settings.get("core", "rollMode");
-      
+      if (finalRollMode === FLASH_ROLL_MODES.PLAYER_CHOICE) {
+        finalRollMode = game.settings.get("core", "rollMode");
+      }
+
       const SETTINGS = getSettings();
       const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
       const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag) === true;
-      
+
       if ((!groupRollsMsgEnabled || !rollProcessConfig.groupRollId) && !rollProcessConfig.rollMode) {
         if (isPublicRollsOn && actor && RollHelpers.isPlayerOwned(actor)) {
           finalRollMode = CONST.DICE_ROLL_MODES.PUBLIC;

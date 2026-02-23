@@ -123,6 +123,10 @@ export const ROLL_REQUEST_OPTIONS = {
  * @constant
  * @type {Object}
  */
+export const FLASH_ROLL_MODES = {
+  PLAYER_CHOICE: "playerchoice"
+};
+
 export const MODULE = {
   ID: MODULE_ID,
   ROLL_REQUEST_OPTIONS: ROLL_REQUEST_OPTIONS
