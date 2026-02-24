@@ -78,12 +78,12 @@ export const RollHelpers = {
   buildRollConfig(requestData, rollConfig, additionalConfig = {}, dialogWillHandle = true) {
 
     const config = {
+      _isFlashRoll: true,
       rolls: [{
         parts: rollConfig?.parts ?? [],
         data: rollConfig?.data ?? {},
         options: {
-          ...(rollConfig?.options ?? {}),
-          ...(rollConfig?.options?._fromFlashRolls && { _fromFlashRolls: true })
+          ...(rollConfig?.options ?? {})
         }
       }],
       advantage: requestData?.config?.advantage || false,

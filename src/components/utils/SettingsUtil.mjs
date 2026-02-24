@@ -50,7 +50,33 @@ export class SettingsUtil {
         LogUtil.log(`Setting ${setting.tag} already registered or error:`, error);
       }
     });
-    
+
+    SettingsUtil._registerMidiCompatSettings();
+  }
+
+  /**
+   * Temporary fix: Register hidden settings for Midi-QOL compatibility.
+   * Midi reads game.settings.get("flash-rolls-5e", "skipRollDialog") to determine
+   * whether to fast-forward rolls it detects as originating from Flash.
+   * Due to a detection false-positive in Midi, ALL player rolls are treated as Flash
+   * rolls when the module is installed. This setting tells Midi to allow fast-forwarding,
+   * while actual Flash request rolls override dialog.configure explicitly via hooks.
+   * @static
+   * @private
+   */
+  static _registerMidiCompatSettings() {
+    try {
+      game.settings.register(MODULE_ID, "skipRollDialog", {
+        name: "Midi-QOL Fast Forward Compatibility",
+        hint: "Allows Midi-QOL to fast-forward rolls when Flash Token Bar is installed",
+        default: true,
+        type: Boolean,
+        scope: "world",
+        config: false
+      });
+    } catch (error) {
+      LogUtil.log('Midi compat setting skipRollDialog already registered or error:', error);
+    }
   }
 
   /**

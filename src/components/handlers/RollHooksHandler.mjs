@@ -65,21 +65,15 @@ export class RollHooksHandler {
    * @param {Object} messageOptions - Chat message options
    */
   static onPreRollInitiativeDialog(config, dialogOptions, messageOptions) {
-    // const SETTINGS = getSettings();
-    // if (config._flashRollsProcessed || !SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag)) return;
     if (config._flashRollsProcessed) return;
-    config._flashRollsProcessed = true;
 
     const actor = config.subject;
-    const areSkipKeysPressed = GeneralUtil.areSkipKeysPressed(config.event);
-    const storedConfig = actor.getFlag(MODULE_ID, 'tempInitiativeConfig');
+    const storedConfig = actor?.getFlag(MODULE_ID, 'tempInitiativeConfig');
+    if (!storedConfig) return;
 
+    config._flashRollsProcessed = true;
+    config._isFlashRoll = true;
     LogUtil.log("RollHooksHandler.onPreRollInitiativeDialog triggered", [config, storedConfig, dialogOptions, messageOptions]);
-
-    if (!storedConfig) {
-      LogUtil.log("RollHooksHandler.onPreRollInitiativeDialog - No stored config, player-initiated roll, returning early");
-      return;
-    }
 
     dialogOptions.configure = true;
     LogUtil.log("RollHooksHandler.onPreRollInitiativeDialog - Player roll request, always showing dialog");
@@ -100,19 +94,14 @@ export class RollHooksHandler {
    * Delegates Midi-specific logic to MidiActivityManager
    */
   static onPreRollAttackV2(config, dialogOptions, messageOptions) {
-    // const SETTINGS = getSettings();
-    // if (config._flashRollsProcessed || !SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag)) return;
     if (config._flashRollsProcessed) return;
-    config._flashRollsProcessed = true;
-
-    LogUtil.log("RollHooksHandler.onPreRollAttackV2 triggered", [config, dialogOptions, messageOptions]);
 
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig');
+    if (!stored) return;
 
-    if (!stored) {
-      LogUtil.log("RollHooksHandler.onPreRollAttackV2 - No stored config, player-initiated roll, returning early");
-      return;
-    }
+    config._flashRollsProcessed = true;
+    config._isFlashRoll = true;
+    LogUtil.log("RollHooksHandler.onPreRollAttackV2 triggered", [config, dialogOptions, messageOptions]);
 
     const isMidiActive = GeneralUtil.isModuleOn('midi-qol');
     if (isMidiActive && config.midiOptions) {
@@ -151,19 +140,14 @@ export class RollHooksHandler {
    * Delegates Midi-specific logic to MidiActivityManager
    */
   static onPreRollDamageV2(config, dialogOptions, messageOptions) {
-    // const SETTINGS = getSettings();
-    // if (config._flashRollsProcessed || !SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag)) return;
     if (config._flashRollsProcessed) return;
-    config._flashRollsProcessed = true;
-
-    LogUtil.log("RollHooksHandler.onPreRollDamageV2 triggered", [config, dialogOptions, messageOptions]);
 
     const stored = config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+    if (!stored) return;
 
-    if (!stored) {
-      LogUtil.log("RollHooksHandler.onPreRollDamageV2 - No stored config, player-initiated roll, returning early");
-      return;
-    }
+    config._flashRollsProcessed = true;
+    config._isFlashRoll = true;
+    LogUtil.log("RollHooksHandler.onPreRollDamageV2 triggered", [config, dialogOptions, messageOptions]);
 
     const isMidiActive = GeneralUtil.isModuleOn('midi-qol');
     config.rolls = RollHelpers.consolidateRolls(config.rolls);
@@ -205,11 +189,12 @@ export class RollHooksHandler {
    * @param {Object} message - Message options
    */
   static onPreRollAbilityCheck(config, dialog, message) {
-    if (config._flashRollsProcessed) return;
+    LogUtil.log("RollHooksHandler.onPreRollAbilityCheck #0", [config, dialog, message]);
+    if (config._flashRollsProcessed || !config.isRollRequest) return;
     config._flashRollsProcessed = true;
 
-    LogUtil.log("RollHooksHandler.onPreRollAbilityCheck", [config, dialog, message]);
-    if (config.isRollRequest && dialog.configure !== false) {
+    LogUtil.log("RollHooksHandler.onPreRollAbilityCheck #1", [config, dialog, message]);
+    if (dialog.configure !== false) {
       dialog.configure = true;
     }
   }

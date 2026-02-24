@@ -338,22 +338,22 @@ export class BaseActivityManager {
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     if (!requestsEnabled || !rollInterceptionEnabled) return;
 
-    LogUtil.log("BaseActivityManager.onPreUseActivityPlayer", [activity, config, dialog, message]);
-
-    const actor = activity.actor;
+    const isRollRequest = config._isFlashRollRequest === true;
 
     activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
     activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
     activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig');
 
+    if (!isRollRequest) return;
+
+    LogUtil.log("BaseActivityManager.onPreUseActivityPlayer", [activity, config, dialog, message]);
+
+    const actor = activity.actor;
     if (!actor) return;
 
-    const isRollRequest = config._isFlashRollRequest === true;
-    const isLocalRoll = !isRollRequest;
-
-    config.consume = getConsumptionConfig(config.consume || {}, isLocalRoll);
-    config.create = getCreateConfig(config.create || {}, isLocalRoll);
-    config.concentration = getConcentrationConfig(config.concentration, isLocalRoll);
+    config.consume = getConsumptionConfig(config.consume || {}, false);
+    config.create = getCreateConfig(config.create || {}, false);
+    config.concentration = getConcentrationConfig(config.concentration, false);
 
     if (this.isMidiActive) {
       MidiActivityManager.onPreUseActivityPlayer(activity, config, dialog, message);
