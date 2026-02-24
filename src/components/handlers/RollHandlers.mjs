@@ -7,6 +7,7 @@ import { NotificationManager } from "../helpers/Helpers.mjs";
 import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../core/FlashAPI.mjs";
+import { HooksManager } from "../core/HooksManager.mjs";
 
 /**
  * Methods for handling different types of rolls
@@ -115,10 +116,11 @@ export const RollHandlers = {
     }
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.INITIATIVE);
 
+    HooksManager._suppressAutoInitiative = true;
     try {
       if (dialogConfig.configure) {
         LogUtil.log('RollHandlers.initiative - Dialog', []);
-        
+
         if (requestData.config) {
           const initiativeConfig = RollHelpers.buildRollConfig(requestData, rollConfig, {
             ability: actor.system.attributes?.init?.ability || 'dex'
@@ -158,6 +160,8 @@ export const RollHandlers = {
     } catch (error) {
       LogUtil.error('RollHandlers.initiative - Error', [error]);
       NotificationManager.notify('error', `Initiative roll failed: ${error.message}`);
+    } finally {
+      HooksManager._suppressAutoInitiative = false;
     }
   },
   

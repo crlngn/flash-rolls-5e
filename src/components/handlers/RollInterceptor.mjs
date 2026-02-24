@@ -221,6 +221,11 @@ export class RollInterceptor {
       rollType = ROLL_TYPES.INITIATIVE;
     }
 
+    if (isInitiativeRoll && actor?.getFlag?.(MODULE_ID, 'tempInitiativeConfig')) {
+      LogUtil.log('_onPreRollIntercept - skipping: Flash initiative already in progress');
+      return;
+    }
+
     // Set attack rolls to public
     if (rollType === ROLL_TYPES.ATTACK) {
       message = { ...message, rollMode: CONST.DICE_ROLL_MODES.PUBLIC };

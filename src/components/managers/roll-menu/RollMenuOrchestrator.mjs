@@ -12,6 +12,7 @@ import { OfflinePlayerManager } from './OfflinePlayerManager.mjs';
 import { RollMenuExecutor } from './RollMenuExecutor.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
+import { HooksManager } from '../../core/HooksManager.mjs';
 
 /**
  * Utility class for orchestrating roll requests and execution
@@ -319,7 +320,15 @@ export class RollMenuOrchestrator {
     if (!rollConfig) return;
     
     await this.orchestrateRollsForActors(rollConfig, pcActors, npcActors, rollMethodName, rollKey, actorsData);
-    
+
+    if (rollMethodName === ROLL_TYPES.INITIATIVE || rollMethodName === ROLL_TYPES.INITIATIVE_DIALOG) {
+      const SETTINGS_POST = getSettings();
+      const initiateCombat = SettingsUtil.get(SETTINGS_POST.initiateCombatOnRequest.tag);
+      if (initiateCombat && game.combat && !game.combat.started) {
+        await game.combat.startCombat();
+      }
+    }
+
     if (!menu?.isLocked && typeof menu?.close === 'function') {
       setTimeout(() => menu.close(), 500);
     }
@@ -355,12 +364,6 @@ export class RollMenuOrchestrator {
       case ROLL_TYPES.INITIATIVE_DIALOG:
         const result = await this.handleInitiativeRoll(selectedUniqueIds, actorsData, actors);
         if (!result.success) return null;
-        // actorsData and actors are modified by reference
-        
-        const initiateCombat = SettingsUtil.get(SETTINGS.initiateCombatOnRequest.tag);
-        if (initiateCombat) {
-          game.combat.startCombat();
-        }
         break;
         
       case ROLL_TYPES.DEATH_SAVE:
@@ -400,31 +403,36 @@ export class RollMenuOrchestrator {
     const actorsWithoutTokens = [];
     const actorsWithTokens = [];
     
-    for (const uniqueId of selectedUniqueIds) {
-      const actor = getActorData(uniqueId);
-      if (!actor) continue;
-      
-      let tokenId = null;
-      
-      if (!game.actors.get(uniqueId)) {
-        tokenId = uniqueId;
-        actorsWithTokens.push(actor.name);
-      } else {
-        tokenId = actor.getActiveTokens()?.[0]?.id || null;
-        if (!tokenId) {
-          actorsWithoutTokens.push(actor.name);
-          continue;
-        }
-        actorsWithTokens.push(actor.name);
-        
-        const existingCombatant = game.combat.combatants.find(c => c.tokenId === tokenId);
-        if (!existingCombatant) {
-          await game.combat.createEmbeddedDocuments("Combatant", [{
-            actorId: actor.id,
-            tokenId: tokenId
-          }]);
+    HooksManager._suppressAutoInitiative = true;
+    try {
+      for (const uniqueId of selectedUniqueIds) {
+        const actor = getActorData(uniqueId);
+        if (!actor) continue;
+
+        let tokenId = null;
+
+        if (!game.actors.get(uniqueId)) {
+          tokenId = uniqueId;
+          actorsWithTokens.push(actor.name);
+        } else {
+          tokenId = actor.getActiveTokens()?.[0]?.id || null;
+          if (!tokenId) {
+            actorsWithoutTokens.push(actor.name);
+            continue;
+          }
+          actorsWithTokens.push(actor.name);
+
+          const existingCombatant = game.combat.combatants.find(c => c.tokenId === tokenId);
+          if (!existingCombatant) {
+            await game.combat.createEmbeddedDocuments("Combatant", [{
+              actorId: actor.id,
+              tokenId: tokenId
+            }]);
+          }
         }
       }
+    } finally {
+      HooksManager._suppressAutoInitiative = false;
     }
     
     if (actorsWithTokens.length === 0) {

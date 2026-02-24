@@ -1170,6 +1170,8 @@ export class HooksManager {
     this._handleAutoInitiativeRequest(combatant, options, userId);
   }
 
+  static _suppressAutoInitiative = false;
+
   /** @type {{timer: number|null, actorIds: string[], groupRollId: string|null}} */
   static _pendingAutoInitiative = {
     timer: null,
@@ -1186,6 +1188,7 @@ export class HooksManager {
    */
   static _handleAutoInitiativeRequest(combatant, options, userId) {
     if (!game.user.isGM) return;
+    if (this._suppressAutoInitiative) return;
     if (combatant.initiative !== null) return;
 
     const SETTINGS = getSettings();
