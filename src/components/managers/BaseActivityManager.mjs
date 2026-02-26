@@ -340,11 +340,12 @@ export class BaseActivityManager {
 
     const isRollRequest = config._isFlashRollRequest === true;
 
-    activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
-    activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
-    activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig');
-
-    if (!isRollRequest) return;
+    if (!isRollRequest) {
+      activity.item.unsetFlag(MODULE_ID, 'tempAttackConfig');
+      activity.item.unsetFlag(MODULE_ID, 'tempDamageConfig');
+      activity.item.unsetFlag(MODULE_ID, 'tempSaveConfig');
+      return;
+    }
 
     LogUtil.log("BaseActivityManager.onPreUseActivityPlayer", [activity, config, dialog, message]);
 

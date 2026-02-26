@@ -20,11 +20,17 @@ import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs'
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
  */
-export class RollInterceptor {  
+export class RollInterceptor {
   /**
    * @type {Set<string>} - Set of registered hook IDs for cleanup
    */
   static registeredHooks = new Set();
+
+  /**
+   * @type {Set<string>} - Tracks pending interceptions to prevent duplicate dialogs
+   * Keys are formatted as "actorId-itemId-rollType"
+   */
+  static _pendingInterceptions = new Set();
   
   /**
    * Initialize the roll interceptor
@@ -40,6 +46,7 @@ export class RollInterceptor {
    * Check if there's flags we should look into to prevent interception
    */
   static _checkPreventFlags(message){
+    LogUtil.log('_checkPreventFlags', [message])
     if (message?.data?.flags?.['swipe-vtt']?.isPlayerRoll) {
       return true;
     }
@@ -240,6 +247,19 @@ export class RollInterceptor {
           rsr5e: { ...message.data?.flags?.rsr5e, processed: true, quickRoll: false }
         }
       };
+    }
+
+    // === Prevent duplicate interceptions for attack/damage rolls (Midi-QOL can trigger these twice) ===
+    if (rollType === ROLL_TYPES.ATTACK || rollType === ROLL_TYPES.DAMAGE) {
+      const itemId = config.subject?.item?.id;
+      if (itemId) {
+        const interceptionKey = `${actor.id}-${itemId}-${rollType}`;
+        if (this._pendingInterceptions.has(interceptionKey)) {
+          LogUtil.log('_onPreRollIntercept - skipping duplicate interception', [interceptionKey]);
+          return false;
+        }
+        this._pendingInterceptions.add(interceptionKey);
+      }
     }
 
     // === Show GM config dialog ===
@@ -497,8 +517,14 @@ export class RollInterceptor {
       
     } catch (error) {
       LogUtil.error('RollInterceptor._showGMConfigDialog - Error', [error]);
-      // Fallback: send request without configuration
-      // this._sendRollRequest(actor, owner, rollType, config);
+    } finally {
+      const normalizedRollType = rollType?.toLowerCase();
+      if (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE) {
+        const itemId = config.subject?.item?.id;
+        if (itemId) {
+          this._pendingInterceptions.delete(`${actor.id}-${itemId}-${normalizedRollType}`);
+        }
+      }
     }
   }
   

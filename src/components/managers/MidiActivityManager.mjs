@@ -60,6 +60,24 @@ export class MidiActivityManager {
   }
 
   /**
+   * Check if Midi-QOL has fast-forward enabled for a specific roll type
+   * Uses the array-based autoFastForward/gmAutoFastForward config settings
+   * @param {string} rollType - The Midi roll type string ("attack", "damage", "check", "save", "skill", "tool")
+   * @returns {boolean} True if fast-forward is enabled for the given roll type
+   */
+  static isFastForward(rollType) {
+    const MidiQOL = ModuleHelpers.getMidiQOL();
+    const configSettings = MidiQOL?.currentConfigSettings;
+    if (!configSettings) return false;
+
+    const fastForward = game.user?.isGM
+      ? configSettings.gmAutoFastForward
+      : configSettings.autoFastForward;
+
+    return Array.isArray(fastForward) && fastForward.includes(rollType);
+  }
+
+  /**
    * Check if Midi-QOL is configured to auto-roll attack rolls
    * Based on midi-qol's getAutoRollAttack() logic
    */
@@ -387,7 +405,7 @@ export class MidiActivityManager {
     const isPlayerSide = !game.user.isGM;
 
     return {
-      fastForwardDamage: isPlayerSide ? false : skipDialogs,
+      fastForwardDamage: isPlayerSide ? this.isFastForward("damage") : skipDialogs,
       autoRollDamage: 'onHit',
       workflowOptions: {
         autoRollDamage: 'onHit'
@@ -419,10 +437,13 @@ export class MidiActivityManager {
     const hasTemplate = activity.target?.template?.type;
     const isTemplateActivity = placeTemplateForPlayer && hasTemplate;
 
+    const isAttackActivity = activity.type === ACTIVITY_TYPES.ATTACK;
+    const playerFastForwardDamage = isAttackActivity && this.isFastForward("damage");
+
     const midiOptions = {
       ...config.midiOptions,
       fastForwardAttack: isPlayerSide ? false : skipDialogs,
-      fastForwardDamage: isPlayerSide && shouldForceAutoRollDamage ? false : skipDialogs,
+      fastForwardDamage: isPlayerSide ? playerFastForwardDamage : skipDialogs,
       autoRollAttack: true,
       workflowOptions: {
         autoRollAttack: true,

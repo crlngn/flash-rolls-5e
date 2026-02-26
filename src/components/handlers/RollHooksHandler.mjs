@@ -109,7 +109,7 @@ export class RollHooksHandler {
     }
 
     dialogOptions.configure = true;
-    LogUtil.log("RollHooksHandler.onPreRollAttackV2 - Player roll request, always showing dialog");
+    LogUtil.log("RollHooksHandler.onPreRollAttackV2 - Player roll request, showing dialog");
 
     if (stored.attackMode) config.attackMode = stored.attackMode;
     if (stored.ammunition) config.ammunition = stored.ammunition;
@@ -156,8 +156,13 @@ export class RollHooksHandler {
       MidiActivityManager.onPreRollDamageV2(config, dialogOptions, messageOptions);
     }
 
-    dialogOptions.configure = true;
-    LogUtil.log("RollHooksHandler.onPreRollDamageV2 - Found stored request config from flag", [stored, stored.situational]);
+    const isAttackActivity = config.subject?.type === ACTIVITY_TYPES.ATTACK;
+    if (!(isMidiActive && isAttackActivity && MidiActivityManager.isFastForward("damage"))) {
+      dialogOptions.configure = true;
+      LogUtil.log("RollHooksHandler.onPreRollDamageV2 - Player roll request, showing dialog");
+    } else {
+      LogUtil.log("RollHooksHandler.onPreRollDamageV2 - Midi fast-forward enabled for attack damage, skipping dialog");
+    }
 
     if (stored.critical) config.critical = stored.critical;
     messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
