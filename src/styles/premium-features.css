@@ -1,5 +1,5 @@
 
-/* Premium Features Dialog */
+/* Patreon Features Dialog */
 #flash5e-premium-features-dialog {
   max-height: 80vh;
   min-width: 500px;
@@ -445,6 +445,75 @@
 
     i {
       margin-top: 0.15em;
+    }
+  }
+
+  .link-code-fieldset {
+    margin-top: 1rem;
+
+    > p.hint {
+      margin: 0 0 0.5rem 0;
+    }
+
+    .get-code-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: var(--font-size-15);
+      color: var(--color-warm-2);
+      text-decoration: none;
+      margin-bottom: 0.5rem;
+
+      &:hover {
+        text-decoration: underline;
+      }
+
+      i {
+        font-size: 0.9em;
+      }
+    }
+
+    .link-code-input-row {
+      display: flex;
+      gap: 0.5rem;
+
+      input[name="linkCode"] {
+        flex: 1;
+        padding: .5rem .75rem;
+        font-size: 1.25rem;
+        font-family: monospace;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-align: center;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background: var(--color-cool-4);
+
+        &:focus {
+          outline: none;
+          border-color: var(--color-warm-2);
+        }
+
+        &::placeholder {
+          letter-spacing: 4px;
+          color: var(--color-text-light-6);
+        }
+      }
+
+      .redeem-btn {
+        padding: 0.5rem 1rem;
+        background: var(--color-warm-2);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          filter: brightness(1.1);
+        }
+      }
     }
   }
 

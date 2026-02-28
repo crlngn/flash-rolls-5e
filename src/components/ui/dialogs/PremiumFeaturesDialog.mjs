@@ -11,7 +11,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const PROXY_BASE_URL = "https://proxy.carolingian.io";
 
 /**
- * Premium Features Dialog - ApplicationV2 component for managing premium feature settings
+ * Patreon Features Dialog - ApplicationV2 component for managing premium feature settings
  * including D&D Beyond integration and Patreon authentication
  * @extends {HandlebarsApplicationMixin(ApplicationV2)}
  */ 
@@ -74,6 +74,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       syncCharacter: PremiumFeaturesDialog.#onSyncCharacter,
       importAll: PremiumFeaturesDialog.#onImportAll,
       syncAll: PremiumFeaturesDialog.#onSyncAll,
+      redeemLinkCode: PremiumFeaturesDialog.#onRedeemLinkCode,
       save: PremiumFeaturesDialog.#onSave,
       toggleDdbSettings: PremiumFeaturesDialog.#onToggleDdbSettings
     }
@@ -200,6 +201,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           ddbNoAutoConsumeSpellSlot,
           ddbImportOwnership,
           hasSessionToken,
+          proxyUrl: PROXY_BASE_URL,
           proxyAuthUrl: `${PROXY_BASE_URL}/auth/patreon`,
           patronStatus,
           patronTierName,
@@ -675,6 +677,64 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   static async #onLogout(event, target) {
     await PatronSessionManager.logout();
     this.render();
+  }
+
+  /**
+   * Handle link code redemption for popup-blocked environments
+   */
+  static async #onRedeemLinkCode(event, target) {
+    const input = this.element.querySelector('input[name="linkCode"]');
+    const code = input?.value?.trim();
+    if (!code) {
+      ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.enterCode"));
+      return;
+    }
+
+    try {
+      LogUtil.log("Redeeming link code:", [code]);
+      const response = await fetch(`${PROXY_BASE_URL}/auth/link/redeem`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.sessionToken) {
+        LogUtil.log("Link code redeemed successfully");
+        PatronSessionManager.setSessionToken(data.sessionToken);
+
+        const status = await PatronSessionManager.getInstance().validateSession(true);
+        LogUtil.log("Session validated after code redemption", [status]);
+
+        const instance = PremiumFeaturesDialog.getInstance();
+        if (instance && instance.rendered) {
+          instance.render();
+        } else {
+          new PremiumFeaturesDialog().render(true);
+        }
+
+        if (status.isPatron) {
+          ui.notifications.info(
+            game.i18n.format("FLASH_ROLLS.settings.premiumFeatures.connectionSuccess", {
+              name: status.name || "Patron"
+            })
+          );
+          DnDBeyondIntegration.initialize();
+          if (status.ddbConnected) {
+            PatronSessionManager.getInstance().startHeartbeat();
+          }
+        } else {
+          ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.patreonNotVerified"));
+        }
+      } else {
+        LogUtil.log("Link code redemption failed:", [data.error]);
+        ui.notifications.error(data.error || game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.invalidCode"));
+      }
+    } catch (err) {
+      LogUtil.error("Link code redemption error:", [err]);
+      ui.notifications.error(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.connectionFailed"));
+    }
   }
 
   /**

@@ -609,9 +609,9 @@ export class FlashAPI {
   }
 
   /**
-   * Open the premium features dialog
+   * Open the Patreon features dialog
    */
-  static openPremiumFeatures() {
+  static openPatreonFeatures() {
     new PremiumFeaturesDialog().render(true);
   }
 

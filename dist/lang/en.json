@@ -240,7 +240,7 @@
           "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "dndBeyond": "D&D Beyond Integration (Premium)"
+          "dndBeyond": "D&D Beyond (Patreon features)"
         }
       },
       "ddbImportOwnership": {
@@ -356,11 +356,11 @@
         "reloadPrompt": "Settings have been imported. Reload the page to apply all changes?"
       },
       "premiumFeatures": {
-        "label": "Premium Features",
-        "buttonLabel": "Premium Features",
-        "title": "Premium Features",
-        "hint": "Configure premium features including D&D Beyond Rolls integration (Patreon supporters only).",
-        "description": "Click 'Authenticate with Patreon' to get access to D&D Beyond features. Free access will be given to all Patreon members (free or not) until February 2026 - after that, a $2 or $5 paid tier will be required.",
+        "label": "Patreon Features",
+        "buttonLabel": "Patreon Features",
+        "title": "Patreon Features",
+        "hint": "Configure Patreon features including D&D Beyond Rolls integration.",
+        "description": "Click 'Authenticate with Patreon' to get access to D&D Beyond features. Free access will be given to all Patreon members (free or not) at least until August 2026.",
         "tabs": {
           "authentication": "Member Authentication",
           "ddbSettings": "D&D Beyond Options"
@@ -376,11 +376,17 @@
         "patronName": "Patron",
         "patronTier": "Tier",
         "popupBlocked": "Popup blocked! Please allow popups for this site and try again.",
+        "linkCodeFieldset": "Authenticate with Link Code",
+        "linkCodeHint": "Can't use popups? Get a code from another device.",
+        "getLinkCode": "Click to Get an Auth Code",
+        "saveCode": "Save",
+        "enterCode": "Please enter a link code",
+        "invalidCode": "Invalid or expired code",
         "loggedOut": "Successfully logged out from Patreon.",
         "logoutFailed": "Failed to logout. Please try again.",
         "testConnectionBtn": "Test Connection",
         "testGameLogBtn": "Test DDB Connection",
-        "ddbSettings": "D&D Beyond Integration (Premium)",
+        "ddbSettings": "D&D Beyond (Patreon features)",
         "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your cobalt cookie, campaign id and user id in the fields below.",
         "ddbWarningImportItems": "If you did not purchase official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium before importing the character.",
         "ddbWarningAfter": "If DDB Importer module is active, it is used for character import. If not available, Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items",
@@ -453,7 +459,7 @@
         "tooltipOn": "ON",
         "tooltipOff": "OFF",
         "contextReconnect": "Reconnect to Patreon",
-        "patreonRequired": "Connect to Patreon to access premium features."
+        "patreonRequired": "Connect to Patreon to access special features."
       },
       "ddbCampaignId": {
         "label": "D&D Beyond Campaign ID",
@@ -606,7 +612,7 @@
         "openSheets": "Open Sheets",
         "showOptionsListOnHover": "Toggle List",
         "openSettings": "Open Settings",
-        "premiumFeatures": "Premium Features",
+        "premiumFeatures": "Patreon Features",
         "filterActors": "Filter Actors",
         "groupSelected": "Create Group",
         "toggleMovement": "Toggle Movement",

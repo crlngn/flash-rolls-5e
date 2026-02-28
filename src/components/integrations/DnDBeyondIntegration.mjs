@@ -17,7 +17,7 @@ const SOCKET_HANDLERS = {
 /**
  * Integration with D&D Beyond Game Log via proxy server
  * Orchestrates connection, roll parsing, and execution
- * Premium feature - requires Patreon authentication
+ * Patreon feature - requires Patreon authentication
  */
 export class DnDBeyondIntegration {
 

@@ -90,8 +90,8 @@ export class RollMenuEventManager {
     html.querySelector('#flash5e-actors-lock')?.addEventListener('click', menu._onToggleLock.bind(menu));
     html.querySelector('.options-toggle-btn')?.addEventListener('click', menu._onToggleOptions.bind(menu));
     html.querySelector('#flash5e-open-settings')?.addEventListener('click', menu._onOpenSettings.bind(menu));
-    html.querySelector('#flash5e-premium-features')?.addEventListener('click', menu._onOpenPremiumFeatures.bind(menu));
-    html.querySelector('#flash5e-premium-features')?.addEventListener('contextmenu', menu._onPremiumFeaturesContextMenu.bind(menu));
+    html.querySelector('#flash5e-premium-features')?.addEventListener('click', menu._onOpenPatreonFeatures.bind(menu));
+    html.querySelector('#flash5e-premium-features')?.addEventListener('contextmenu', menu._onPatreonFeaturesContextMenu.bind(menu));
   }
   
   /**

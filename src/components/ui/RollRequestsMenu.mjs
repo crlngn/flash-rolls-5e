@@ -496,19 +496,19 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Handle open premium features button click
+   * Handle open Patreon features button click
    */
-  async _onOpenPremiumFeatures(event) {
+  async _onOpenPatreonFeatures(event) {
     event.preventDefault();
     event.stopPropagation();
     new PremiumFeaturesDialog().render(true);
   }
 
   /**
-   * Handle context menu on premium features button
+   * Handle context menu on Patreon features button
    * @param {MouseEvent} event - The context menu event
    */
-  _onPremiumFeaturesContextMenu(event) {
+  _onPatreonFeaturesContextMenu(event) {
     event.preventDefault();
     event.stopPropagation();
 

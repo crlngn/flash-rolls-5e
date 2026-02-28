@@ -45,6 +45,21 @@
           <span>{{patreonStatusText}}</span>
         </div>
       </div>
+
+      <fieldset class="link-code-fieldset">
+        <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.linkCodeFieldset"}}</legend>
+        <p class="hint">{{localize "FLASH_ROLLS.settings.premiumFeatures.linkCodeHint"}}</p>
+        <a href="{{proxyUrl}}/auth/link" target="_blank" class="get-code-link">
+          <i class="fas fa-external-link-alt"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.getLinkCode"}}
+        </a>
+        <div class="link-code-input-row">
+          <input type="text" name="linkCode" placeholder="ABC-123" maxlength="7" autocomplete="off" />
+          <button type="button" data-action="redeemLinkCode" class="redeem-btn">
+            {{localize "FLASH_ROLLS.settings.premiumFeatures.saveCode"}}
+          </button>
+        </div>
+      </fieldset>
     {{/if}}
   </fieldset>
 </section>
