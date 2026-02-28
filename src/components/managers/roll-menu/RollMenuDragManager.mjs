@@ -85,7 +85,7 @@ export class RollMenuDragManager {
     }
     
     const parent = menu.element.parentElement;
-    document.body.appendChild(menu.element);
+    document.querySelector('#interface').appendChild(menu.element);
     menu.element.style.position = 'fixed';
     menu.element.style.inset = '';  // Clear inset first
     menu.element.style.transform = ''; // Clear any transform from docked-bottom
@@ -542,8 +542,8 @@ export class RollMenuDragManager {
       
       adjustMenuOffset();
     } else {
-      document.body.appendChild(menu.element);
-      
+      document.querySelector('#interface').appendChild(menu.element);
+
       menu.element.style.position = 'fixed';
       menu.element.style.inset = '';
       menu.element.style.top = `${position.y}px`;

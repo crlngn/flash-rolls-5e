@@ -1189,7 +1189,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     if(!this.element) { return; }
     
-    if (this.isCustomPosition && this.element.parentElement === document.body) {
+    const interfaceEl = document.querySelector('#interface');
+    if (this.isCustomPosition && this.element.parentElement === interfaceEl) {
       const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
       const sidebar = document.querySelector('#sidebar');

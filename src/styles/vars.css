@@ -7,8 +7,7 @@
   --fr5e-secondary-bg-05: rgba(255, 255, 255, 0.05);
   --fr5e-secondary-bg-10: rgba(255, 255, 255, 0.1);
 
-  body.theme-dark > #flash-rolls-menu, 
-  #interface.theme-dark #flash-rolls-menu, 
+  #interface.theme-dark #flash-rolls-menu,
   #interface.theme-dark .chat-log {
     --button-text-color: var(--color-light-3);
     --fr5e-text-color: var(--color-light-3);
@@ -18,8 +17,7 @@
     --fr5e-secondary-bg-10: rgba(255, 255, 255, 0.1);
   }
 
-  body.theme-light > #flash-rolls-menu, 
-  #interface.theme-light #flash-rolls-menu, 
+  #interface.theme-light #flash-rolls-menu,
   #interface.theme-light .chat-log {
     --button-text-color: var(--color-dark-3);
     --fr5e-text-color: var(--color-dark-3);
