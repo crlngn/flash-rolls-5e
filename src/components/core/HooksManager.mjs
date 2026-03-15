@@ -1249,7 +1249,13 @@ export class HooksManager {
 
     if (actorIds.length === 0) return;
 
-    const uniqueActorIds = [...new Set(actorIds)];
+    const uniqueActorIds = [...new Set(actorIds)].filter(id => {
+      if (!game.combat) return false;
+      const combatant = game.combat.combatants.find(c => c.tokenId === id || c.actorId === id);
+      return !combatant || combatant.initiative === null;
+    });
+
+    if (uniqueActorIds.length === 0) return;
 
     LogUtil.log('HooksManager._processAutoInitiativeBatch', [uniqueActorIds.length, 'actors, groupRollId:', groupRollId]);
 

@@ -148,6 +148,10 @@ export class ChatMessageManager {
           const existingGroupRollId = data.flags?.[MODULE_ID]?.groupRollId;
           if (existingGroupRollId && ChatMessageManager.isGroupRoll(existingGroupRollId)) {
             LogUtil.log('ChatMessageManager.onPreCreateChatMessage - groupRollId already set, skipping pendingRolls search', [existingGroupRollId]);
+            ChatMessageManager.clearTempGroupRollId(actorId);
+            if (speaker?.token) {
+              ChatMessageManager.clearTempGroupRollId(speaker.token);
+            }
           } else {
             const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
             const tokenId = speaker?.token;
@@ -179,6 +183,10 @@ export class ChatMessageManager {
                   ['flags.rsr5e.quickRoll']: false
                 });
                 LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (GM) via updateSource', [groupRollId, actorId, tokenId]);
+                ChatMessageManager.clearTempGroupRollId(actorId);
+                if (tokenId) {
+                  ChatMessageManager.clearTempGroupRollId(tokenId);
+                }
                 break;
               }
             }
@@ -204,10 +212,13 @@ export class ChatMessageManager {
           }
 
           if (storedInitConfig?.groupRollId || storedGroupRollId) {
-            data.flags = data.flags || {};
-            data.flags[MODULE_ID] = data.flags[MODULE_ID] || {};
-            data.flags[MODULE_ID].groupRollId = storedGroupRollId || storedInitConfig?.groupRollId || '';
-            data.flags.rsr5e = { processed: true, quickRoll: false};
+            const resolvedGroupRollId = storedGroupRollId || storedInitConfig?.groupRollId || '';
+            message.updateSource({
+              [`flags.${MODULE_ID}.groupRollId`]: resolvedGroupRollId,
+              ['flags.rsr5e.processed']: true,
+              ['flags.rsr5e.quickRoll']: false
+            });
+            LogUtil.log('ChatMessageManager.onPreCreateChatMessage - Added groupRollId flag (Player) via updateSource', [resolvedGroupRollId, actorId]);
 
             if (storedGroupRollId) {
               ChatMessageManager.clearTempGroupRollId(actorId);
@@ -1837,11 +1848,21 @@ export class ChatMessageManager {
     const rollKey = message.getFlag(MODULE_ID, 'rollKey');
     const roll = message.rolls?.[0];
 
+    const tempGroupRollId = ChatMessageManager.getTempGroupRollId(uniqueId);
     const groupRollId = message.getFlag(MODULE_ID, 'groupRollId') ||
-                        ChatMessageManager.getTempGroupRollId(uniqueId) ||
+                        tempGroupRollId ||
                         actor.getFlag(MODULE_ID, 'tempInitiativeConfig')?.groupRollId;
 
-    if (!groupRollsMsgEnabled && !(groupRollId && this.isGroupRoll(groupRollId))) {
+    if (tempGroupRollId) {
+      ChatMessageManager.clearTempGroupRollId(uniqueId);
+      const baseActorId = actor.isToken ? actor.actor?.id : actor.id;
+      if (baseActorId && baseActorId !== uniqueId) {
+        ChatMessageManager.clearTempGroupRollId(baseActorId);
+      }
+    }
+
+    const isInitiativeMsg = message.flags?.core?.initiativeRoll;
+    if (!groupRollsMsgEnabled && !(groupRollId && this.isGroupRoll(groupRollId)) && !isInitiativeMsg) {
       if (isFlashRollRequest && roll) {
         this._broadcastIndividualRollComplete(actor, roll, rollType, rollKey, tokenId);
         this._scheduleIndividualMessageRemoval(message, rollType);
@@ -1852,7 +1873,7 @@ export class ChatMessageManager {
     if (!groupRollId) {
       LogUtil.log('interceptRollMessage #2 - no groupRollId in flag', [actor.name]);
 
-      if (game.user.isGM && roll && groupRollsMsgEnabled) {
+      if (game.user.isGM && roll && (groupRollsMsgEnabled || isInitiativeMsg)) {
         const matchingGroupRollId = this._findMatchingPendingRoll(actor, uniqueId, message);
         if (matchingGroupRollId) {
           LogUtil.log('interceptRollMessage - Found matching pending roll for external roll', [actor.name, matchingGroupRollId]);
