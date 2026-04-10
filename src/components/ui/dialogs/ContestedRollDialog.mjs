@@ -75,6 +75,12 @@ export class ContestedRollDialog extends HandlebarsApplicationMixin(ApplicationV
       };
     }
 
+    const rollModes = Object.entries(CONFIG.Dice.rollModes).map(([value, label]) => ({
+      value,
+      labelKey: typeof label === 'string' ? label : (label?.label || label?.name || value),
+      selected: value === this.rollMode
+    }));
+
     return {
       ...context,
       actors: this.actors.map(a => {
@@ -88,6 +94,7 @@ export class ContestedRollDialog extends HandlebarsApplicationMixin(ApplicationV
       abilities,
       skills,
       rollMode: this.rollMode,
+      rollModes,
       flavor: this.flavor,
       hideNpcNames: this.hideNpcNames
     };

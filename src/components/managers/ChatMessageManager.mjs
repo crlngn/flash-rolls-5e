@@ -1180,7 +1180,9 @@ export class ChatMessageManager {
         total: null,
         success: false,
         failure: false,
-        rollTypeFlavor: entryFlavor
+        rollTypeFlavor: entryFlavor,
+        rollType: entryRollType,
+        rollKey: entryRollKey
       };
     });
     

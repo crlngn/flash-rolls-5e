@@ -25,7 +25,7 @@ export class CustomRollDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       tag: "div",
       window: {
         title: "FLASH_ROLLS.ui.dialogs.customRollTitle",
-        icon: "fas fa-dice-d20",
+        icon: "fa-thin fa-dice-d20 fa-light",
         resizable: false,
         positioned: true,
         frame: true

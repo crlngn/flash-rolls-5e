@@ -48,10 +48,9 @@
       <div class="form-group">
         <label>{{localize "FLASH_ROLLS.ui.dialogs.contestedRoll.rollMode"}}</label>
         <select name="rollMode" class="roll-mode-select">
-          <option value="publicroll" {{#if (eq rollMode "publicroll")}}selected{{/if}}>{{localize "CHAT.RollPublic"}}</option>
-          <option value="gmroll" {{#if (eq rollMode "gmroll")}}selected{{/if}}>{{localize "CHAT.RollPrivate"}}</option>
-          <option value="blindroll" {{#if (eq rollMode "blindroll")}}selected{{/if}}>{{localize "CHAT.RollBlind"}}</option>
-          <option value="selfroll" {{#if (eq rollMode "selfroll")}}selected{{/if}}>{{localize "CHAT.RollSelf"}}</option>
+          {{#each rollModes}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize labelKey}}</option>
+          {{/each}}
         </select>
       </div>
     </div>

@@ -187,6 +187,8 @@ export const HOOKS_DND5E = {
 export const HOOKS_TIDY5E = {
   READY: "tidy5e-sheet.ready",
   PRE_PROMPT_GROUP_SKILL_ROLL: "tidy5e-sheet.prePromptGroupSkillRoll",
+  PRE_PROMPT_GROUP_ABILITY_ROLL: "tidy5e-sheet.prePromptGroupAbilityRoll",
+  PRE_PROMPT_GROUP_SAVING_THROW_ROLL: "tidy5e-sheet.prePromptGroupSavingThrowRoll",
   RENDER_ACTOR_SHEET: "tidy5e-sheet.renderActorSheet",
   RENDER_GROUP_SHEET_QUADRONE: "renderTidy5eGroupSheetQuadrone",
   RENDER_GROUP_SHEET_CLASSIC: "renderTidy5eGroupSheetClassic",

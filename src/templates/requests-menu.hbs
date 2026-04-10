@@ -274,7 +274,7 @@
             {{#if requestType.hasSubList}}
               <i class="icon fas fa-chevron-right accordion-toggle{{#if requestType.expanded}} expanded{{/if}}"></i>
             {{else}}
-              <i class="icon fas fa-dice-d20"></i>
+              <i class="icon fa-thin fa-dice-d20 fa-light"></i>
             {{/if}}
             <span class="request-type-name">{{ requestType.name }}</span>
             {{#unless requestType.hasSubList}}<i class="btn-macro fas fa-code" data-tooltip="{{localize 'FLASH_ROLLS.ui.buttons.createMacro'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>{{/unless}}
@@ -284,7 +284,7 @@
             <ul class="roll-types-nested" style="display: {{#if requestType.expanded}}block{{else}}none{{/if}};">
               {{#each requestType.subItems as |subItem|}}
                 <li data-id="{{ subItem.id }}" data-parent="{{ ../id }}" class="rollable sub-item">
-                  <i class="icon fas fa-dice-d20"></i>
+                  <i class="icon fa-thin fa-dice-d20 fa-light"></i>
                   <span class="sub-item-name">{{ subItem.name }}</span>
                   <i class="btn-macro fas fa-code" data-tooltip="{{localize 'FLASH_ROLLS.ui.buttons.createMacro'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
                 </li>

@@ -698,6 +698,11 @@ export class HooksManager {
     Hooks.once(HOOKS_TIDY5E.READY, () => {
       LogUtil.log('Tidy5e Sheets ready - registering hooks');
       Hooks.on(HOOKS_TIDY5E.PRE_PROMPT_GROUP_SKILL_ROLL, this._onTidy5eGroupSkillRoll.bind(this));
+      if (!foundry.utils.isNewerVersion("5.3.0", game.system.version)) {
+        LogUtil.log('Tidy5e Sheets on 5.3.0');
+        Hooks.on(HOOKS_TIDY5E.PRE_PROMPT_GROUP_ABILITY_ROLL, this._onTidy5eGroupAbilityRoll.bind(this));
+        Hooks.on(HOOKS_TIDY5E.PRE_PROMPT_GROUP_SAVING_THROW_ROLL, this._onTidy5eGroupSavingThrowRoll.bind(this));
+      }
       Hooks.on(HOOKS_TIDY5E.RENDER_ACTOR_SHEET, GroupTokenTracker.onRenderActorSheet.bind(GroupTokenTracker));
       Hooks.on(HOOKS_TIDY5E.RENDER_GROUP_SHEET_QUADRONE, GroupTokenTracker.onRenderActorSheet.bind(GroupTokenTracker));
       Hooks.on(HOOKS_TIDY5E.RENDER_GROUP_SHEET_CLASSIC, GroupTokenTracker.onRenderActorSheet.bind(GroupTokenTracker));
@@ -749,6 +754,110 @@ export class HooksManager {
     FlashAPI.requestRoll({
       requestType: 'skill',
       rollKey: skill,
+      actorIds,
+      ability,
+      skipRollDialog,
+      groupRollId,
+      sendAsRequest: true
+    });
+
+    return false;
+  }
+
+  /**
+   * Handle Tidy5e group ability roll prompt
+   * @param {Application} app - The sheet application instance
+   * @param {Object} options - Roll configuration options
+   * @param {string} options.ability - The ability key (e.g., 'str' for Strength)
+   * @param {Event} options.event - The triggering event
+   * @returns {boolean} False to prevent the default prompt, true to allow it
+   */
+  static _onTidy5eGroupAbilityRoll(app, options) {
+    LogUtil.log('HooksManager._onTidy5eGroupAbilityRoll', [app, options]);
+
+    if (!game.user.isGM) return true;
+
+    const SETTINGS = getSettings();
+    const interceptEnabled = SettingsUtil.get(SETTINGS.interceptTidySheetsGroupRolls.tag);
+
+    if (!interceptEnabled) {
+      LogUtil.log('Tidy5e group ability roll interception disabled', []);
+      return true;
+    }
+
+    const { ability, event } = options;
+
+    if (!app?.actor?.system?.members) {
+      LogUtil.warn('Tidy5e group ability roll: No members found', [app]);
+      return true;
+    }
+
+    const members = app.actor.system.members;
+    const actorIds = members.map(m => m.actor.id).filter(id => id);
+
+    if (actorIds.length === 0) {
+      LogUtil.warn('Tidy5e group ability roll: No valid actor IDs', [members]);
+      return true;
+    }
+
+    const skipRollDialog = RollHelpers.shouldSkipRollDialog({isPC: true, sendRequest: true});
+    const groupRollId = foundry.utils.randomID();
+
+    FlashAPI.requestRoll({
+      requestType: 'ability',
+      rollKey: ability,
+      actorIds,
+      ability,
+      skipRollDialog,
+      groupRollId,
+      sendAsRequest: true
+    });
+
+    return false;
+  }
+
+  /**
+   * Handle Tidy5e group saving throw roll prompt
+   * @param {Application} app - The sheet application instance
+   * @param {Object} options - Roll configuration options
+   * @param {string} options.ability - The ability key (e.g., 'dex' for Dexterity)
+   * @param {Event} options.event - The triggering event
+   * @returns {boolean} False to prevent the default prompt, true to allow it
+   */
+  static _onTidy5eGroupSavingThrowRoll(app, options) {
+    LogUtil.log('HooksManager._onTidy5eGroupSavingThrowRoll', [app, options]);
+
+    if (!game.user.isGM) return true;
+
+    const SETTINGS = getSettings();
+    const interceptEnabled = SettingsUtil.get(SETTINGS.interceptTidySheetsGroupRolls.tag);
+
+    if (!interceptEnabled) {
+      LogUtil.log('Tidy5e group saving throw roll interception disabled', []);
+      return true;
+    }
+
+    const { ability, event } = options;
+
+    if (!app?.actor?.system?.members) {
+      LogUtil.warn('Tidy5e group saving throw roll: No members found', [app]);
+      return true;
+    }
+
+    const members = app.actor.system.members;
+    const actorIds = members.map(m => m.actor.id).filter(id => id);
+
+    if (actorIds.length === 0) {
+      LogUtil.warn('Tidy5e group saving throw roll: No valid actor IDs', [members]);
+      return true;
+    }
+
+    const skipRollDialog = RollHelpers.shouldSkipRollDialog({isPC: true, sendRequest: true});
+    const groupRollId = foundry.utils.randomID();
+
+    FlashAPI.requestRoll({
+      requestType: 'save',
+      rollKey: ability,
       actorIds,
       ability,
       skipRollDialog,

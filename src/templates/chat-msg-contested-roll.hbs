@@ -12,19 +12,41 @@
           {{#if rolled}}
             <span class="roll-value toggle" title="Click to see roll breakdown">{{total}}</span>
           {{else}}
-            <span class="dice-btn fas fa-dice-d20 rollable"
+            <span class="adv-btn fas fa-angles-down"
                   data-action="roll"
-                  data-type="{{../rollType}}"
-                  data-roll-key="{{../rollKey}}"
+                  data-advantage-mode="-1"
+                  data-type="{{rollType}}"
+                  data-roll-key="{{rollKey}}"
                   data-actor-id="{{actorId}}"
                   {{#if tokenId}}data-token-id="{{tokenId}}"{{/if}}
                   data-group-roll-id="{{../groupRollId}}"
-                  {{#if ../rollType}}{{#eq ../rollType "skill"}}data-skill="{{../rollKey}}"{{/eq}}{{/if}}
-                  {{#if ../rollType}}{{#eq ../rollType "tool"}}data-tool="{{../rollKey}}"{{/eq}}{{/if}}
-                  {{#if ../rollType}}{{#eq ../rollType "save"}}data-ability="{{../rollKey}}"{{/eq}}{{/if}}
-                  {{#if ../rollType}}{{#eq ../rollType "ability"}}data-ability="{{../rollKey}}"{{/eq}}{{/if}}
+                  {{#if ../gmDisadvantage}}data-gm-active="true"{{/if}}
+                  title="Roll with Disadvantage"></span>
+            <span class="dice-btn fa-thin fa-dice-d20 fa-light rollable"
+                  data-action="roll"
+                  data-type="{{rollType}}"
+                  data-roll-key="{{rollKey}}"
+                  data-actor-id="{{actorId}}"
+                  {{#if tokenId}}data-token-id="{{tokenId}}"{{/if}}
+                  data-group-roll-id="{{../groupRollId}}"
+                  {{#eq rollType "skill"}}data-skill="{{rollKey}}"{{/eq}}
+                  {{#eq rollType "tool"}}data-tool="{{rollKey}}"{{/eq}}
+                  {{#eq rollType "save"}}data-ability="{{rollKey}}"{{/eq}}
+                  {{#eq rollType "ability"}}data-ability="{{rollKey}}"{{/eq}}
+                  {{#if ../gmAdvantage}}data-gm-advantage="true"{{/if}}
+                  {{#if ../gmDisadvantage}}data-gm-disadvantage="true"{{/if}}
                   title="Click to roll"
                   alt="Pending Roll"></span>
+            <span class="adv-btn fas fa-angles-up"
+                  data-action="roll"
+                  data-advantage-mode="1"
+                  data-type="{{rollType}}"
+                  data-roll-key="{{rollKey}}"
+                  data-actor-id="{{actorId}}"
+                  {{#if tokenId}}data-token-id="{{tokenId}}"{{/if}}
+                  data-group-roll-id="{{../groupRollId}}"
+                  {{#if ../gmAdvantage}}data-gm-active="true"{{/if}}
+                  title="Roll with Advantage"></span>
           {{/if}}
         </span>
       </div>
