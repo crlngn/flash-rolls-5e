@@ -20,6 +20,7 @@ export const SOCKET_CALLS = {
   receiveDiceConfig: "receiveDiceConfig",
   getDiceConfig: "getDiceConfig",
   handleRollRequest: "handleRollRequest",
+  handleActivityUseRequest: "handleActivityUseRequest",
   removeTemplate: "removeTemplate",
   broadcastRollComplete: "broadcastRollComplete",
   deleteChatMessage: "deleteChatMessage"

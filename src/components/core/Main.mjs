@@ -48,12 +48,22 @@ export class Main {
   }
 
   /**
+   * Handle activity-use request from GM on player side
+   * @param {Object} requestData - The activity use request data
+   */
+  static async handleActivityUseRequest(requestData) {
+    LogUtil.log('Main.handleActivityUseRequest', requestData);
+    return RollRequestManager.handleActivityUseRequest(requestData);
+  }
+
+  /**
    * Register methods with socketlib for remote execution
    */
   static registerSocketCalls() {
     SocketUtil.registerCall(SOCKET_CALLS.getDiceConfig, Main.getDiceConfig);
     SocketUtil.registerCall(SOCKET_CALLS.receiveDiceConfig, Main.receiveDiceConfig);
     SocketUtil.registerCall(SOCKET_CALLS.handleRollRequest, Main.handleRollRequest);
+    SocketUtil.registerCall(SOCKET_CALLS.handleActivityUseRequest, Main.handleActivityUseRequest);
     SocketUtil.registerCall(SOCKET_CALLS.removeTemplate, GeneralUtil.removeTemplate);
     SocketUtil.registerCall(SOCKET_CALLS.broadcastRollComplete, Main.handleBroadcastRollComplete);
     SocketUtil.registerCall(SOCKET_CALLS.deleteChatMessage, Main.handleDeleteChatMessage);

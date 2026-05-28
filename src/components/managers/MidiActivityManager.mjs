@@ -163,6 +163,20 @@ export class MidiActivityManager {
     const MidiQOL = ModuleHelpers.getMidiQOL();
     if (!MidiQOL) return;
 
+    if (activity.type === ACTIVITY_TYPES.CHECK) {
+      LogUtil.log("MidiActivityManager.triggerMissingRolls - CHECK activity, sending check request to player");
+      const { BaseActivityManager } = await import('./BaseActivityManager.mjs');
+      await BaseActivityManager.sendCheckRollRequest(activity, config);
+      return;
+    }
+
+    if (activity.type === ACTIVITY_TYPES.UTILITY) {
+      LogUtil.log("MidiActivityManager.triggerMissingRolls - UTILITY activity, sending use-activity request to player");
+      const { BaseActivityManager } = await import('./BaseActivityManager.mjs');
+      await BaseActivityManager.sendActivityUseRequest(activity, config);
+      return;
+    }
+
     const workflow = MidiQOL.Workflow?.getWorkflowByActivityUuid?.(activity.uuid);
     const hasWorkflowAttackRoll = workflow?.attackRoll || workflow?.attackRolls?.length > 0;
     const hasWorkflowDamageRoll = workflow?.damageRoll || workflow?.damageRolls?.length > 0;

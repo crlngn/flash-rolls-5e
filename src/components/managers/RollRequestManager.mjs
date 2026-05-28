@@ -66,6 +66,51 @@ export class RollRequestManager {
   static autoRolledActors = new Set();
 
   /**
+   * Handle activity-use request from GM on player side
+   * Resolves the activity by UUID and calls activity.use() locally so the
+   * player consumes resources, applies effects, and rolls any formula.
+   * @param {Object} requestData
+   * @param {string} requestData.actorId - Actor ID for permission check / fallback resolution
+   * @param {string} requestData.activityUuid - UUID of the activity to use
+   * @param {Object} requestData.usage - Activity usage configuration (cleaned of circular refs)
+   * @param {Object} [requestData.dialog] - Dialog configuration
+   * @param {Object} [requestData.message] - Message configuration
+   */
+  static async handleActivityUseRequest(requestData) {
+    LogUtil.log('handleActivityUseRequest', [requestData]);
+    if (game.user.isGM) return;
+
+    const activity = await fromUuid(requestData.activityUuid);
+    if (!activity) {
+      LogUtil.warn('handleActivityUseRequest - activity not found', [requestData.activityUuid]);
+      return;
+    }
+    if (!activity.actor?.isOwner) {
+      LogUtil.warn('handleActivityUseRequest - actor not owned by this user', [activity.actor?.name]);
+      return;
+    }
+
+    const usage = {
+      ...(requestData.usage ?? {}),
+      _isFlashRollRequest: true,
+      isRollRequest: true
+    };
+    const dialog = requestData.dialog ?? {};
+    const message = requestData.message ?? {};
+
+    NotificationManager.notify('info', game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', {
+      player: requestData.requestedBy || 'GM',
+      actor: activity.actor.name || 'Unknown'
+    }));
+
+    try {
+      await activity.use(usage, dialog, message);
+    } catch (error) {
+      LogUtil.error('handleActivityUseRequest - activity.use error', [error]);
+    }
+  }
+
+  /**
    * Handle roll request from GM on player side
    * @param {RollRequestData} requestData - The roll request data
    */

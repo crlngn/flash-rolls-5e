@@ -1,5 +1,5 @@
 import { LogUtil } from '../utils/LogUtil.mjs';
-import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
+import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES, SOCKET_CALLS } from '../../constants/General.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
@@ -9,6 +9,8 @@ import { DnDBRollUtil } from '../integrations/dnd-beyond/DnDBRollUtil.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
 import { RollHelpers } from '../helpers/RollHelpers.mjs';
 import { HooksManager } from '../core/HooksManager.mjs';
+import { SocketUtil } from '../utils/SocketUtil.mjs';
+import { FlashAPI } from '../core/FlashAPI.mjs';
 import { VanillaActivityManager } from './VanillaActivityManager.mjs';
 import { MidiActivityManager } from './MidiActivityManager.mjs';
 
@@ -475,5 +477,170 @@ export class BaseActivityManager {
       LogUtil.error("BaseActivityManager._handleDnDBSaveDamageRoll - Error", [err]);
       DnDBRollExecutor.clearDnDBDamageInProgress();
     });
+  }
+
+  /**
+   * Classify a check key as skill / tool / ability.
+   * @param {string} key - The associated identifier from activity.check.associated
+   * @returns {"skill"|"tool"|"ability"}
+   */
+  static _classifyCheckKey(key) {
+    if (!key) return "ability";
+    if (key in (CONFIG.DND5E?.skills ?? {})) return "skill";
+    if (key in (CONFIG.DND5E?.tools ?? {})) return "tool";
+    if (key in (CONFIG.DND5E?.abilities ?? {})) return "ability";
+    return "tool";
+  }
+
+  /**
+   * Build the list of associated check keys for a CheckActivity, handling the
+   * tool-item fallback (uses baseItem when associated is empty).
+   * @param {Activity5e} activity
+   * @returns {string[]}
+   */
+  static _resolveCheckAssociated(activity) {
+    const associated = Array.from(activity.check?.associated ?? []);
+    if (associated.length === 0 && activity.item?.type === "tool") {
+      const baseItem = activity.item.system?.type?.baseItem;
+      if (baseItem) return [baseItem];
+    }
+    return associated;
+  }
+
+  /**
+   * Send a check roll request to the player owner of a CheckActivity's actor.
+   * Derives rollType/rollKey from activity.check.associated (or item baseItem fallback)
+   * and forwards multiple alternatives via midi's choice mechanism when applicable.
+   * @param {Activity5e} activity - The CheckActivity
+   * @param {Object} config - Activity usage config (used for advantage/disadvantage/situational)
+   * @returns {Promise<boolean>} True if a request was sent, false if no eligible target/owner
+   */
+  static async sendCheckRollRequest(activity, config) {
+    const actor = activity.actor;
+    if (!actor) return false;
+
+    const owner = GeneralUtil.getActorOwner(actor);
+    const isOwnerActive = owner && owner.active && !owner.isGM;
+    if (!isOwnerActive) {
+      LogUtil.log("BaseActivityManager.sendCheckRollRequest - No active player owner, skipping", [actor?.name]);
+      return false;
+    }
+
+    const associated = this._resolveCheckAssociated(activity);
+    const fallbackAbility = activity.check?.ability || "int";
+
+    let rollType;
+    let rollKey;
+    let alternatives = [];
+
+    if (associated.length === 0) {
+      rollType = ROLL_TYPES.ABILITY;
+      rollKey = fallbackAbility;
+    } else {
+      const classified = associated.map(key => ({ key, type: this._classifyCheckKey(key) }));
+      const types = new Set(classified.map(c => c.type));
+      if (types.size === 1) {
+        rollType = classified[0].type;
+        rollKey = classified[0].key;
+        if (classified.length > 1) alternatives = classified.map(c => c.key);
+      } else {
+        const first = classified[0];
+        rollType = first.type;
+        rollKey = first.key;
+        LogUtil.warn("BaseActivityManager.sendCheckRollRequest - mixed associated check types, sending first only", [classified]);
+      }
+    }
+
+    const dc = activity.check?.dc?.value;
+
+    const requestConfig = {
+      _isFlashRoll: true,
+      _flashRollsProcessed: true,
+      advantage: config?.advantage || false,
+      disadvantage: config?.disadvantage || false,
+      target: Number.isFinite(dc) ? dc : undefined,
+      rollMode: config?.rollMode,
+      situational: config?.situational ?? config?.rolls?.[0]?.data?.situational ?? "",
+      rolls: [{ parts: [], data: {}, options: {} }],
+      isRollRequest: true,
+      requestedBy: game.user.name
+    };
+
+    if (rollType === ROLL_TYPES.SKILL) {
+      requestConfig.skill = rollKey;
+      requestConfig.ability = activity.getAbility?.(rollKey) ?? fallbackAbility;
+    } else if (rollType === ROLL_TYPES.TOOL) {
+      requestConfig.tool = rollKey;
+      requestConfig.ability = activity.getAbility?.(rollKey) ?? fallbackAbility;
+    } else {
+      requestConfig.ability = rollKey;
+    }
+
+    if (alternatives.length > 1 && this.isMidiActive) {
+      requestConfig.midiOptions = { ...(requestConfig.midiOptions ?? {}) };
+      if (rollType === ROLL_TYPES.SKILL) requestConfig.midiOptions.rollSkills = alternatives;
+      else if (rollType === ROLL_TYPES.TOOL) requestConfig.midiOptions.rollTools = alternatives;
+    }
+
+    LogUtil.log("BaseActivityManager.sendCheckRollRequest - sending", [actor.name, rollType, rollKey, alternatives, requestConfig]);
+
+    const { RollInterceptor } = await import('../handlers/RollInterceptor.mjs');
+    await RollInterceptor._sendRollRequest(actor, owner, rollType, requestConfig);
+    return true;
+  }
+
+  /**
+   * Send an "use this activity" request to the player owner so they run
+   * activity.use() locally. Used for activity types that have side effects
+   * (consumption, effect application, optional formula roll) but no roll
+   * Flash already routes — e.g. UtilityActivity, CheckActivity formula.
+   * @param {Activity5e} activity - The activity to be used by the player
+   * @param {Object} config - Original GM-side usage config; circular refs are stripped
+   * @returns {Promise<boolean>} True if dispatched, false if no eligible owner
+   */
+  static async sendActivityUseRequest(activity, config) {
+    const actor = activity.actor;
+    if (!actor) return false;
+
+    const owner = GeneralUtil.getActorOwner(actor);
+    const isOwnerActive = owner && owner.active && !owner.isGM;
+    if (!isOwnerActive) {
+      LogUtil.log("BaseActivityManager.sendActivityUseRequest - No active player owner, skipping", [actor?.name]);
+      return false;
+    }
+
+    const cleanUsage = { ...(config ?? {}) };
+    delete cleanUsage.subject;
+    delete cleanUsage.workflow;
+    delete cleanUsage.item;
+    delete cleanUsage.activity;
+    delete cleanUsage.event;
+    delete cleanUsage._originalConsume;
+    delete cleanUsage._originalCreate;
+    delete cleanUsage._originalConcentration;
+
+    cleanUsage.consume = config?._originalConsume ?? config?.consume ?? {};
+    cleanUsage.create = config?._originalCreate ?? config?.create ?? {};
+    if (config?._originalConcentration !== undefined) cleanUsage.concentration = config._originalConcentration;
+
+    const requestData = {
+      type: "activityUseRequest",
+      requestId: foundry.utils.randomID(),
+      actorId: actor.id,
+      activityUuid: activity.uuid,
+      usage: cleanUsage,
+      dialog: { configure: false },
+      message: {},
+      requestedBy: game.user.name
+    };
+
+    LogUtil.log("BaseActivityManager.sendActivityUseRequest - sending", [owner?.name, actor.name, activity.uuid, requestData]);
+
+    SocketUtil.execForUser(SOCKET_CALLS.handleActivityUseRequest, owner.id, requestData);
+    FlashAPI.notify('info', game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', {
+      player: owner?.name || 'Unknown',
+      actor: actor.name || 'Unknown'
+    }));
+    return true;
   }
 }
