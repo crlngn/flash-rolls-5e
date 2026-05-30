@@ -8,6 +8,7 @@ import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { RollHandlers } from "../handlers/RollHandlers.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
+import { isSidebarExpanded } from "../helpers/Helpers.mjs";
 import { RollRequestManager } from "./RollRequestManager.mjs";
 import { SocketUtil } from "../utils/SocketUtil.mjs";
 
@@ -275,7 +276,7 @@ export class ChatMessageManager {
 
     if (message.getFlag(MODULE_ID, 'preventRender')) {
       LogUtil.log("ChatMessageManager.onRenderChatMessage - Hiding message for roll request", [message.id]);
-      if (htmlElement) {
+      if (htmlElement && isSidebarExpanded()) {
         htmlElement.style.display = 'none';
       }
       return;
