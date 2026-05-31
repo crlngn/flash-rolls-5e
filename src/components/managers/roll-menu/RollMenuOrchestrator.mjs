@@ -130,8 +130,8 @@ export class RollMenuOrchestrator {
     // Player Rolls: Actors owned by active players
     const lateOfflineActors = [];
     for (const { actor, owner } of onlinePlayerActors) {
-      if (!owner.active) {
-        LogUtil.log('orchestrateRollsForActors - Owner went offline, will roll locally', {
+      if (!OfflinePlayerManager._isOwnerReachable(owner)) {
+        LogUtil.log('orchestrateRollsForActors - Owner offline/unreachable, will roll locally', {
           actor: actor.name,
           owner: owner.name
         });

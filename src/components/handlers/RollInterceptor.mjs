@@ -47,6 +47,12 @@ export class RollInterceptor {
    */
   static _checkPreventFlags(message){
     LogUtil.log('_checkPreventFlags', [message])
+    // A roll the GM is executing on behalf of a Swipe Standalone player. Skip interception 
+    // so the roll isn't re-requested from same player when the (Swipe) mobile-duplicate user
+    // rolls via the GM relay. Covers all roll types incl. initiative, which also routes through this check.
+    if (globalThis.SwipeVTT?.relayedRoll?.active) {
+      return true;
+    }
     if (message?.data?.flags?.['swipe-vtt']?.isPlayerRoll) {
       return true;
     }

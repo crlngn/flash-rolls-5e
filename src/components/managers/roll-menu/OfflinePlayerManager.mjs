@@ -11,7 +11,20 @@ import { getPlayerOwner } from '../../helpers/Helpers.mjs';
  * Handles offline player detection and roll execution
  */
 export class OfflinePlayerManager {
-  
+
+  /**
+   * Whether a player owner can actually receive a socketlib roll request. Swipe
+   * Standalone players have `user.active === true` (Swipe's presence tracker
+   * sets it so they show online in the Players list), but hold no real Foundry
+   * socket — so a request can't reach them. Treat them as offline: the GM rolls
+   * locally and Swipe relays the result to their device.
+   * @param {User} owner
+   * @returns {boolean}
+   */
+  static _isOwnerReachable(owner) {
+    return !!owner?.active && !globalThis.SwipeVTT?.isUserOnStandalone?.(owner.id);
+  }
+
   /**
    * Check if a player owner is offline and handle the roll accordingly
    * @param {User} owner - The player owner
@@ -29,7 +42,7 @@ export class OfflinePlayerManager {
       return true;
     }
     
-    if (!owner.active) {
+    if (!this._isOwnerReachable(owner)) {
       const SETTINGS = getSettings();
       if (SettingsUtil.get(SETTINGS.showOfflineNotifications.tag)) {
         FlashAPI.notify('info', game.i18n.format("FLASH_ROLLS.notifications.playerOffline", {
@@ -68,7 +81,7 @@ export class OfflinePlayerManager {
     }
 
     for (const { actor, owners } of actorMap.values()) {
-      const onlineNonGMOwner = owners.find(owner => owner.active && !owner.isGM);
+      const onlineNonGMOwner = owners.find(owner => this._isOwnerReachable(owner) && !owner.isGM);
 
       LogUtil.log('categorizeActorsByOnlineStatus', [
         actor.name,
