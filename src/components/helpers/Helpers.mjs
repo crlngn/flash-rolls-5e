@@ -524,7 +524,7 @@ export function addHDUpdate(updates, newUpdate){
  * Adjust the offset vars for the roll menu based on the state of the roll privacy controls
  */
 export function adjustMenuOffset(isExpanded=true){
-  const rollPrivacyVertical = document.querySelector('#chat-notifications #roll-privacy');
+  const rollPrivacyVertical = document.querySelector('#chat-notifications #roll-privacy, #chat-notifications #message-modes');
   const controlItemSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--control-item-size')) || 36;
   const controlsWidth = rollPrivacyVertical ? GeneralUtil.getFullWidth(rollPrivacyVertical) : controlItemSize;
   const isCrlngnUIOn = document.querySelector('body.crlngn-tabs') ? true : false;
