@@ -172,21 +172,25 @@ body.flash5e {
 }
 
 #ui-right {
-  #roll-privacy button.ui-control {
+  #roll-privacy button.ui-control,
+  #message-modes button.ui-control {
     border-radius: 0;
   }
 
-  #roll-privacy button.ui-control:first-child{
+  #roll-privacy button.ui-control:first-child,
+  #message-modes button.ui-control:first-child {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
   }
 
-  #roll-privacy button.ui-control:last-child{
+  #roll-privacy button.ui-control:last-child,
+  #message-modes button.ui-control:last-child {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
   }
 
-  #roll-privacy button#flash-rolls-icon{
+  #roll-privacy button#flash-rolls-icon,
+  #message-modes button#flash-rolls-icon {
     cursor: pointer;
     align-self: center;
     display: flex;
@@ -197,7 +201,7 @@ body.flash5e {
     border-right-width: 1px;
     box-shadow: none;
     outline: 0;
-  
+
     i{
       pointer-events: none;
       align-self: center;
@@ -205,7 +209,9 @@ body.flash5e {
   }
 
   #roll-privacy.vertical button.ui-control,
-  #roll-privacy.vertical button.ui-control:last-child {
+  #roll-privacy.vertical button.ui-control:last-child,
+  #message-modes.vertical button.ui-control,
+  #message-modes.vertical button.ui-control:last-child {
     border-radius: 0;
     border-top-left-radius: 0;
     border-top-right-radius: 0;
@@ -213,7 +219,8 @@ body.flash5e {
     border-bottom-right-radius: 0;
   }
 
-  #roll-privacy.vertical button.ui-control:first-child {
+  #roll-privacy.vertical button.ui-control:first-child,
+  #message-modes.vertical button.ui-control:first-child {
     border-radius: 4px 0 0 0;
   }
 

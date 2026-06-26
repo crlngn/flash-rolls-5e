@@ -61,7 +61,7 @@ export class SidebarController {
     rollRequestIcon.title = game.i18n.localize('FLASH_ROLLS.ui.menus.rollRequestsTitle');
     rollRequestIcon.innerHTML = `<i class="fas fa-bolt${rollRequestsEnabled ? '' : '-slash'}"></i>`;
 
-    const chatControls = document.querySelector("#roll-privacy");
+    const chatControls = document.querySelector("#roll-privacy, #message-modes");
 
     if (chatControls) {
       const firstChatControlIcon = chatControls.firstChild;
@@ -183,9 +183,9 @@ export class SidebarController {
     if (!game.user.isGM) return;
     if (document.querySelector('#flash-rolls-icon')) return;
 
-    const chatControls = document.querySelector("#roll-privacy");
+    const chatControls = document.querySelector("#roll-privacy, #message-modes");
     if (!chatControls) {
-      LogUtil.warn("_addIconToChatControls - No roll-privacy element found");
+      LogUtil.warn("_addIconToChatControls - No roll-privacy / message-modes element found");
       return;
     }
 
