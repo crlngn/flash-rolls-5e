@@ -156,11 +156,11 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Called after the application is rendered
+   * Called after the application is first rendered
    * Verifies if roll controls are visible and adjusts the offset of the menu
    */
-  _onRender(context, options) {
-    super._onRender(context, options);
+  _onFirstRender(context, options) {
+    super._onFirstRender(context, options);
 
     const menu = document.querySelector("#flash-rolls-menu");
     if(menu){
