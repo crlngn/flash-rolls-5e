@@ -156,6 +156,27 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
+   * Register the hook listeners the menu keeps for its whole lifetime
+   * Runs once per render lifecycle - ApplicationV2 treats a closed application as unrendered, so this
+   * fires again when the menu is reopened. Registering in _onRender instead would add a new set of
+   * listeners on every re-render, and the menu re-renders on every combat turn
+   * @param {Object} context - Prepared render context
+   * @param {Object} options - Provided render options
+   * @returns {Promise<void>}
+   */
+  async _onFirstRender(context, options) {
+    await super._onFirstRender(context, options);
+
+    this._cleanupHooks();
+
+    this._tokenControlHook = Hooks.on(HOOKS_CORE.CONTROL_TOKEN, this._onTokenControlChange.bind(this));
+    this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
+    this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
+    this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
+    this._patronStatusHook = Hooks.on(`${MODULE.ID}.patronStatusChanged`, this._onPatronStatusChange.bind(this));
+  }
+
+  /**
    * Called after the application is rendered
    * Verifies if roll controls are visible and adjusts the offset of the menu
    */
@@ -235,12 +256,6 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       optionsElement?.classList.add('expanded');
     }
     
-    this._tokenControlHook = Hooks.on(HOOKS_CORE.CONTROL_TOKEN, this._onTokenControlChange.bind(this));
-    this._updateItemHook = Hooks.on(HOOKS_CORE.UPDATE_ITEM, this._onItemUpdate.bind(this));
-    this._createItemHook = Hooks.on(HOOKS_CORE.CREATE_ITEM, this._onItemUpdate.bind(this));
-    this._deleteItemHook = Hooks.on(HOOKS_CORE.DELETE_ITEM, this._onItemUpdate.bind(this));
-    this._patronStatusHook = Hooks.on(`${MODULE.ID}.patronStatusChanged`, this._onPatronStatusChange.bind(this));
-
     ActorDragUtil.initializeActorDrag(this);
     this._updateRequestTypesVisibilityNoRender();
     this._updateGemIconStatus();
@@ -1187,10 +1202,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _onClose(options) {
     LogUtil.log('_onClose',[options]);
 
-    if(!this.element) { return; }
-    
     const interfaceEl = document.querySelector('#interface');
-    if (this.isCustomPosition && this.element.parentElement === interfaceEl) {
+    if (this.element && this.isCustomPosition && this.element.parentElement === interfaceEl) {
       const chatControlsHidden = SidebarController.areChatControlsHidden();
       const chatNotifications = document.querySelector('#chat-notifications');
       const sidebar = document.querySelector('#sidebar');
@@ -1207,7 +1220,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       this.element.style.bottom = '';
       this.element.classList.remove('custom-position');
     }
-    
+
     await super._onClose(options);
     
     this.selectedActors.clear();
