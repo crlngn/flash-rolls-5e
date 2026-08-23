@@ -15,3 +15,5 @@ foundry-config.yaml
 
 docs/*
 tools/ddb-proxy-poc
+foundry-next/
+
