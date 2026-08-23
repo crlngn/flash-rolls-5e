@@ -44,6 +44,11 @@ export const RollHandlers = {
   },
 
   skill: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const skillRedirect = RollHandlers.resolveCheckKey(ROLL_TYPES.SKILL, requestData);
+    if (skillRedirect) {
+      return RollHandlers[skillRedirect](actor, requestData, rollConfig, dialogConfig, messageConfig);
+    }
+
     const dialogWillHandle = dialogConfig.configure !== false;
     const defaultAbility = actor.system.skills?.[requestData.rollKey]?.ability ||
                           CONFIG.DND5E.skills?.[requestData.rollKey]?.ability ||
@@ -59,6 +64,11 @@ export const RollHandlers = {
   },
 
   tool: async (actor, requestData, rollConfig, dialogConfig, messageConfig) => {
+    const toolRedirect = RollHandlers.resolveCheckKey(ROLL_TYPES.TOOL, requestData);
+    if (toolRedirect) {
+      return RollHandlers[toolRedirect](actor, requestData, rollConfig, dialogConfig, messageConfig);
+    }
+
     const dialogWillHandle = dialogConfig.configure !== false;
     const toolConfig = actor.system.tools?.[requestData.rollKey];
     const defaultAbility = toolConfig?.ability ||
@@ -193,6 +203,41 @@ export const RollHandlers = {
     await RollHandlers.handleCustomRoll(actor, requestData, dialogConfig, messageConfig);
   },
 
+
+  /**
+   * Validate the roll key of an incoming skill or tool request and repair it when it does not match
+   * Midi-QOL sends the check activity's ability as rollKey for skill and tool checks, which makes DnD5e
+   * silently downgrade the roll to an ability check with a wrong title and wrong modifiers. The real key is
+   * recovered from the originating Midi workflow when this client holds it, mutating requestData.rollKey in
+   * place; otherwise the request is redirected to the handler matching the key that was actually sent
+   * @param {string} expectedType - The roll type of the handler being entered, from ROLL_TYPES
+   * @param {Object} requestData - The roll request data, mutated when a better key is recovered
+   * @param {string} requestData.rollKey - The requested roll key
+   * @param {Object} [requestData.config] - Request configuration
+   * @param {string} [requestData.config.workflowId] - Midi-QOL workflow id, when the request came from a workflow
+   * @returns {string|null} Name of the handler to redirect to, or null to continue with the current handler
+   */
+  resolveCheckKey(expectedType, requestData) {
+    const rollKey = requestData?.rollKey;
+    if (FlashAPI.classifyCheckKey(rollKey) === expectedType) return null;
+
+    const recovered = FlashAPI.getWorkflowCheckKeys(requestData?.config?.workflowId)
+      .find(key => FlashAPI.classifyCheckKey(key) !== null);
+
+    if (recovered) {
+      const recoveredType = FlashAPI.classifyCheckKey(recovered);
+      LogUtil.log('RollHandlers.resolveCheckKey - recovered check key from workflow', [expectedType, rollKey, '->', recoveredType, recovered]);
+      requestData.rollKey = recovered;
+      return recoveredType === expectedType ? null : recoveredType;
+    }
+
+    if (CONFIG.DND5E.abilities?.[rollKey]) {
+      LogUtil.warn('RollHandlers.resolveCheckKey - roll key is an ability, rolling an ability check instead', [expectedType, rollKey]);
+      return ROLL_TYPES.ABILITY;
+    }
+
+    return null;
+  },
 
   /**
    * Handle activity-based rolls (attack, damage, item save)

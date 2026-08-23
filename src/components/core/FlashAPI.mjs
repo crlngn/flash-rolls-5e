@@ -50,7 +50,8 @@ export class FlashAPI {
         return;
       }
 
-      const { requestType, rollKey = null, actorIds = [], dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest = true, groupRollId = null, isContestedRoll = false, workflowId = null } = options;
+      let { requestType, rollKey = null } = options;
+      const { actorIds = [], dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest = true, groupRollId = null, isContestedRoll = false, workflowId = null } = options;
 
       if (!requestType) {
         ui.notifications.error(game.i18n.localize("FLASH_ROLLS.notifications.missingRequestType"));
@@ -58,10 +59,14 @@ export class FlashAPI {
       }
 
       const fromMidiWorkflow = !!workflowId;
-      const config = { dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest, groupRollId, isContestedRoll, fromMidiWorkflow };
+      const config = { dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest, groupRollId, isContestedRoll, fromMidiWorkflow, workflowId };
 
       LogUtil.log('FlashAPI.requestRoll', [requestType, rollKey, actorIds, 'workflowId:', workflowId, 'fromMidiWorkflow:', fromMidiWorkflow, config]);
-      
+
+      const normalized = FlashAPI.normalizeCheckRequest(FlashAPI.resolveRequestTypeAlias(requestType), rollKey, workflowId);
+      requestType = normalized.requestType;
+      rollKey = normalized.rollKey;
+
       // Find roll option by either uppercase key or lowercase name
       let rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
       if (!rollOption) {
@@ -69,7 +74,7 @@ export class FlashAPI {
         const rollRequestOptions = Object.values(MODULE.ROLL_REQUEST_OPTIONS);
         rollOption = rollRequestOptions.find(option => option.name === requestType);
       }
-      
+
       if (!rollOption) {
         ui.notifications.error(game.i18n.format("FLASH_ROLLS.notifications.unknownRequestType", {
           requestType: requestType
@@ -144,6 +149,118 @@ export class FlashAPI {
     }
   }
   
+  /**
+   * Request type aliases accepted from external callers, mapped to the canonical roll request names
+   * @type {Object<string, string>}
+   */
+  static REQUEST_TYPE_ALIASES = {
+    [ROLL_TYPES.ABILITY]: ROLL_TYPES.ABILITY_CHECK,
+    check: ROLL_TYPES.ABILITY_CHECK,
+    [ROLL_TYPES.SAVE]: ROLL_TYPES.SAVING_THROW
+  };
+
+  /**
+   * Resolve an aliased request type to the canonical roll request name
+   * @param {string} requestType - Request type provided by the caller
+   * @returns {string} Canonical request type, or the original value when it is not an alias
+   */
+  static resolveRequestTypeAlias(requestType) {
+    return FlashAPI.REQUEST_TYPE_ALIASES[requestType?.toLowerCase()] ?? requestType;
+  }
+
+  /**
+   * Classify a check identifier as a skill, tool or ability roll type
+   * @param {string} key - Identifier coming from a check activity or an external request
+   * @returns {string|null} One of ROLL_TYPES.SKILL / ROLL_TYPES.TOOL / ROLL_TYPES.ABILITY_CHECK, or null when unknown
+   */
+  static classifyCheckKey(key) {
+    if (!key) return null;
+    if (CONFIG.DND5E?.skills?.[key]) return ROLL_TYPES.SKILL;
+    if (CONFIG.DND5E?.tools?.[key] || CONFIG.DND5E?.vehicleTypes?.[key]) return ROLL_TYPES.TOOL;
+    if (CONFIG.DND5E?.abilities?.[key]) return ROLL_TYPES.ABILITY_CHECK;
+    return null;
+  }
+
+  /**
+   * Resolve the check activity a Midi-QOL workflow id points at
+   * The workflow object only exists on the client that used the item, so this falls back to the item card
+   * the id refers to, which is available on every client, and reads the activity from its DnD5e flags
+   * @param {string|null} workflowId - Midi-QOL workflow id passed with the request
+   * @returns {Activity5e|null} The check activity, or null when it can not be resolved
+   */
+  static getWorkflowCheckActivity(workflowId) {
+    if (!workflowId) return null;
+
+    let activity = null;
+    try {
+      if (typeof MidiQOL !== 'undefined') {
+        activity = MidiQOL.Workflow?.getWorkflow?.(workflowId)?.saveActivity ?? null;
+      }
+
+      if (!activity?.check) {
+        const referenced = fromUuidSync(workflowId);
+        const messageFlags = referenced?.flags?.dnd5e;
+        if (messageFlags?.item?.uuid && messageFlags?.activity?.id) {
+          const item = fromUuidSync(messageFlags.item.uuid);
+          activity = item?.system?.activities?.get(messageFlags.activity.id) ?? null;
+        } else {
+          activity = referenced ?? null;
+        }
+      }
+    } catch (error) {
+      LogUtil.warn('FlashAPI.getWorkflowCheckActivity - unable to resolve activity', [workflowId, error]);
+      return null;
+    }
+
+    LogUtil.log('FlashAPI.getWorkflowCheckActivity', [workflowId, activity?.item?.name, activity?.type, !!activity?.check]);
+    return activity?.check ? activity : null;
+  }
+
+  /**
+   * Read the check identifiers configured on the check activity behind a Midi-QOL workflow id
+   * Falls back to the base item of a tool item when the activity has no associated entries
+   * @param {string|null} workflowId - Midi-QOL workflow id passed with the request
+   * @returns {string[]} Associated check identifiers, empty when the activity can not be resolved
+   */
+  static getWorkflowCheckKeys(workflowId) {
+    const activity = this.getWorkflowCheckActivity(workflowId);
+    if (!activity) return [];
+
+    const associated = Array.from(activity.check.associated ?? []);
+    if (associated.length === 0 && activity.item?.type === 'tool') {
+      const baseItem = activity.item.system?.type?.baseItem;
+      if (baseItem) return [baseItem];
+    }
+    return associated;
+  }
+
+  /**
+   * Reconcile the request type and roll key of an incoming skill/tool check request
+   * Midi-QOL sends the check activity's ability as rollKey even for skill and tool requests, which makes
+   * DnD5e silently downgrade the roll to an ability check with a wrong title and wrong modifiers.
+   * Recovers the real skill/tool from the check activity the workflow points at. When that fails the request
+   * is left untouched so the client that performs the roll can try again against its own workflow
+   * @param {string} requestType - Requested roll type
+   * @param {string|null} rollKey - Requested roll key
+   * @param {string|null} [workflowId=null] - Midi-QOL workflow id, when the request comes from a workflow
+   * @returns {{requestType: string, rollKey: string|null}} Normalized request type and roll key
+   */
+  static normalizeCheckRequest(requestType, rollKey, workflowId = null) {
+    const type = requestType?.toLowerCase();
+    if (type !== ROLL_TYPES.SKILL && type !== ROLL_TYPES.TOOL) return { requestType, rollKey };
+    if (this.classifyCheckKey(rollKey) === type) return { requestType, rollKey };
+
+    const recovered = this.getWorkflowCheckKeys(workflowId).find(key => this.classifyCheckKey(key) !== null);
+    if (recovered) {
+      const recoveredType = this.classifyCheckKey(recovered);
+      LogUtil.log('FlashAPI.normalizeCheckRequest - recovered check key from workflow', [requestType, rollKey, '->', recoveredType, recovered]);
+      return { requestType: recoveredType, rollKey: recovered };
+    }
+
+    LogUtil.warn('FlashAPI.normalizeCheckRequest - could not resolve the check key, leaving it for the rolling client', [requestType, rollKey, workflowId]);
+    return { requestType, rollKey };
+  }
+
   /**
    * Get list of available roll types
    * @returns {Object} Available roll request options with name and label only

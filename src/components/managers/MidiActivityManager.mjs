@@ -78,6 +78,32 @@ export class MidiActivityManager {
   }
 
   /**
+   * Check if Midi-QOL will dispatch the check of a CheckActivity back through Flash Token Bar
+   * With "Auto check saves" enabled Midi runs checkSaves() for the activity, and when it is configured to
+   * roll saves with Flash Token Bar it calls FlashAPI.requestRoll itself. Sending a Flash check request on
+   * top of that prompts the player twice for the same check
+   * @param {Activity5e} activity - The activity being used
+   * @returns {boolean} True when Midi-QOL owns the check roll for this activity
+   */
+  static isMidiHandlingCheck(activity) {
+    if (!this.isActive() || !activity?.check) return false;
+
+    const MidiQOL = ModuleHelpers.getMidiQOL();
+    const configSettings = MidiQOL?.currentConfigSettings;
+    if (!configSettings) return false;
+
+    const autoCheckSaves = configSettings.autoCheckSaves;
+    if (!autoCheckSaves || autoCheckSaves === 'none') return false;
+
+    const actor = activity.actor;
+    const routesToFlash = isPlayerOwned(actor)
+      ? configSettings.playerRollSaves === 'ftb'
+      : (configSettings.rollNPCSaves === 'ftb' || configSettings.rollNPCLinkedSaves === 'ftb');
+
+    return !!routesToFlash;
+  }
+
+  /**
    * Check if Midi-QOL is configured to auto-roll attack rolls
    * Based on midi-qol's getAutoRollAttack() logic
    */
@@ -164,6 +190,10 @@ export class MidiActivityManager {
     if (!MidiQOL) return;
 
     if (activity.type === ACTIVITY_TYPES.CHECK) {
+      if (this.isMidiHandlingCheck(activity)) {
+        LogUtil.log("MidiActivityManager.triggerMissingRolls - CHECK activity handled by Midi workflow, skipping check request");
+        return;
+      }
       LogUtil.log("MidiActivityManager.triggerMissingRolls - CHECK activity, sending check request to player");
       const { BaseActivityManager } = await import('./BaseActivityManager.mjs');
       await BaseActivityManager.sendCheckRollRequest(activity, config);

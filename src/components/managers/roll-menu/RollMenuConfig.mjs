@@ -70,6 +70,7 @@ export class RollMenuConfig {
 
       if (config && configOverrides.fromMidiWorkflow) {
         config.fromMidiWorkflow = true;
+        config.workflowId = configOverrides.workflowId ?? null;
       }
 
       return config;
@@ -105,6 +106,7 @@ export class RollMenuConfig {
 
       if (configOverrides.fromMidiWorkflow) {
         config.fromMidiWorkflow = true;
+        config.workflowId = configOverrides.workflowId ?? null;
       }
 
       return config;
