@@ -8,7 +8,7 @@
   "download": "https://github.com/crlngn/flash-rolls-5e/releases/download/v1.27.1/module.zip",
   "bugs": "https://github.com/crlngn/flash-rolls-5e/issues",
   "readme": "https://github.com/crlngn/flash-rolls-5e/main/README.md",
-  "license": "https://mit-license.org/",
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
   "compatibility": {
     "minimum": "13.339",
     "verified": "14.359",
