@@ -313,15 +313,20 @@ export function isSidebarExpanded() {
 
 /**
  * Update body class based on sidebar state
+ * Also writes --current-sidebar-width through the module style element rather than relying on the
+ * stylesheet rules alone. Foundry v14 loads module styles into the "modules" cascade layer, so any module
+ * that injects its own unlayered stylesheet overrides them regardless of specificity - if such a module
+ * assigns this variable an invalid value the docked menu loses its offset and ends up under the sidebar
  * @param {boolean} isExpanded - Whether sidebar is expanded
  */
 export function updateSidebarClass(isExpanded) {
-  const body = document.querySelector("body"); 
+  const body = document.querySelector("body");
   if (isExpanded) {
-    body.classList.add("flash-sidebar-expanded"); 
+    body.classList.add("flash-sidebar-expanded");
   } else {
-    body.classList.remove("flash-sidebar-expanded"); 
+    body.classList.remove("flash-sidebar-expanded");
   }
+  GeneralUtil.addCSSVars('--current-sidebar-width', isExpanded ? 'var(--sidebar-width, 200px)' : '0px');
   adjustMenuOffset();
 }
 

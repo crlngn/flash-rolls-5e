@@ -18,6 +18,10 @@ const PROXY_BASE_URL = "https://proxy.carolingian.io";
 export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   static FLAG_LAST_TAB = "premiumDialogLastTab";
 
+  /**
+   * @param {Object} [options={}] - Application options
+   * @param {string} [options.initialTab] - Tab id to open on, overriding the remembered tab
+   */
   constructor(options = {}) {
     super(options);
     this._authStatus = null;
@@ -26,7 +30,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     this._patronVerified = false;
     this._ddbGameLogStatus = "unknown";
     this._initialDataLoaded = false;
-    this.tabGroups["primary"] = PremiumFeaturesDialog.getLastActiveTab();
+    this.tabGroups["primary"] = options.initialTab || PremiumFeaturesDialog.getLastActiveTab();
   }
 
   /**

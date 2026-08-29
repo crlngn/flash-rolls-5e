@@ -445,7 +445,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     if (event.target.closest('.flash-rolls-menu')) return;
     if (menu.contains(event.target)) return;
-    // if (event.target.closest('#flash-rolls-icon')) return;
+    if (event.target.closest('#flash-rolls-icon')) return;
     // if (event.target.closest('.dialog, .app, .notification, .application')) return;
     // if (event.target.closest('.actor-tab')) return;
     this.close();

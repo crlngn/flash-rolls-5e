@@ -8,6 +8,14 @@
     <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.dndBeyond"}}</legend>
 
     <div class="form-group">
+      <label>{{localize "FLASH_ROLLS.settings.premiumFeatures.patreonAuth"}}</label>
+      <button type="button" class="connect-patreon" data-action="connectPatreon">
+        <i class="fab fa-patreon"></i> {{localize "FLASH_ROLLS.settings.moduleSettingsMenu.connectPatreon"}}
+      </button>
+      <p class="hint">{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.connectPatreonHint"}}</p>
+    </div>
+
+    <div class="form-group">
       <label for="ddbRollOwnership">{{fields.ddbRollOwnership.label}}</label>
       <select name="ddbRollOwnership" id="ddbRollOwnership" data-current-value="{{ddbRollOwnership}}">
         {{#each fields.ddbRollOwnership.choices}}

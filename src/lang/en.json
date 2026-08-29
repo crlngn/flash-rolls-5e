@@ -241,7 +241,9 @@
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
           "dndBeyond": "D&D Beyond (Patreon features)"
-        }
+        },
+        "connectPatreon": "Connect to Patreon",
+        "connectPatreonHint": "Open the Patreon features dialog to authenticate and unlock D&D Beyond integration."
       },
       "ddbImportOwnership": {
         "label": "Add ownership to all players",
