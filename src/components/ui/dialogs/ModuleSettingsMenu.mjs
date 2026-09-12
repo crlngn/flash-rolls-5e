@@ -121,7 +121,7 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     const context = await super._prepareContext(options);
     context.activeTab = options.activeTab || Object.keys(context.tabs)[0];
     context.isGM = game.user.isGM;
-    context.interceptWarning = GeneralUtil.isModuleOn("midi-qol");
+    context.midiActive = GeneralUtil.isModuleOn("midi-qol");
     context.interceptWarning = game.i18n.localize("FLASH_ROLLS.notifications.interceptWarning");
 
     return context;

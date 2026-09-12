@@ -213,7 +213,8 @@
           "2": "Skip dialog for player",
           "3": "Skip dialog for GM",
           "4": "Do not skip dialog"
-        }
+        },
+        "midiWarning": "This setting is supplanted by midi-qol consumption rules."
       },
       "placeTemplateForPlayer": {
         "label": "Place Template for Player on Request",

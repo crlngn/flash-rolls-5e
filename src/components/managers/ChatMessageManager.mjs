@@ -8,7 +8,6 @@ import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { RollHandlers } from "../handlers/RollHandlers.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
-import { isSidebarExpanded } from "../helpers/Helpers.mjs";
 import { RollRequestManager } from "./RollRequestManager.mjs";
 import { SocketUtil } from "../utils/SocketUtil.mjs";
 
@@ -262,6 +261,8 @@ export class ChatMessageManager {
 
   /**
    * Handle rendering of chat messages to process group rolls and add UI elements
+   * Cards flagged preventRender (the GM's suppressed usage card for a player request) are always hidden,
+   * regardless of sidebar state, so they never surface in chat notifications or a collapsed sidebar
    * @param {ChatMessage} message - The message being rendered
    * @param {HTMLElement} html - The rendered HTML
    * @param {Object} context - Rendering context
@@ -276,8 +277,9 @@ export class ChatMessageManager {
 
     if (message.getFlag(MODULE_ID, 'preventRender')) {
       LogUtil.log("ChatMessageManager.onRenderChatMessage - Hiding message for roll request", [message.id]);
-      if (htmlElement && isSidebarExpanded()) {
-        htmlElement.style.display = 'none';
+      if (htmlElement) {
+        htmlElement.hidden = true;
+        htmlElement.classList.add('flash-prevent-render');
       }
       return;
     }

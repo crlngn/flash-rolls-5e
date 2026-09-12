@@ -117,6 +117,8 @@ export class RollInterceptor {
    * @param {Object} dialog - Dialog options
    * @param {Object} message - Message options
    * @returns {boolean|void} - Return false to prevent the roll
+   * Temp attack/damage flags are read from the live actor item: Midi rolls against a cloned item
+   * made before flag updates land, so the clone can carry a stale flag.
    */
   static _onPreRollIntercept(rollType, config, dialog, message) {
     LogUtil.log('_onPreRollIntercept #0', [rollType, config, dialog, message]);
@@ -215,7 +217,9 @@ export class RollInterceptor {
 
     // Attack/Damage specific: check for module flags on item
     if (rollType === ROLL_TYPES.ATTACK || rollType === ROLL_TYPES.DAMAGE) {
-      const moduleFlags = config.subject?.item?.getFlag(MODULE_ID, 'tempAttackConfig') || config.subject?.item?.getFlag(MODULE_ID, 'tempDamageConfig');
+      const subjectItem = config.subject?.item;
+      const liveItem = (subjectItem && actor?.items?.get(subjectItem.id)) || subjectItem;
+      const moduleFlags = liveItem?.getFlag(MODULE_ID, 'tempAttackConfig') || liveItem?.getFlag(MODULE_ID, 'tempDamageConfig');
       if (moduleFlags) {
         LogUtil.log('_onPreRollIntercept - found module flags, skipping interception', [moduleFlags]);
         return;

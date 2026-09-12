@@ -2,7 +2,7 @@ import { LogUtil } from '../utils/LogUtil.mjs';
 import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
 import { ModuleHelpers } from '../helpers/ModuleHelpers.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
-import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned } from '../helpers/Helpers.mjs';
+import { getConsumptionConfig, getCreateConfig, isPlayerOwned } from '../helpers/Helpers.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 
@@ -182,6 +182,8 @@ export class MidiActivityManager {
    * @param {Activity5e} activity - The activity
    * @param {Object} config - Activity usage configuration
    * @param {Object} results - Activity use results
+   * The attack is only triggered when Midi auto-attack is off: Midi rolls it regardless of targets,
+   * and triggering it here as well produced a second rollAttack on the GM and a duplicate player request.
    */
   static async triggerMissingRolls(activity, config, results) {
     LogUtil.log("MidiActivityManager.triggerMissingRolls", [activity, config, results]);
@@ -214,7 +216,7 @@ export class MidiActivityManager {
     const noWorkflowTargets = !workflow?.targets?.size;
 
     const isAutoAttack = this.#isAutoAttack(workflow);
-    if (activity.type === ACTIVITY_TYPES.ATTACK && !hasWorkflowAttackRoll && (!isAutoAttack || noWorkflowTargets)) {
+    if (activity.type === ACTIVITY_TYPES.ATTACK && !hasWorkflowAttackRoll && !isAutoAttack) {
       LogUtil.log("MidiActivityManager.triggerMissingRolls - Manually triggering attack roll");
       await activity.rollAttack(config, {}, {});
     }
@@ -405,14 +407,18 @@ export class MidiActivityManager {
    * @param {ActivityUseConfiguration} usage - Usage configuration
    * @param {BasicRollDialogConfiguration} dialog - Dialog configuration
    * @param {BasicRollMessageConfiguration} message - Message configuration
+   * The dialog `configure` flag is stripped so Midi's own consume rules decide the usage dialog.
+   * Flash's request prompt only governs the roll dialog, which the pre-roll hooks force on their own;
+   * passing configure:true makes Midi's checkAutoConsume bail out and the dnd5e usage dialog always shows.
    */
   static async completeActivityUse(activity, usage = {}, dialog = {}, message = {}) {
     LogUtil.log('MidiActivityManager.completeActivityUse #0', [activity, usage, dialog, message]);
     
     const usageConfig = this.prepareUsageConfig(activity, usage);
-    LogUtil.log('MidiActivityManager.completeActivityUse #1', [usageConfig]);
+    const { configure, ...midiDialog } = dialog ?? {};
+    LogUtil.log('MidiActivityManager.completeActivityUse #1', [usageConfig, midiDialog]);
 
-    return await MidiQOL.completeActivityUse(activity, usageConfig, dialog, message);
+    return await MidiQOL.completeActivityUse(activity, usageConfig, midiDialog, message);
   }
 
   /**
@@ -462,6 +468,8 @@ export class MidiActivityManager {
    * @param {Activity5e} activity - The activity
    * @param {ActivityUseConfiguration} config - Base configuration
    * @returns {ActivityUseConfiguration} - Prepared configuration
+   * The GM's dialog-derived consume, concentration and scaling are not forwarded: Midi recomputes them
+   * on the player under the player's own consume rules. Only the chosen spell slot is kept.
    */
   static prepareUsageConfig(activity, config = {}) {
     const SETTINGS = getSettings();
@@ -502,12 +510,12 @@ export class MidiActivityManager {
     const isRollRequest = config._isFlashRollRequest === true;
     const isLocalRoll = !isRollRequest;
 
+    const { consume, concentration, scaling, ...forwarded } = config;
     const defaultConfig = {
-      consume: getConsumptionConfig(config.consume || {}, isLocalRoll),
-      concentration: getConcentrationConfig(config.concentration, isLocalRoll),
+      consume: getConsumptionConfig({}, isLocalRoll),
       midiOptions
     };
 
-    return { ...config, ...defaultConfig };
+    return { ...forwarded, ...defaultConfig };
   }
 }

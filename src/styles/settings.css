@@ -29,6 +29,21 @@
   }
 }
 
+#flash-rolls-settings .form-group.midi-supplanted {
+  select {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  p.midi-warning {
+    flex: 0 0 100%;
+    margin: 0.35rem 0 0;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background-color: color-mix(in srgb, var(--color-warm-1, #d9a651) 50%, transparent);
+    color: var(--color-text-primary);
+  }
+}
+
 #flash-rolls-settings .form-group.requires-libwrapper {
   opacity: 0.75;
   pointer-events: none;

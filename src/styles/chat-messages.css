@@ -504,3 +504,8 @@
     }
   }
 }
+
+.chat-message.flash-prevent-render,
+#chat-notifications .flash-prevent-render {
+  display: none !important;
+}

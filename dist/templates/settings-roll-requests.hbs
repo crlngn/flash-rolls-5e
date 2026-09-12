@@ -53,9 +53,9 @@
       <p class="hint">{{fields.placeTemplateForPlayer.hint}}</p>
     </div>
 
-    <div class="form-group">
+    <div class="form-group{{#if midiActive}} midi-supplanted{{/if}}">
       <label for="consumptionConfigMode">{{fields.consumptionConfigMode.label}}</label>
-      <select name="consumptionConfigMode" id="consumptionConfigMode" data-current-value="{{consumptionConfigMode}}">
+      <select name="consumptionConfigMode" id="consumptionConfigMode" data-current-value="{{consumptionConfigMode}}" {{#if midiActive}}disabled{{/if}}>
         {{#each fields.consumptionConfigMode.choices}}
         <option value="{{@key}}" {{#if (eq @key ../consumptionConfigMode)}}selected{{/if}}>
           {{this}}
@@ -63,6 +63,9 @@
         {{/each}}
       </select>
       <p class="hint">{{{fields.consumptionConfigMode.hint}}}</p>
+      {{#if midiActive}}
+      <p class="midi-warning">{{localize "FLASH_ROLLS.settings.consumptionConfigMode.midiWarning"}}</p>
+      {{/if}}
     </div>
 
   </fieldset>

@@ -92,6 +92,8 @@ export class RollHooksHandler {
   /**
    * Handle pre-roll attack hook to apply stored configuration from GM request
    * Delegates Midi-specific logic to MidiActivityManager
+   * Clears the temp flag once consumed. Leaving it until the Midi workflow completes (which can wait
+   * indefinitely on a damage button) makes the GM's next use of this item skip interception and roll locally.
    */
   static onPreRollAttackV2(config, dialogOptions, messageOptions) {
     if (config._flashRollsProcessed) return;
@@ -133,11 +135,14 @@ export class RollHooksHandler {
       config.rolls[0].data.situational = stored.situational;
     }
     LogUtil.log("RollHooksHandler.onPreRollAttackV2 - Applied stored configuration to attack roll", [config, messageOptions]);
+    config.subject.item.unsetFlag(MODULE_ID, 'tempAttackConfig').catch(() => {});
   }
 
   /**
    * Handle pre-roll damage hook to apply stored configuration from GM request
    * Delegates Midi-specific logic to MidiActivityManager
+   * Clears the temp flag once consumed. Leaving it until the Midi workflow completes (which can wait
+   * indefinitely on a damage button) makes the GM's next use of this item skip interception and roll locally.
    */
   static onPreRollDamageV2(config, dialogOptions, messageOptions) {
     if (config._flashRollsProcessed) return;
@@ -185,6 +190,7 @@ export class RollHooksHandler {
       config._flashRollsSituational = stored.situational;
     }
     LogUtil.log("RollHooksHandler.onPreRollDamageV2 - Applied stored configuration to damage roll", [config, messageOptions]);
+    config.subject.item.unsetFlag(MODULE_ID, 'tempDamageConfig').catch(() => {});
   }
 
   /**
