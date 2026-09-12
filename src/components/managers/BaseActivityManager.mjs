@@ -3,7 +3,7 @@ import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES, SOCKET_CALLS } from '../../const
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
-import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, showConsumptionConfig, getTargetDescriptors, getPlayerOwner } from '../helpers/Helpers.mjs';
+import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, showConsumptionConfig, getTargetDescriptors, getPlayerOwner, isTransientItem } from '../helpers/Helpers.mjs';
 import { DnDBRollExecutor } from '../integrations/dnd-beyond/DnDBRollExecutor.mjs';
 import { DnDBRollUtil } from '../integrations/dnd-beyond/DnDBRollUtil.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
@@ -172,6 +172,8 @@ export class BaseActivityManager {
   /**
    * Handle pre-use activity hook on GM side
    * Prevents usage message on GM side when sending activity requests for player-owned actors
+   * A Midi overtime tick for a player-owned actor is cancelled here and dispatched to the owning
+   * player's client instead (see MidiActivityManager.redirectOverTimeToOwner)
    */
   static onPreUseActivityGM(activity, config, dialog, message) {
     LogUtil.log("BaseActivityManager.onPreUseActivityGM #0", [activity, config, dialog, message]);
@@ -179,11 +181,12 @@ export class BaseActivityManager {
     const requestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
     const rollInterceptionEnabled = SettingsUtil.get(SETTINGS.rollInterceptionEnabled.tag);
     if (!requestsEnabled || !rollInterceptionEnabled) return;
+    if (this.isMidiActive && MidiActivityManager.redirectOverTimeToOwner(activity, config)) return false;
 
     const actor = activity.actor;
     const actorOwner = GeneralUtil.getActorOwner(actor);
     const isPlayerActor = isPlayerOwned(actor) && actorOwner.active;
-    const isLocalRoll = !isPlayerActor || config.isRollRequest === false;
+    const isLocalRoll = !isPlayerActor || config.isRollRequest === false || isTransientItem(activity.item);
 
     LogUtil.log("BaseActivityManager.onPreUseActivityGM - Roll determination", {
       isMidiActive: this.isMidiActive,
@@ -268,7 +271,7 @@ export class BaseActivityManager {
 
     const actorOwner = GeneralUtil.getActorOwner(actor);
     const isOwnerActive = actorOwner && actorOwner.active && actorOwner.id !== game.user.id;
-    const isLocalRoll = !isOwnerActive || config.isRollRequest===false;
+    const isLocalRoll = !isOwnerActive || config.isRollRequest===false || isTransientItem(activity.item);
 
     LogUtil.log("BaseActivityManager.onPostUseActivityGM #1 ", [isLocalRoll, isOwnerActive, this.isMidiActive]);
     if (this.isMidiActive && isLocalRoll) return;

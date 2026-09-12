@@ -16,6 +16,7 @@ import { HooksManager } from '../core/HooksManager.mjs';
 import { DiceConfigUtil } from '../utils/DiceConfigUtil.mjs';
 import { ChatMessageManager } from '../managers/ChatMessageManager.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
+import { isTransientItem } from '../helpers/Helpers.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -212,6 +213,11 @@ export class RollInterceptor {
     if (isMidiOn && (owner?.isGM || !owner?.active)) return;
 
     if (!actor || actor.documentName !== 'Actor') {
+      return;
+    }
+
+    if ((rollType === ROLL_TYPES.ATTACK || rollType === ROLL_TYPES.DAMAGE) && isTransientItem(config.subject?.item)) {
+      LogUtil.log('_onPreRollIntercept - transient (synthetic) item, skipping interception', [config.subject?.item?.name]);
       return;
     }
 

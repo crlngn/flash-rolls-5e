@@ -2,7 +2,7 @@ import { LogUtil } from '../utils/LogUtil.mjs';
 import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
 import { ModuleHelpers } from '../helpers/ModuleHelpers.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
-import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned } from '../helpers/Helpers.mjs';
+import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, NotificationManager } from '../helpers/Helpers.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 
@@ -141,6 +141,54 @@ export class MidiActivityManager {
       : configSettings.autoRollDamage;
 
     return autoRollDamage !== "none";
+  }
+
+  /**
+   * Hand a Midi overtime tick (recurring damage/healing effect) to the owning player instead of letting
+   * the GM roll it. Midi processes overtime effects on the GM client and only delegates to the player
+   * for private roll modes; Flash's rule is that the target's owner rolls, so the GM-side use is cancelled
+   * and Midi's own per-user executor is invoked on the owner's client via Midi's socketlib socket.
+   * The start/end turn flag is taken from the activity's turnChoice, which is what Midi uses to match
+   * the tick. Only activity-based overtime effects (ActivityOverTime changes) are redirected: the classic
+   * flags.midi-qol.OverTime string format has no per-user executor in Midi and stays on the GM, with its
+   * saving throws still routed to the player by Midi. Returns false when the tick stays on the GM
+   * @param {Activity5e} activity - The synthetic overtime activity Midi built for the tick
+   * @param {Object} config - Activity usage configuration (carries workflowOptions.overTimeEffectUuid)
+   * @returns {boolean} True when the tick was dispatched to the owning player
+   */
+  static redirectOverTimeToOwner(activity, config) {
+    const effectUuid = config?.midiOptions?.workflowOptions?.overTimeEffectUuid;
+    if (!effectUuid) return false;
+
+    const rollActor = activity?.actor;
+    const owner = GeneralUtil.getActorOwner(rollActor);
+    if (!owner?.active || owner.isGM || owner.id === game.user.id) return false;
+
+    const socket = globalThis.socketlib?.modules?.get('midi-qol');
+    if (!socket) return false;
+
+    const effect = fromUuidSync(effectUuid);
+    const bearer = effect?.parent instanceof Actor ? effect.parent : effect?.parent?.parent;
+    if (!bearer) return false;
+    const changes = effect.system?.changes ?? effect.changes ?? [];
+    const isActivityOverTime = changes.some(change => change.key?.startsWith('flags.midi-qol.ActivityOverTime'));
+    if (!isActivityOverTime) return false;
+
+    const startTurn = (activity.overTimeProperties?.turnChoice ?? 'start') === 'start';
+    LogUtil.log('MidiActivityManager.redirectOverTimeToOwner', [owner.name, bearer.name, effectUuid, startTurn]);
+
+    socket.executeAsUser('localActivityOverTimeEffect', owner.id, {
+      actorUuid: bearer.uuid,
+      effectUuid,
+      startTurn,
+      options: {}
+    }).catch(error => LogUtil.error('MidiActivityManager.redirectOverTimeToOwner - error', [error]));
+
+    NotificationManager.notify('info', game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', {
+      player: owner.name,
+      actor: bearer.name
+    }));
+    return true;
   }
 
   // ========================================

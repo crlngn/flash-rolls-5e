@@ -554,6 +554,20 @@ export function getActorData(uniqueId){
   return actor || null;
 }
 
+/**
+ * Whether an item is a transient copy that is not embedded on its actor, such as the synthetic items
+ * midi-qol builds for overtime effects and concentration checks. Rolls on such items cannot be
+ * requested from a player because the player's client has no item to resolve the request against
+ * @param {Item5e} item
+ * @returns {boolean}
+ */
+export function isTransientItem(item) {
+  if (!item) return false;
+  if (item.flags?.['midi-qol']?.syntheticItem) return true;
+  if (!item.isEmbedded) return true;
+  return !item.actor?.items?.get(item.id);
+}
+
 export function showConsumptionConfig(){
   const SETTINGS = getSettings();
   const consumptionConfigMode = SettingsUtil.get(SETTINGS.consumptionConfigMode.tag);
