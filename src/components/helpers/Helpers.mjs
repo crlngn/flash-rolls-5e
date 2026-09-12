@@ -605,6 +605,8 @@ export function getConsumptionConfig(consume, isLocalRoll=true){
  * @param {*} createConfig 
  * @param {*} isLocalRoll 
  * @returns 
+ * - On a request the player keeps whatever measuredTemplate the GM forwarded: true when the GM did not
+ *   place a template, false when a GM template uuid is forwarded instead
  */
 export function getCreateConfig(createConfig, isLocalRoll=true){
   const SETTINGS = getSettings();
@@ -620,7 +622,7 @@ export function getCreateConfig(createConfig, isLocalRoll=true){
   } else if (game.user.isGM) {
     promptForTemplate = placeTemplateForPlayer;
   } else {
-    promptForTemplate = !placeTemplateForPlayer;
+    promptForTemplate = true;
   }
 
   LogUtil.log("getCreateConfig", [createConfig, isLocalRoll, placeTemplateForPlayer, withTemplate, promptForTemplate]);

@@ -424,17 +424,16 @@ export class MidiActivityManager {
   /**
    * Handle pre-use activity hook on player side for Midi-QOL integration
    * Ensures workflow configuration is set up properly for template activities
+   * A forwarded GM template uuid is always attached to the workflow so the player does not place another
    * @param {Activity5e} activity - The activity
    * @param {Object} config - Activity usage configuration
    * @param {Object} dialog - Dialog configuration
    * @param {Object} message - Message configuration
    */
   static onPreUseActivityPlayer(activity, config, dialog, message) {
-    const SETTINGS = getSettings();
-    const placeTemplateForPlayer = SettingsUtil.get(SETTINGS.placeTemplateForPlayer.tag);
     const hasTemplate = activity.target?.template?.type;
 
-    if (placeTemplateForPlayer && hasTemplate && config.templateUuid) {
+    if (hasTemplate && config.templateUuid) {
       const workflow = config.workflow;
       if (workflow) {
         workflow.templateUuid = config.templateUuid;

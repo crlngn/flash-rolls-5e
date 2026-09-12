@@ -644,7 +644,30 @@ export class RollInterceptor {
    * @param {User} owner 
    * @param {string} rollType 
    * @param {BasicRollProcessConfiguration} config - The roll process configuration
+   * Template placement for the player is decided here: the player is prompted whenever the activity
+   * has a template and the GM did not place one; a GM-placed template is forwarded by uuid instead.
    */
+  /**
+   * Find the GM's Midi workflow for an activity. The workflow is keyed by activity uuid only until its
+   * chat card exists, after which it is keyed by the card uuid, so fall back to scanning by activity
+   * @param {Activity5e} activity - The activity being rolled
+   * @returns {Workflow|undefined} The matching workflow, if any
+   */
+  static _findMidiWorkflow(activity) {
+    const MidiQOL = game.modules.get('midi-qol')?.api;
+    if (!MidiQOL?.Workflow || !activity) return undefined;
+    const direct = MidiQOL.Workflow.getWorkflowByActivityUuid?.(activity.uuid);
+    if (direct) return direct;
+    const workflows = MidiQOL.Workflow.workflows;
+    if (!workflows) return undefined;
+    let found;
+    for (const entry of workflows.values()) {
+      const wf = entry instanceof WeakRef ? entry.deref() : entry;
+      if (wf?.activity?.uuid === activity.uuid) found = wf;
+    }
+    return found;
+  }
+
   static async _sendRollRequest(actor, owner, rollType, config) {
     LogUtil.log('_sendRollRequest', [actor, owner, rollType, config]);
     const SETTINGS = getSettings();
@@ -711,15 +734,17 @@ export class RollInterceptor {
 
     if (rollKey && (normalizedRollType === ROLL_TYPES.ATTACK || normalizedRollType === ROLL_TYPES.DAMAGE)) {
       const activity = config.subject;
-      const MidiQOL = game.modules.get('midi-qol')?.api;
-
-      if (MidiQOL && activity) {
-        const workflow = MidiQOL.Workflow?.getWorkflowByActivityUuid?.(activity.uuid);
-        if (workflow?.templateUuid) {
-          cleanConfig.templateUuid = workflow.templateUuid;
-          LogUtil.log('_sendRollRequest - Added templateUuid from GM workflow', [workflow.templateUuid]);
-        }
+      const workflow = this._findMidiWorkflow(activity);
+      if (workflow?.templateUuid) {
+        cleanConfig.templateUuid = workflow.templateUuid;
+        LogUtil.log('_sendRollRequest - Added templateUuid from GM workflow', [workflow.templateUuid]);
       }
+      const hasTemplate = !!activity?.target?.template?.type;
+      cleanConfig.create = {
+        ...(cleanConfig.create ?? {}),
+        measuredTemplate: hasTemplate && !cleanConfig.templateUuid
+      };
+      LogUtil.log('_sendRollRequest - template decision', [hasTemplate, cleanConfig.templateUuid, cleanConfig.create]);
     }
 
     delete cleanConfig.subject;
