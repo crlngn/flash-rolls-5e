@@ -2,6 +2,7 @@ import { getSettings } from "../../constants/Settings.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { SocketUtil } from "./SocketUtil.mjs";
+import { SystemCompat } from "./SystemCompat.mjs";
 
 /**
  * Utility class providing general-purpose functionality for the module */
@@ -578,7 +579,10 @@ export class GeneralUtil {
   }
 
   /**
-   * Removes the MeasuredTemplate 
+   * Removes the MeasuredTemplate placed for an item.
+   * dnd5e 6.0+ places area templates as Region documents carrying `flags.dnd5e.item`
+   * and `flags.dnd5e.activity` instead of MeasuredTemplates, so on 6.0+ the matching
+   * regions are deleted from the scene instead.
    * @param {Item5e} item 
    */
   static async removeTemplateForItem (item) {
@@ -594,6 +598,8 @@ export class GeneralUtil {
       return;
     }
     
+    if (SystemCompat.isDnd5e60OrLater()) return this._removeTemplateRegionsForItem(item);
+
     try {
       // Get templates that match this item UUID
       const templates = canvas.templates.objects.children.filter(mt => {
@@ -616,6 +622,26 @@ export class GeneralUtil {
       LogUtil.log("removeTemplateForItem - template not found or already deleted", [item?.uuid, error.message]);
     }
     
+  }
+
+  /**
+   * Removes the template Regions dnd5e 6.0+ created for an item
+   * @param {Item5e} item
+   */
+  static async _removeTemplateRegionsForItem(item) {
+    try {
+      const regions = canvas.scene?.regions?.filter(r => {
+        return r.flags?.dnd5e?.activity && r.flags?.dnd5e?.item === item?.uuid;
+      }) ?? [];
+      if (regions.length > 0) {
+        LogUtil.log("removeTemplateForItem - removing template regions", [item?.uuid, regions.length]);
+        await canvas.scene.deleteEmbeddedDocuments("Region", regions.map(r => r.id));
+      } else {
+        LogUtil.log("removeTemplateForItem - no template regions found", [item?.uuid]);
+      }
+    } catch (error) {
+      LogUtil.log("removeTemplateForItem - region not found or already deleted", [item?.uuid, error.message]);
+    }
   }
 
   /**

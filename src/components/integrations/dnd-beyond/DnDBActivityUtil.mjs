@@ -1,11 +1,23 @@
 import { MODULE_ID } from "../../../constants/General.mjs";
 import { LogUtil } from "../../utils/LogUtil.mjs";
+import { SystemCompat } from "../../utils/SystemCompat.mjs";
 
 /**
  * Utility functions for working with DnD5e Activities
- * Provides modified activity.use() that skips subsequent actions
+ * Provides modified activity.use() that skips subsequent actions.
+ * On dnd5e 5.x the usage message is built from `flags.dnd5e` and rendered through the
+ * activity's `usage.chatCard` template. On dnd5e 6.0+ usage messages are typed
+ * (`type: "usage"`, data in `message.system`) and `usage.chatCard` / `_usageChatContext`
+ * are deprecated, so the module renders its own card template into `data.content`
+ * and lets the system's `_createUsageMessage` build the rest of the message.
  */
 export class DnDBActivityUtil {
+
+  /**
+   * Module template used for D&D Beyond attack cards
+   * @type {string}
+   */
+  static ATTACK_CARD_TEMPLATE = `modules/${MODULE_ID}/templates/ddb-attack-card.hbs`;
 
   /**
    * Activate an activity without triggering automatic subsequent rolls
@@ -13,7 +25,8 @@ export class DnDBActivityUtil {
    * @param {Activity} activity - The activity to use
    * @param {ActivityUseConfiguration} usage - Configuration for activation
    * @param {ActivityDialogConfiguration} dialog - Configuration for dialog
-   * @param {ActivityMessageConfiguration} message - Configuration for message
+   * @param {ActivityMessageConfiguration} message - Configuration for message. May carry a
+   *   module-specific `cardTemplate` path used as the card content on dnd5e 6.0+.
    * @returns {Promise<ActivityUsageResults|void>}
    */
   static async ddbUse(activity, usage = {}, dialog = {}, message = {}) {
@@ -50,9 +63,13 @@ export class DnDBActivityUtil {
       applicationClass: activity.metadata.usage.dialog
     }, dialog);
 
-    const messageConfig = foundry.utils.mergeObject({
-      create: true,
-      data: {
+    const isDnd5e60 = SystemCompat.isDnd5e60OrLater();
+    const defaultMessageData = isDnd5e60
+      ? {
+        system: { targets: SystemCompat.getTargetDescriptors() },
+        flags: { rsr5e: { processed: true, quickRoll: false } }
+      }
+      : {
         flags: {
           dnd5e: {
             ...activity.messageFlags,
@@ -63,7 +80,10 @@ export class DnDBActivityUtil {
           },
           rsr5e: { processed: true, quickRoll: false }
         }
-      },
+      };
+    const messageConfig = foundry.utils.mergeObject({
+      create: true,
+      data: defaultMessageData,
       hasConsumption: usageConfig.hasConsumption
     }, message);
 
@@ -90,7 +110,8 @@ export class DnDBActivityUtil {
       if (effect) {
         results.effects ??= [];
         results.effects.push(effect);
-        foundry.utils.setProperty(messageConfig.data, "flags.dnd5e.use.concentrationId", effect.id);
+        const concentrationPath = isDnd5e60 ? "system.concentration" : "flags.dnd5e.use.concentrationId";
+        foundry.utils.setProperty(messageConfig.data, concentrationPath, effect.id);
       }
       if (usageConfig.concentration?.end) {
         const deleted = await item.actor.endConcentration(usageConfig.concentration.end);
@@ -116,12 +137,16 @@ export class DnDBActivityUtil {
   }
 
   /**
-   * Create a chat message for activity usage
+   * Create a chat message for activity usage.
+   * On dnd5e 6.0+ the module template (if any) is rendered into `data.content` and the
+   * system's own `_createUsageMessage` supplies the typed message data; on 5.x the
+   * legacy `_usageChatContext` + `usage.chatCard` path is used.
    * @param {Activity} activity - The activity
    * @param {Object} messageConfig - Message configuration
    * @returns {Promise<ChatMessage5e|object>}
    */
   static async _createUsageMessage(activity, messageConfig) {
+    if (SystemCompat.isDnd5e60OrLater()) return this._createUsageMessage60(activity, messageConfig);
     let context = await activity._usageChatContext(messageConfig);
     const rollData = await this._buildRollData(messageConfig.data.rolls, activity);
 
@@ -152,6 +177,32 @@ export class DnDBActivityUtil {
     Hooks.callAll("dnd5e.postCreateUsageMessage", activity, card);
 
     return card;
+  }
+
+  /**
+   * Create a usage chat message on dnd5e 6.0+ without touching deprecated activity APIs
+   * @param {Activity} activity - The activity
+   * @param {Object} messageConfig - Message configuration (may include `cardTemplate`)
+   * @returns {Promise<ChatMessage5e|object>}
+   */
+  static async _createUsageMessage60(activity, messageConfig) {
+    const { cardTemplate, ...config } = messageConfig;
+    if (cardTemplate) {
+      const context = {
+        activity,
+        actor: activity.item.actor,
+        item: activity.item,
+        token: activity.item.actor?.token,
+        buttons: SystemCompat.getLegacyChatButtons(activity, config),
+        subtitle: activity.description?.chatFlavor || "",
+        rolls: await this._buildRollData(config.data?.rolls, activity)
+      };
+      LogUtil.log("DnDBActivityUtil._createUsageMessage60", [cardTemplate, context]);
+      config.data = config.data ?? {};
+      config.data.content = await foundry.applications.handlebars.renderTemplate(cardTemplate, context);
+    }
+    foundry.utils.setProperty(config, "data.flags.rsr5e.processed", true);
+    return activity._createUsageMessage(config);
   }
 
   /**

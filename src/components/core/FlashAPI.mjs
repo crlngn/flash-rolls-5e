@@ -17,6 +17,7 @@ import { TokenPlacementManager } from "../managers/TokenPlacementManager.mjs";
 import { TokenTeleportManager } from "../managers/TokenTeleportManager.mjs";
 import { TransformationManager } from "../managers/TransformationManager.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
+import { SystemCompat } from "../utils/SystemCompat.mjs";
 
 /**
  * Public API for Flash Token Bar 5e that can be used by other modules
@@ -199,10 +200,12 @@ export class FlashAPI {
 
       if (!activity?.check) {
         const referenced = fromUuidSync(workflowId);
-        const messageFlags = referenced?.flags?.dnd5e;
-        if (messageFlags?.item?.uuid && messageFlags?.activity?.id) {
-          const item = fromUuidSync(messageFlags.item.uuid);
-          activity = item?.system?.activities?.get(messageFlags.activity.id) ?? null;
+        const isMessage = referenced instanceof ChatMessage;
+        const itemUuid = isMessage ? SystemCompat.getMessageItemUuid(referenced) : null;
+        const activityId = isMessage ? SystemCompat.getMessageActivityId(referenced) : null;
+        if (itemUuid && activityId) {
+          const item = fromUuidSync(itemUuid);
+          activity = item?.system?.activities?.get(activityId) ?? null;
         } else {
           activity = referenced ?? null;
         }

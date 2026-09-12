@@ -7,6 +7,7 @@ import { DnDBRollParser } from "./DnDBRollParser.mjs";
 import { DnDBRollUtil } from "./DnDBRollUtil.mjs";
 import { DnDBActivityUtil } from "./DnDBActivityUtil.mjs";
 import { DnDBIntegration } from "./DnDBIntegration.mjs";
+import { SystemCompat } from "../../utils/SystemCompat.mjs";
 
 /**
  * Executes rolls in Foundry using DnDB dice values
@@ -392,7 +393,11 @@ export class DnDBRollExecutor {
   }
 
   /**
-   * Execute an attack roll using vanilla DnD5e system
+   * Execute an attack roll using vanilla DnD5e system.
+   * On dnd5e 5.x the module's attack card template is injected through the activity's
+   * `usage.chatCard` metadata so the D&D Beyond dice and the activity buttons share one card.
+   * On 6.0+ the system's own typed cards cover that: a usage card carries the buttons and a
+   * linked attack card carries the roll, so no custom template is used there.
    */
   static async _executeAttackVanilla(actor, item, activity, rollInfo) {
     DnDBIntegration.setPendingRoll(rollInfo);
@@ -411,23 +416,20 @@ export class DnDBRollExecutor {
       }
     };
 
+    const useLegacyCard = !SystemCompat.isDnd5e60OrLater();
     const oldTemplate = activity.metadata.usage.chatCard;
-    activity.metadata.usage.chatCard = `modules/${MODULE_ID}/templates/ddb-attack-card.hbs`;
+    if (useLegacyCard) activity.metadata.usage.chatCard = DnDBActivityUtil.ATTACK_CARD_TEMPLATE;
 
     const rolls = await activity.rollAttack(rollConfig, dialogConfig, {
       create: false,
-      data: {
+      data: foundry.utils.mergeObject({
         speaker: ChatMessage.getSpeaker({ actor }),
-        targets: targets,
-        flags: {
-          ...this._buildFlags(rollInfo),
-          dnd5e: { targets: targets }
-        }
-      }
+        flags: this._buildFlags(rollInfo)
+      }, SystemCompat.getTargetsMessageData(targets))
     });
 
     if (!rolls || rolls.length < 1) {
-      activity.metadata.usage.chatCard = oldTemplate;
+      if (useLegacyCard) activity.metadata.usage.chatCard = oldTemplate;
       return false;
     }
 
@@ -440,16 +442,20 @@ export class DnDBRollExecutor {
       consume: { resources: false, spellSlot: false }
     };
 
+    if (!useLegacyCard) {
+      return this._createAttackMessages60(actor, item, activity, rollInfo, rolls[0], targets, usageConfig, dialogConfig);
+    }
+
     const usageResults = await DnDBActivityUtil.ddbUse(activity, usageConfig, dialogConfig, {
       create: false,
       data: {
         rolls: [rolls[0]],
         speaker: ChatMessage.getSpeaker({ actor }),
         flavor: `${item.name}: ${game.i18n.localize("DND5E.Attack")}`,
-        targets: targets,
+        targets,
         flags: {
           ...this._buildFlags(rollInfo),
-          dnd5e: { roll: { type: "attack" }, targets: targets },
+          dnd5e: { roll: { type: "attack" }, targets },
           rsr5e: { processed: true, quickRoll: false }
         }
       }
@@ -475,6 +481,65 @@ export class DnDBRollExecutor {
     const card = await ChatMessage.implementation.create(usageResults.message, { rollMode: rollInfo.rollMode });
     LogUtil.log("DnDBRollExecutor._executeAttackVanilla - created card", [card]);
 
+    return true;
+  }
+
+  /**
+   * Create the standard dnd5e 6.0+ cards for a D&D Beyond attack: the activity usage card
+   * (with the system's Attack and Damage buttons) followed by a typed attack roll card that
+   * carries the D&D Beyond dice and links back to the usage card as its origin.
+   * @param {Actor5e} actor - The rolling actor
+   * @param {Item5e} item - The item used
+   * @param {Activity} activity - The attack activity
+   * @param {Object} rollInfo - Parsed D&D Beyond roll info
+   * @param {D20Roll} roll - The evaluated attack roll with D&D Beyond dice injected
+   * @param {Array<Object>} targets - Target descriptors
+   * @param {Object} usageConfig - Activity usage configuration
+   * @param {Object} dialogConfig - Activity dialog configuration
+   * @returns {Promise<boolean>} Success status
+   */
+  static async _createAttackMessages60(actor, item, activity, rollInfo, roll, targets, usageConfig, dialogConfig) {
+    const owner = getPlayerOwner(actor) || game.user;
+    const whisper = this.getWhisperRecipients(rollInfo.rollMode, actor);
+    const blind = rollInfo.rollMode === CONST.DICE_ROLL_MODES.BLIND;
+    const speaker = ChatMessage.getSpeaker({ actor });
+
+    const usageResults = await DnDBActivityUtil.ddbUse(activity, usageConfig, dialogConfig, {
+      create: true,
+      rollMode: rollInfo.rollMode,
+      data: {
+        speaker,
+        author: owner.id,
+        whisper,
+        blind,
+        system: { targets },
+        flags: this._buildFlags(rollInfo)
+      }
+    });
+
+    if (!usageResults?.message) {
+      LogUtil.warn("DnDBRollExecutor: ddbUse returned no message");
+      return false;
+    }
+
+    const { ability, ammunition, mastery, attackMode: mode } = roll.options;
+    const system = { ...activity.messageSources, targets, origin: usageResults.message.id };
+    for (const [key, value] of Object.entries({ ability, ammunition, mastery, mode })) {
+      if (value) system[key] = value;
+    }
+
+    const attackCard = await CONFIG.Dice.D20Roll.toMessage([roll], {
+      speaker,
+      author: owner.id,
+      whisper,
+      blind,
+      flavor: `${item.name} - ${game.i18n.localize("DND5E.AttackRoll")}`,
+      type: "attack",
+      system,
+      flags: this._buildFlags(rollInfo)
+    }, { rollMode: rollInfo.rollMode });
+
+    LogUtil.log("DnDBRollExecutor._createAttackMessages60 - created cards", [usageResults.message.id, attackCard?.id]);
     return true;
   }
 
@@ -571,14 +636,10 @@ export class DnDBRollExecutor {
     const rollConfig = { sendRequest: false };
     const rolls = await activity.rollDamage(rollConfig, dialogConfig, {
       create: false,
-      data: {
+      data: foundry.utils.mergeObject({
         speaker: ChatMessage.getSpeaker({ actor }),
-        targets: targets,
-        flags: {
-          ...this._buildFlags(rollInfo),
-          dnd5e: { targets: targets }
-        }
-      }
+        flags: this._buildFlags(rollInfo)
+      }, SystemCompat.getTargetsMessageData(targets))
     });
 
     if (!rolls || rolls.length < 1) {
@@ -590,7 +651,7 @@ export class DnDBRollExecutor {
 
     LogUtil.log("DnDBRollExecutor: Creating damage message with targets");
     const whisper = this.getWhisperRecipients(rollInfo.rollMode, actor);
-    const messageConfig = {
+    const messageConfig = foundry.utils.mergeObject({
       speaker: ChatMessage.getSpeaker({ actor }),
       author: owner.id,
       flavor: `${item.name} - ${activity.damageFlavor}`,
@@ -598,15 +659,9 @@ export class DnDBRollExecutor {
       blind: rollInfo.rollMode === CONST.DICE_ROLL_MODES.BLIND,
       flags: {
         ...this._buildFlags(rollInfo),
-        dnd5e: {
-          ...activity.messageFlags,
-          messageType: "roll",
-          roll: { type: "damage" },
-          targets: targets
-        },
         rsr5e: { processed: true, quickRoll: false }
       }
-    };
+    }, SystemCompat.getRollMessageData(activity, "damage", { targets }));
 
     await rolls[0].toMessage(messageConfig, { rollMode: rollInfo.rollMode });
     LogUtil.log("DnDBRollExecutor: Damage message created");
@@ -677,21 +732,20 @@ export class DnDBRollExecutor {
     const rollConfig = { sendRequest: false };
     const rolls = await activity.rollDamage(rollConfig, dialogConfig, {
       create: false,
-      data: {
+      data: foundry.utils.mergeObject({
         speaker: ChatMessage.getSpeaker({ actor }),
-        targets: targets,
-        flags: {
-          ...this._buildFlags(rollInfo),
-          dnd5e: { targets: targets }
-        }
-      }
+        flags: this._buildFlags(rollInfo)
+      }, SystemCompat.getTargetsMessageData(targets))
     });
 
     if (!rolls || rolls.length < 1) return false;
 
     DnDBRollUtil.injectDnDBDiceValues(rolls[0], ddbRoll);
 
-    const messageConfig = {
+    const healingMessageData = SystemCompat.isDnd5e60OrLater()
+      ? SystemCompat.getRollMessageData(activity, "healing", { targets })
+      : { flags: { dnd5e: { roll: { type: "damage" }, targets } } };
+    const messageConfig = foundry.utils.mergeObject({
       speaker: ChatMessage.getSpeaker({ actor }),
       author: owner.id,
       flavor: `${item.name}: ${game.i18n.localize("DND5E.Healing")}`,
@@ -699,10 +753,9 @@ export class DnDBRollExecutor {
       blind: rollInfo.rollMode === CONST.DICE_ROLL_MODES.BLIND,
       flags: {
         ...this._buildFlags(rollInfo),
-        dnd5e: { roll: { type: "damage" }, targets: targets },
         rsr5e: { processed: true, quickRoll: false }
       }
-    };
+    }, healingMessageData);
     await rolls[0].toMessage(messageConfig, { rollMode: rollInfo.rollMode });
 
     return true;

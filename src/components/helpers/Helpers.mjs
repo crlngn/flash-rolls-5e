@@ -7,6 +7,7 @@ import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
+import { SystemCompat } from '../utils/SystemCompat.mjs';
 
 /**
  * Get display name for roll type with optional details
@@ -210,20 +211,13 @@ export function clearTargetTokens(user = game.user) {
 }
 
 /**
- * Get target descriptors from current user's targets for damage application
- * @returns {Array<Object>} Array of target descriptors with name, img, uuid, ac
+ * Get target descriptors from current user's targets for damage application.
+ * Shape follows the running system: `{ name, img, uuid, ac }` on dnd5e 5.x and the
+ * system's TargetsField descriptors (`{ name, img, actor, token, ac }`) on dnd5e 6.0+.
+ * @returns {Array<Object>} Array of target descriptors
  */
 export function getTargetDescriptors() {
-  const targets = new Map();
-  for (const token of game.user.targets) {
-    const { name } = token;
-    const { img, system, uuid, statuses } = token.actor ?? {};
-    if (uuid) {
-      const ac = statuses?.has?.("coverTotal") ? null : system?.attributes?.ac?.value;
-      targets.set(uuid, { name, img, uuid, ac: ac ?? null });
-    }
-  }
-  return Array.from(targets.values());
+  return SystemCompat.getTargetDescriptors();
 }
 
 /**

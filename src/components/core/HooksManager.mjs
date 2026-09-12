@@ -28,6 +28,7 @@ import { MidiActivityManager } from "../managers/MidiActivityManager.mjs";
 import { LibWrapperUtil } from "../utils/LibWrapperUtil.mjs";
 import { MonksActiveTilesIntegration } from "../integrations/MonksActiveTilesIntegration.mjs";
 import { DnDBeyondIntegration } from "../integrations/DnDBeyondIntegration.mjs";
+import { SystemCompat } from "../utils/SystemCompat.mjs";
 import { PatronSessionManager } from "../managers/PatronSessionManager.mjs";
 
 /**
@@ -225,6 +226,9 @@ export class HooksManager {
     SettingsUtil.registerSettings();
     DiceConfigUtil.initialize();
     this._registerHook(HOOKS_CORE.RENDER_CHAT_MESSAGE, ChatMessageManager.onRenderChatMessage.bind(ChatMessageManager));
+    if (SystemCompat.isDnd5e60OrLater()) {
+      this._registerHook(HOOKS_DND5E.RENDER_CHAT_MESSAGE_5E, ChatMessageManager.onDnd5eRenderChatMessage.bind(ChatMessageManager));
+    }
     this._registerHook(HOOKS_CORE.RENDER_ROLL_RESOLVER, this._onRenderRollResolver.bind(this));
     MonksActiveTilesIntegration.initialize();
   }
@@ -322,6 +326,7 @@ export class HooksManager {
     this._registerHook(HOOKS_CORE.CHANGE_SIDEBAR_TAB, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_CORE.COLLAPSE_SIDE_BAR, this._onSidebarUpdate.bind(this));
     this._registerHook(HOOKS_CORE.REFRESH_MEASURED_TEMPLATE, this.onRefreshTemplate.bind(this));
+    this._registerHook(HOOKS_DND5E.POST_CREATE_MEASURED_TEMPLATE, this.onPostCreateTemplateRegions.bind(this));
     this._registerHook(HOOKS_CORE.CANVAS_READY, this._onCanvasReady.bind(this));
 
     // Chat message hooks (delegated to ChatMessageManager)
@@ -631,7 +636,7 @@ export class HooksManager {
   static _addSelectTargetsButton(message, html) {
     if(!game.user.isGM) return;
     LogUtil.log("_addSelectTargetsButton #0", [message, html, html.querySelector('.message-content')]);
-    if (message.flags?.dnd5e?.roll?.type !== 'damage' || html.querySelector('.select-targeted')) return;
+    if (SystemCompat.getMessageRollType(message) !== 'damage' || html.querySelector('.select-targeted')) return;
     
     const button = document.createElement('button');
     button.className = 'select-targeted';
@@ -652,10 +657,13 @@ export class HooksManager {
   }
   
   /**
-   * Select all currently targeted tokens as damage targets
-   * @param {ChatMessage} message - The chat message
+   * Select all currently targeted tokens as damage targets.
+   * On dnd5e 6.0+ this delegates to ChatMessageManager, which reads the message's
+   * stored target descriptors instead of the card markup.
+   * @param {Event} event - The click event
    */
   static _selectTargetedTokens(event) {
+    if (SystemCompat.isDnd5e60OrLater()) return ChatMessageManager._selectTargetedTokens(event);
     const message = event.currentTarget.closest('.chat-message');
     const targets = message.querySelectorAll("[data-target-uuid]");
     
@@ -1143,52 +1151,82 @@ export class HooksManager {
   }
 
   /**
-   * TEMPLATES
+   * Maximum token disposition the template auto-targeting setting allows, or null when
+   * auto-targeting is disabled
+   * @returns {number|null}
+   */
+  static _getTemplateAutoTargetDisposition() {
+    const SETTINGS = getSettings();
+    switch (SettingsUtil.get(SETTINGS.templateAutoTarget.tag)) {
+      case 1: return 3;
+      case 2: return 0;
+      default: return null;
+    }
+  }
+
+  /**
+   * Replace the current user's targets with the given tokens and broadcast the change
+   * @param {Token[]} tokensToTarget - Tokens to target
+   */
+  static _applyTemplateTargets(tokensToTarget) {
+    game.user.targets.forEach(t => t.setTarget(false, { releaseOthers: false }));
+    tokensToTarget.forEach((token, i) => {
+      token.setTarget(true, { releaseOthers: i === 0, groupSelection: true });
+    });
+    if (tokensToTarget.length > 0) {
+      game.user.broadcastActivity({ targets: game.user.targets.ids });
+    }
+  }
+
+  /**
+   * TEMPLATES (dnd5e 5.x MeasuredTemplate placeables).
+   * Auto-targets tokens inside a template the current user placed, throttled per template.
+   * @param {MeasuredTemplate} template - The refreshed template placeable
+   * @param {Object} options - Refresh options
    */
   static onRefreshTemplate(template, options) {
     if(template.document.author !== game.user){ return; }
     const throttleKey = `refresh-template-${template.id}`;
-    const SETTINGS = getSettings();
-    const targettingSetting = SettingsUtil.get(SETTINGS.templateAutoTarget.tag);
     
     if (HooksManager.throttleTimers[throttleKey]) {
       clearTimeout(HooksManager.throttleTimers[throttleKey]);
     }
 
     HooksManager.throttleTimers[throttleKey] = setTimeout(() => {
-      let maxDisposition = 3;
+      const maxDisposition = this._getTemplateAutoTargetDisposition();
+      if (maxDisposition === null) return;
 
-      switch(targettingSetting){
-        case 1:
-          maxDisposition = 3; break;
-        case 2: 
-          maxDisposition = 0; break;
-        default: 
-          return;
-      }
-
-      game.user.targets.forEach(t => t.setTarget(false, { releaseOthers: false }));
-      
       const tokensToTarget = [];
       for(let token of canvas.tokens.placeables){
         if(token.document.disposition <= maxDisposition && template.shape.contains(token.center.x-template.x,token.center.y-template.y)){
           tokensToTarget.push(token);
         }
       }
-      
-      tokensToTarget.forEach((token, i) => {
-        token.setTarget(true, { 
-          releaseOthers: i === 0,  // Only release others on first token
-          groupSelection: true 
-        });
-      });
-      
-      if (tokensToTarget.length > 0) {
-        game.user.broadcastActivity({ targets: game.user.targets.ids });
-      }
-      
+      this._applyTemplateTargets(tokensToTarget);
       delete HooksManager.throttleTimers[throttleKey];
     }, 50);
+  }
+
+  /**
+   * TEMPLATES (dnd5e 6.0+ Region documents).
+   * dnd5e 6.0 places activity templates as Regions and fires `dnd5e.postCreateMeasuredTemplate`
+   * on the placing client with the created RegionDocuments, so `refreshMeasuredTemplate`
+   * never fires for them. Auto-targets tokens whose center lies inside any created region.
+   * @param {Activity} activity - Activity the templates were placed for
+   * @param {RegionDocument[]} regions - The created regions
+   */
+  static onPostCreateTemplateRegions(activity, regions) {
+    if (!SystemCompat.isDnd5e60OrLater() || !regions?.length) return;
+    const maxDisposition = this._getTemplateAutoTargetDisposition();
+    if (maxDisposition === null) return;
+
+    const tokensToTarget = canvas.tokens.placeables.filter(token => {
+      if (token.document.disposition > maxDisposition) return false;
+      const point = { x: token.center.x, y: token.center.y, elevation: token.document.elevation ?? 0 };
+      return regions.some(region => region.testPoint?.(point) || region.object?.testPoint?.(point, point.elevation));
+    });
+    LogUtil.log("HooksManager.onPostCreateTemplateRegions", [activity?.name, regions.length, tokensToTarget.length]);
+    this._applyTemplateTargets(tokensToTarget);
   }
 
   /**

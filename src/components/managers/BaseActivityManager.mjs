@@ -4,6 +4,7 @@ import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, showConsumptionConfig, getTargetDescriptors, getPlayerOwner, isTransientItem } from '../helpers/Helpers.mjs';
+import { SystemCompat } from '../utils/SystemCompat.mjs';
 import { DnDBRollExecutor } from '../integrations/dnd-beyond/DnDBRollExecutor.mjs';
 import { DnDBRollUtil } from '../integrations/dnd-beyond/DnDBRollUtil.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
@@ -450,7 +451,7 @@ export class BaseActivityManager {
 
       LogUtil.log("BaseActivityManager._handleDnDBSaveDamageRoll - Creating message", ["targets:", targets.length]);
 
-      const messageConfig = {
+      const messageConfig = foundry.utils.mergeObject({
         speaker: ChatMessage.getSpeaker({ actor }),
         author: owner.id,
         flavor: `${activity.item.name} - ${activity.damageFlavor}`,
@@ -462,15 +463,9 @@ export class BaseActivityManager {
             rollType: pendingRollInfo.rollType,
             action: pendingRollInfo.action
           },
-          dnd5e: {
-            ...activity.messageFlags,
-            messageType: "roll",
-            roll: { type: "damage", damageOnSave: activity.damage?.onSave },
-            targets: targets
-          },
           rsr5e: { processed: true, quickRoll: false }
         }
-      };
+      }, SystemCompat.getRollMessageData(activity, "damage", { targets, onSave: activity.damage?.onSave }));
 
       rolls[0].toMessage(messageConfig, { rollMode }).then(() => {
         LogUtil.log("BaseActivityManager._handleDnDBSaveDamageRoll - Damage message created");

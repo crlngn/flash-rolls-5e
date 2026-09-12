@@ -434,6 +434,11 @@
   }
 }
 
+.chat-message .message-content:has(> .select-targeted),
+.chat-message .message-content.flash5e-select-targeted-host {
+  position: relative;
+}
+
 .chat-message .message-content .select-targeted {
   position: absolute;
   right: 0;

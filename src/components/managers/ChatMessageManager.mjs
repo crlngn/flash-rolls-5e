@@ -10,6 +10,7 @@ import { RollHandlers } from "../handlers/RollHandlers.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
 import { RollRequestManager } from "./RollRequestManager.mjs";
 import { SocketUtil } from "../utils/SocketUtil.mjs";
+import { SystemCompat } from "../utils/SystemCompat.mjs";
 
 /**
  * Utility class for managing group roll chat messages
@@ -262,7 +263,9 @@ export class ChatMessageManager {
   /**
    * Handle rendering of chat messages to process group rolls and add UI elements
    * Cards flagged preventRender (the GM's suppressed usage card for a player request) are always hidden,
-   * regardless of sidebar state, so they never surface in chat notifications or a collapsed sidebar
+   * regardless of sidebar state, so they never surface in chat notifications or a collapsed sidebar.
+   * On dnd5e 6.0+ the core hook fires before the system has inserted the roll markup, so the
+   * Select Targeted button and challenge-visibility stripping are deferred to onDnd5eRenderChatMessage.
    * @param {ChatMessage} message - The message being rendered
    * @param {HTMLElement} html - The rendered HTML
    * @param {Object} context - Rendering context
@@ -270,7 +273,7 @@ export class ChatMessageManager {
   static onRenderChatMessage(message, html, context) {
     const isMidiActive = GeneralUtil.isModuleOn('midi-qol');
     const midiRequestId = isMidiActive ? message.getFlag('midi-qol', 'requestId') : null;
-    const dnd5eRollType = message.flags?.dnd5e?.roll?.type;
+    const dnd5eRollType = SystemCompat.getMessageRollType(message);
     LogUtil.log("ChatMessageManager.onRenderChatMessage #0", [message.id, 'speaker:', message.speaker?.alias, 'midiRequestId:', midiRequestId, 'dnd5eRollType:', dnd5eRollType]);
 
     const htmlElement = html instanceof jQuery ? html[0] : (html[0] || html);
@@ -356,12 +359,14 @@ export class ChatMessageManager {
       ChatMessageManager._attachDCAndSelectionListeners(htmlElement, message);
     }
 
-    this._addSelectTargetsButton(message, htmlElement);
+    const deferToSystemRender = SystemCompat.isDnd5e60OrLater();
+    if (!deferToSystemRender) this._addSelectTargetsButton(message, htmlElement);
 
     if(game.user.isGM){
       let item = context.subject?.item;
-      if (!item && message.flags?.dnd5e?.item?.uuid) {
-        item = fromUuidSync(message.flags.dnd5e.item.uuid);
+      const messageItemUuid = SystemCompat.getMessageItemUuid(message);
+      if (!item && messageItemUuid) {
+        item = fromUuidSync(messageItemUuid);
       }
 
       if (item) {
@@ -372,51 +377,67 @@ export class ChatMessageManager {
       }
     }
 
-    if (!game.user.isGM) {
-      const hasFlashRollsFlag = message.flags?.[MODULE_ID]?.isFlashRollRequest ||
-                               message.flags?.[MODULE_ID]?.groupRollId ||
-                               message.getFlag('dnd5e', 'roll')?._requestedBy;
-
-      if (hasFlashRollsFlag) {
-        const challengeVisibility = game.settings.get("dnd5e", "challengeVisibility");
-
-        let showDC = true;
-        switch(challengeVisibility) {
-          case "none":
-            showDC = false;
-            break;
-          case "all":
-            showDC = true;
-            break;
-          case "player":
-            showDC = message.author.id === game.user.id || !message.author.isGM;
-            break;
-          default:
-            showDC = true;
-            break;
-        }
-
-        if (showDC===false) {
-          const chatCard = html.querySelectorAll("[data-display-challenge]");
-          chatCard.forEach((el) => delete el.dataset.displayChallenge);
-
-          const diceTotals = html.querySelectorAll(".success, .failure, .critical, .fumble");
-          diceTotals?.forEach((el) => {
-            el.classList.remove("success", "failure", "critical", "fumble");
-          });
-
-          diceTotals?.forEach((el) => el.querySelector(".icons")?.remove());
-
-          html.querySelectorAll(".save-dc, .dc, .target-dc").forEach((el) => {
-            const text = el.textContent;
-            if (text && text.includes("DC")) {
-              el.textContent = text.replace(/DC\s*\d+/gi, "");
-            }
-          });
-        }
-      }
-    }
+    if (!deferToSystemRender) this._applyChallengeVisibility(message, htmlElement);
     return false;
+  }
+
+  /**
+   * Handle dnd5e's own render hook, which fires after the system has inserted roll markup
+   * and trays (dnd5e 6.0+ only). Runs the steps that must see the final card markup.
+   * @param {ChatMessage} message - The message being rendered
+   * @param {HTMLElement} html - The rendered HTML
+   */
+  static onDnd5eRenderChatMessage(message, html) {
+    if (message.getFlag(MODULE_ID, 'preventRender')) return;
+    this._addSelectTargetsButton(message, html);
+    this._applyChallengeVisibility(message, html);
+  }
+
+  /**
+   * Strip DC, success/failure styling and result icons from a player's view of a
+   * Flash-requested roll when the dnd5e challenge visibility setting hides them
+   * @param {ChatMessage} message - The message being rendered
+   * @param {HTMLElement} html - The rendered HTML
+   */
+  static _applyChallengeVisibility(message, html) {
+    if (game.user.isGM) return;
+    const hasFlashRollsFlag = message.flags?.[MODULE_ID]?.isFlashRollRequest ||
+                             message.flags?.[MODULE_ID]?.groupRollId ||
+                             message.getFlag('dnd5e', 'roll')?._requestedBy;
+    if (!hasFlashRollsFlag) return;
+
+    const challengeVisibility = game.settings.get("dnd5e", "challengeVisibility");
+    let showDC = true;
+    switch(challengeVisibility) {
+      case "none":
+        showDC = false;
+        break;
+      case "all":
+        showDC = true;
+        break;
+      case "player":
+        showDC = message.author.id === game.user.id || !message.author.isGM;
+        break;
+      default:
+        showDC = true;
+        break;
+    }
+    if (showDC) return;
+
+    html.querySelectorAll("[data-display-challenge]").forEach((el) => delete el.dataset.displayChallenge);
+
+    const diceTotals = html.querySelectorAll(".success, .failure, .critical, .fumble");
+    diceTotals.forEach((el) => {
+      el.classList.remove("success", "failure", "critical", "fumble");
+    });
+    diceTotals.forEach((el) => el.querySelector(".icons")?.remove());
+
+    html.querySelectorAll(".save-dc, .dc, .target-dc").forEach((el) => {
+      const text = el.textContent;
+      if (text && text.includes("DC")) {
+        el.textContent = text.replace(/DC\s*\d+/gi, "");
+      }
+    });
   }
 
   /**
@@ -432,8 +453,8 @@ export class ChatMessageManager {
       const messageId = messageElement.dataset.messageId;
       const message = game.messages.get(messageId);
 
-      if (message?.flags?.dnd5e?.roll?.type === 'damage' && message.flags?.dnd5e?.item?.uuid) {
-        const itemUuid = message.flags.dnd5e.item.uuid;
+      const itemUuid = SystemCompat.getMessageItemUuid(message);
+      if (SystemCompat.getMessageRollType(message) === 'damage' && itemUuid) {
         const item = fromUuidSync(itemUuid);
 
         if (item && !HooksManager.templateRemovalTimers.has(itemUuid)) {
@@ -463,7 +484,7 @@ export class ChatMessageManager {
 
     html = html[0] || html;
     LogUtil.log("ChatMessageManager._addSelectTargetsButton #0", [message, html]);
-    if (message.flags?.dnd5e?.roll?.type !== 'damage' || html.querySelector('.select-targeted')) return;
+    if (SystemCompat.getMessageRollType(message) !== 'damage' || html.querySelector('.select-targeted')) return;
 
     const button = document.createElement('button');
     button.className = 'select-targeted';
@@ -477,19 +498,37 @@ export class ChatMessageManager {
       this._selectTargetedTokens(event);
     });
 
-    html.querySelector('.message-content').appendChild(button);
+    const container = html.querySelector('.message-content');
+    container.classList.add('flash5e-select-targeted-host');
+    container.appendChild(button);
     message.update({
       content: html
     });
   }
 
   /**
-   * Select all currently targeted tokens as damage targets
+   * Select all currently targeted tokens as damage targets.
+   * On dnd5e 6.0+ the targets are read from the message's `system.targets` descriptors
+   * (the card markup no longer carries `data-target-uuid`); on 5.x they are parsed from
+   * the rendered target list as before.
    * @param {Event} event - The click event
    */
   static _selectTargetedTokens(event) {
-    const message = event.currentTarget.closest('.chat-message');
-    const targets = message.querySelectorAll("[data-target-uuid]");
+    const messageElement = event.currentTarget.closest('.chat-message');
+    if (SystemCompat.isDnd5e60OrLater()) {
+      const message = game.messages.get(messageElement?.dataset.messageId);
+      const tokens = SystemCompat.getMessageTargets(message)
+        .map(descriptor => SystemCompat.resolveTargetToken(descriptor))
+        .filter(token => token?.control);
+      if (tokens.length === 0) {
+        FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noTargetedTokens"));
+        return;
+      }
+      tokens.forEach((token, i) => token.control({ releaseOthers: i === 0 }));
+      return;
+    }
+
+    const targets = messageElement.querySelectorAll("[data-target-uuid]");
 
     if (targets.length === 0) {
       FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noTargetedTokens"));
@@ -1893,7 +1932,7 @@ export class ChatMessageManager {
       if (GeneralUtil.isModuleOn('midi-qol')) {
         const midiRequestId = message.getFlag('midi-qol', 'requestId');
         if (midiRequestId && game.user.isGM) {
-          const dnd5eRollType = message.flags?.dnd5e?.roll?.type;
+          const dnd5eRollType = SystemCompat.getMessageRollType(message);
           if (dnd5eRollType === 'save') {
             LogUtil.log('interceptRollMessage - Midi-QOL save roll detected, scheduling removal', [actor.name, midiRequestId]);
             this._scheduleMidiSaveRemoval(message);
@@ -2041,12 +2080,12 @@ export class ChatMessageManager {
    * @returns {string|null} The matching groupRollId or null
    */
   static _findMatchingPendingRoll(actor, uniqueId, message) {
-    const dnd5eRoll = message.flags?.dnd5e?.roll;
+    const dnd5eRoll = SystemCompat.getMessageRollInfo(message);
     const isInitiativeRoll = message.flags?.core?.initiativeRoll;
-    if (!dnd5eRoll?.type && !isInitiativeRoll) return null;
+    if (!dnd5eRoll.type && !isInitiativeRoll) return null;
 
     const dndRollType = isInitiativeRoll ? 'initiative' : dnd5eRoll.type;
-    const rollKey = dnd5eRoll?.skillId || dnd5eRoll?.toolId || dnd5eRoll?.ability;
+    const rollKey = dnd5eRoll.skillId || dnd5eRoll.toolId || dnd5eRoll.ability;
 
     LogUtil.log('_findMatchingPendingRoll - searching', [actor.name, 'dndRollType:', dndRollType, 'rollKey:', rollKey, 'isInitiativeRoll:', isInitiativeRoll, 'pendingRolls count:', this.pendingRolls.size]);
 

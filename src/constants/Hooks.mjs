@@ -82,6 +82,8 @@ export const HOOKS_DND5E = {
   // Activity
   PRE_USE_ACTIVITY: "dnd5e.preUseActivity",
   POST_USE_ACTIVITY: "dnd5e.postUseActivity",
+  POST_CREATE_MEASURED_TEMPLATE: "dnd5e.postCreateMeasuredTemplate",
+  RENDER_CHAT_MESSAGE_5E: "dnd5e.renderChatMessage",
   
   // Ability Checks & Saving Throws
   PRE_ROLL_ABILITY_CHECK: "dnd5e.preRollAbilityCheckV2",
