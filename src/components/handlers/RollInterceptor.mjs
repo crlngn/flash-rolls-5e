@@ -17,6 +17,7 @@ import { DiceConfigUtil } from '../utils/DiceConfigUtil.mjs';
 import { ChatMessageManager } from '../managers/ChatMessageManager.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
 import { isTransientItem } from '../helpers/Helpers.mjs';
+import { SystemCompat } from '../utils/SystemCompat.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -465,6 +466,9 @@ export class RollInterceptor {
         if (!shouldContinue) return;
       }
 
+      config.originMessageId = this._getOriginMessageId(config, message);
+      LogUtil.log('_showGMConfigDialog - originMessageId', [config.originMessageId]);
+
       const DialogClass = this._getDialogClass(rollType);
       const { rollKey, rollConfig } = this._extractRollConfiguration(rollType, config, dialog, actor);
       const isOwnerActive = owner && owner?.active && !owner?.isGM;
@@ -545,10 +549,26 @@ export class RollInterceptor {
   }
   
   /**
-   * Called when an intercepted roll should be executed 
+   * ID of the usage card an intercepted roll was triggered from: the origin the system already
+   * put on the message configuration (roll buttons on 6.0 cards, save buttons on 5.x cards) or the
+   * card that contains the clicked button
+   * @param {Object} config - Roll process configuration
+   * @param {Object} message - Roll message configuration
+   * @returns {string|null}
+   */
+  static _getOriginMessageId(config, message) {
+    const fromMessage = SystemCompat.getMessageConfigOrigin(message);
+    if (fromMessage) return fromMessage;
+    const target = config?.event?.target;
+    const fromEvent = target?.closest?.("[data-message-id]")?.dataset?.messageId;
+    return fromEvent ?? config?.originMessageId ?? null;
+  }
+
+  /**
+   * Called when an intercepted roll should be executed
    * locally on the GM side instead of sent to player
-   * @param {Actor} actor 
-   * @param {string} rollType 
+   * @param {Actor} actor
+   * @param {string} rollType
    * @param {Object} originalConfig
    * @param {Object} dialogResult
    */
@@ -584,8 +604,10 @@ export class RollInterceptor {
         rollKey = originalConfig.ability || originalConfig.skill || originalConfig.tool || originalConfig.denomination;
     }
     
+    const originMessageId = originalConfig.originMessageId ?? dialogResult.originMessageId ?? null;
     const requestData = {
       rollKey: rollKey,
+      originMessageId,
       config: {
         advantage: dialogResult.advantage || originalConfig.advantage,
         disadvantage: dialogResult.disadvantage || originalConfig.disadvantage,
@@ -594,7 +616,8 @@ export class RollInterceptor {
         situational: situational,
         isRollRequest: false,
         skipRollDialog: dialogResult.skipRollDialog,
-        ability: originalConfig.ability
+        ability: originalConfig.ability,
+        originMessageId
       }
     };
     
@@ -760,6 +783,7 @@ export class RollInterceptor {
     delete cleanConfig.skipRollDialog;
     delete cleanConfig.isRollRequest;
     delete cleanConfig.sendRequest;
+    delete cleanConfig.originMessageId;
 
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     const useCondensedRollMessage = SettingsUtil.get(SETTINGS.useCondensedRollMessage.tag);
@@ -798,7 +822,9 @@ export class RollInterceptor {
       },
       skipRollDialog: false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
+      targets: SystemCompat.getTargetDescriptors(),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag),
+      originMessageId: config.originMessageId ?? null,
       fromMidiWorkflow: GeneralUtil.isMidiWorkflowActive()
     };
 

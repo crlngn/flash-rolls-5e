@@ -551,6 +551,18 @@
       "legacyTokenAssociationsMigrated": {
         "label": "Legacy Token Associations Migration Status",
         "hint": "Internal flag tracking whether legacy token associations have been migrated to the new scene-based format."
+      },
+      "compactActivityCards": {
+        "label": "Compact activity cards (dnd5e 6.0)",
+        "hint": "Fold attack, damage and healing rolls into the activity card that created them, as rows with a total on the right and a drawer with the dice breakdown. Requires dnd5e 6.0 and its own 'Summarize Chat Cards' setting. When Carolingian UI is active, whichever module ships the newer version of this feature runs it."
+      },
+      "collapseCardTags": {
+        "label": "Collapse card tags by default",
+        "hint": "Show only the most useful tags (activation, range, key properties) on compact activity cards, with a +N chip to reveal the rest."
+      },
+      "labeledCardButtons": {
+        "label": "Labeled card buttons",
+        "hint": "Show a short text label next to the icon on activity card buttons (attack, damage, save, template...). Uncheck to use icon-only buttons."
       }
     },
     "groupRoll": {
@@ -600,7 +612,8 @@
         "delete": "Delete",
         "createMacro": "Create Macro",
         "request": "Request",
-        "showCode": "Show Code"
+        "showCode": "Show Code",
+        "selectTargeted": "Select Targeted"
       },
       "inputs": {
         "lockMenu": "Lock Visibility",
@@ -857,6 +870,26 @@
         "entityHelp": "Select which actors should make the roll",
         "skipRollDialog": "Skip Roll Dialog"
       }
+    },
+    "compactCards": {
+      "enabledSummarySetting": "Flash Token Bar turned on the dnd5e client setting 'Summarize Chat Cards', which compact activity cards need.",
+      "needsSummarySetting": "Compact activity cards need the dnd5e setting 'Summarize Chat Cards' to be enabled.",
+      "pendingSave": "Has not rolled yet",
+      "addTargeted": "Add targeted tokens as targets",
+      "addSelected": "Add selected tokens as targets",
+      "noTargeted": "You have no targeted tokens.",
+      "noSelected": "You have no selected tokens.",
+      "details": "Roll details",
+      "hits": "hits",
+      "misses": "misses",
+      "successes": "successes",
+      "failures": "failures",
+      "targets": "targets",
+      "showAllTags": "Show all tags",
+      "showFewerTags": "Show fewer tags",
+      "handledBy": "Compact activity cards are handled by {module} on this client. Its settings apply and this one is ignored.",
+      "selectTargeted": "Select the tokens this roll targeted",
+      "noRecordedTargets": "This roll recorded no targets on the current scene."
     }
   }
 }

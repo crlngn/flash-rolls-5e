@@ -9,6 +9,7 @@ import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { DiceConfigUtil } from "../utils/DiceConfigUtil.mjs";
 import { ModuleHelpers } from "../helpers/ModuleHelpers.mjs";
 import { ChatMessageManager } from "./ChatMessageManager.mjs";
+import { SystemCompat } from "../utils/SystemCompat.mjs";
 
 /**
  * @typedef {Object} RollRequestData
@@ -22,6 +23,8 @@ import { ChatMessageManager } from "./ChatMessageManager.mjs";
  * @property {boolean} skipRollDialog - Whether to skip the roll configuration dialog
  * @property {string[]} targetTokenIds - Array of targeted token IDs
  * @property {boolean} preserveTargets - Whether to apply GM's targets to the player
+ * @property {Array<Object>} [targets] - GM's target descriptors, recorded on the cards the player creates
+ * @property {string|null} [originMessageId] - Usage card the GM made the request from, so the roll folds into it
  */
 
 /**
@@ -96,7 +99,11 @@ export class RollRequestManager {
       isRollRequest: true
     };
     const dialog = requestData.dialog ?? {};
-    const message = requestData.message ?? {};
+    const message = foundry.utils.deepClone(requestData.message ?? {});
+    const targetsData = this.getRequestTargetsMessageData(requestData);
+    if (!foundry.utils.isEmpty(targetsData)) {
+      message.data = foundry.utils.mergeObject(message.data ?? {}, targetsData);
+    }
 
     NotificationManager.notify('info', game.i18n.format('FLASH_ROLLS.notifications.rollRequestSent', {
       player: requestData.requestedBy || 'GM',
@@ -108,6 +115,21 @@ export class RollRequestManager {
     } catch (error) {
       LogUtil.error('handleActivityUseRequest - activity.use error', [error]);
     }
+  }
+
+  /**
+   * Message data recording the GM's targets on the cards a request creates on this client.
+   * The GM's targets are used when the "Use GM Targeted Tokens" setting is on, or when this
+   * user has no targets of their own; otherwise the system records the player's targets.
+   * @param {RollRequestData|Object} requestData - The request data
+   * @returns {Object} Partial message data, empty when the player's own targets should be used
+   */
+  static getRequestTargetsMessageData(requestData) {
+    const targets = requestData?.targets;
+    if (!Array.isArray(targets) || targets.length === 0) return {};
+    const useGMTargets = requestData.preserveTargets || (game.user.targets?.size ?? 0) === 0;
+    if (!useGMTargets) return {};
+    return SystemCompat.getUsageTargetsMessageData(targets);
   }
 
   /**
@@ -299,7 +321,8 @@ export class RollRequestManager {
               rollKey: requestData.rollKey,
               activityId: requestData.activityId,
               config: requestData.rollProcessConfig,
-              groupRollId: requestData.groupRollId
+              groupRollId: requestData.groupRollId,
+              originMessageId: requestData.originMessageId ?? null
             };
             this.setupAutoRollTimeout(actor, requestData, actorUniqueId, handlerRequestData, rollConfig, messageConfig);
           }
@@ -338,13 +361,14 @@ export class RollRequestManager {
       };
 
       const speaker = ChatMessage.getSpeaker({ actor });
+      const targetsData = isActivityRoll ? this.getRequestTargetsMessageData(requestData) : {};
       const messageConfig = {
         rollMode: finalRollMode,
         create: requestData.rollProcessConfig.chatMessage !== false,
         flags: rollMetadata,
-        data: {
+        data: foundry.utils.mergeObject({
           speaker
-        },
+        }, targetsData),
         messageData: {
           speaker,
           flags: rollMetadata
@@ -355,7 +379,8 @@ export class RollRequestManager {
         rollKey: requestData.rollKey,
         activityId: requestData.activityId,
         config: requestData.rollProcessConfig,
-        groupRollId: requestData.groupRollId
+        groupRollId: requestData.groupRollId,
+        originMessageId: requestData.originMessageId ?? null
       };
 
       const handler = RollHandlers[normalizedRollType];
@@ -521,13 +546,15 @@ export class RollRequestManager {
       create: createConfig,
       concentration: concentrationConfig,
       _isFlashRollRequest: true,
+      originMessageId: requestData.originMessageId ?? null,
       ...(rollProcessConfig.spell && { spell: rollProcessConfig.spell }),
       ...(rollProcessConfig.scaling !== undefined && { scaling: rollProcessConfig.scaling })
     }, {
       configure: showDialog
     }, {
       create: true,
-      rollMode: resolvedRollMode
+      rollMode: resolvedRollMode,
+      data: this.getRequestTargetsMessageData(requestData)
     });
   }
 }

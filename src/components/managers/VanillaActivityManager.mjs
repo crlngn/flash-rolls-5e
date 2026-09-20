@@ -3,6 +3,7 @@ import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.m
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { getConsumptionConfig, getCreateConfig } from '../helpers/Helpers.mjs';
+import { SystemCompat } from '../utils/SystemCompat.mjs';
 import { BaseActivityManager } from './BaseActivityManager.mjs';
 
 /**
@@ -45,7 +46,10 @@ export class VanillaActivityManager {
       LogUtil.log("VanillaActivityManager.triggerMissingRolls - Manually triggering damage/healing roll", [activity.type]);
       const damageConfig = { ...config };
       delete damageConfig.scaling;
-      await activity.rollDamage(damageConfig, {}, {});
+      const originMessageId = BaseActivityManager.getUsageMessageId(results, config);
+      await activity.rollDamage(damageConfig, {}, {
+        data: SystemCompat.getOriginMessageData(originMessageId, ROLL_TYPES.DAMAGE)
+      });
     }
   }
 
@@ -98,7 +102,9 @@ export class VanillaActivityManager {
             create: config.message?.create !== false,
             scaling: config.usage.scaling,
             skipRollDialog: config.usage.skipRollDialog,
-            consume: config.usage.consume
+            consume: config.usage.consume,
+            originMessageId: config.usage.originMessageId ?? null,
+            targets: SystemCompat.getMessageConfigTargets(config.message)
           };
           const isRollRequest = config.usage._isFlashRollRequest === true;
           const isLocalRoll = !isRollRequest;
@@ -159,7 +165,9 @@ export class VanillaActivityManager {
       rollMode: config.message?.rollMode,
       skipRollDialog: config.usage.skipRollDialog,
       consume: config.usage.consume,
-      create: config.usage.create
+      create: config.usage.create,
+      originMessageId: config.usage.originMessageId ?? null,
+      targets: SystemCompat.getMessageConfigTargets(config.message)
     };
     config.message.create = true;
     await activity.item.setFlag(MODULE_ID, 'tempAttackConfig', rollRequestConfig);
@@ -221,9 +229,11 @@ export class VanillaActivityManager {
 
   /**
    * Execute damage roll from an attack activity for vanilla DnD5e workflow
+   * The damage message is linked to the usage card the request came from, when one is known
    * Note: This is only called when Midi-QOL is not active
    */
   static async executeDamagefromAttack(actor, activity, config, damageConfig){
-    await activity.rollDamage(damageConfig, config.dialog, config.message);
+    const messageConfig = SystemCompat.applyOriginToMessageConfig(config.message ?? {}, damageConfig?.originMessageId, ROLL_TYPES.DAMAGE);
+    await activity.rollDamage(damageConfig, config.dialog, messageConfig);
   }
 }

@@ -8,6 +8,7 @@ import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../core/FlashAPI.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
+import { SystemCompat } from "../utils/SystemCompat.mjs";
 
 /**
  * Methods for handling different types of rolls
@@ -21,6 +22,7 @@ export const RollHandlers = {
     }, dialogWillHandle);
 
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.ABILITY);
+    RollHandlers.applyOrigin(messageConfig, requestData, ROLL_TYPES.ABILITY);
     await actor.rollAbilityCheck(config, dialogConfig, messageConfig);
   },
   
@@ -35,6 +37,7 @@ export const RollHandlers = {
     }, dialogWillHandle);
 
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.SAVE);
+    RollHandlers.applyOrigin(messageConfig, requestData, ROLL_TYPES.SAVE);
 
     await actor.rollSavingThrow(config, dialogConfig, messageConfig);
   },
@@ -60,6 +63,7 @@ export const RollHandlers = {
       ability: requestData.config.ability || defaultAbility
     }, dialogWillHandle);
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.SKILL);
+    RollHandlers.applyOrigin(messageConfig, requestData, ROLL_TYPES.SKILL);
     await actor.rollSkill(config, dialogConfig, messageConfig);
   },
 
@@ -83,6 +87,7 @@ export const RollHandlers = {
     LogUtil.log('RollHandlers.tool #2', [config, dialogConfig, messageConfig]);
 
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.TOOL);
+    RollHandlers.applyOrigin(messageConfig, requestData, ROLL_TYPES.TOOL);
     await actor.rollToolCheck(config, dialogConfig, messageConfig);
   },
 
@@ -91,6 +96,7 @@ export const RollHandlers = {
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {}, dialogWillHandle);
 
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.CONCENTRATION);
+    RollHandlers.applyOrigin(messageConfig, requestData, ROLL_TYPES.CONCENTRATION);
     await actor.rollConcentration(config, dialogConfig, messageConfig);
   },
 
@@ -184,6 +190,7 @@ export const RollHandlers = {
     const dialogWillHandle = dialogConfig.configure !== false;
     const config = RollHelpers.buildRollConfig(requestData, rollConfig, {}, dialogWillHandle);
     await ChatMessageManager.addGroupRollFlag(messageConfig, requestData, actor, ROLL_TYPES.DEATH_SAVE);
+    RollHandlers.applyOrigin(messageConfig, requestData, "death");
     await actor.rollDeathSave(config, dialogConfig, messageConfig);
   },
 
@@ -203,6 +210,21 @@ export const RollHandlers = {
     await RollHandlers.handleCustomRoll(actor, requestData, dialogConfig, messageConfig);
   },
 
+
+  /**
+   * Link a roll's message configuration to the usage card the request was made from, when the
+   * request carries one, so the system folds the roll into that card
+   * @param {BasicRollMessageConfiguration} messageConfig - Message configuration, mutated in place
+   * @param {Object} requestData - The roll request data
+   * @param {string} [requestData.originMessageId] - ID of the usage card
+   * @param {Object} [requestData.config] - Request configuration, which may carry the ID instead
+   * @param {string} rollType - Roll type from ROLL_TYPES, used for the 5.x roll type flag
+   * @returns {BasicRollMessageConfiguration} The same message configuration
+   */
+  applyOrigin(messageConfig, requestData, rollType) {
+    const originMessageId = requestData?.originMessageId ?? requestData?.config?.originMessageId;
+    return SystemCompat.applyOriginToMessageConfig(messageConfig, originMessageId, rollType);
+  },
 
   /**
    * Validate the roll key of an incoming skill or tool request and repair it when it does not match
@@ -266,11 +288,13 @@ export const RollHandlers = {
       const usageSource = game.user.isGM
         ? requestData.config
         : (({ skipRollDialog, isRollRequest, sendRequest, ...rest }) => rest)(requestData.config);
+      const originMessageId = requestData.originMessageId ?? requestData.config.originMessageId ?? null;
       const activityConfig = {
         usage: {
           ...usageSource,
           ...(!game.user.isGM && { _isFlashRollRequest: true }),
           rollType: rollType,
+          originMessageId,
           rolls: processConfig.rolls,
           ...(rollOptions.attackMode && { attackMode: rollOptions.attackMode }),
           ...(rollOptions.ammunition && { ammunition: rollOptions.ammunition }),

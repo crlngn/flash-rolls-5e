@@ -258,14 +258,20 @@ export class BaseActivityManager {
     ]);
 
     if (!requestsEnabled || !rollInterceptionEnabled || !actor) {
-      LogUtil.log("BaseActivityManager.onPostUseActivityGM - Early return (settings or no actor)", [
+      LogUtil.log("BaseActivityManager.onPostUseActivityGM - Requests or interception disabled, handling as local roll", [
         "requestsEnabled:", requestsEnabled,
         "rollInterceptionEnabled:", rollInterceptionEnabled,
         "hasActor:", !!actor
       ]);
-      if (isDnDBRoll && activity.type === ACTIVITY_TYPES.SAVE && activity.damage?.parts?.length > 0 && !this.isMidiActive) {
-        LogUtil.log("BaseActivityManager.onPostUseActivityGM - DnDB save damage bypassing settings check");
-        this._handleDnDBSaveDamageRoll(activity, config);
+      if (!actor) return;
+      this._recordTargetsOnUsageCard(results);
+      if (activity.type === ACTIVITY_TYPES.SAVE && activity.damage?.parts?.length > 0 && !this.isMidiActive) {
+        if (isDnDBRoll) {
+          LogUtil.log("BaseActivityManager.onPostUseActivityGM - DnDB save damage bypassing settings check");
+          this._handleDnDBSaveDamageRoll(activity, config, results);
+        } else {
+          this._rollSaveDamage(activity, config, results, {});
+        }
       }
       return;
     }
@@ -316,22 +322,66 @@ export class BaseActivityManager {
       }
     }
 
+    LogUtil.log("BaseActivityManager.onPostUseActivityGM - targets at post use", [game.user.targets?.size, SystemCompat.getTargetDescriptors().length, results?.message?.id, SystemCompat.getMessageTargets(results?.message).length]);
+    if (isLocalRoll) {
+      this._recordTargetsOnUsageCard(results);
+    }
+
     if (activity.type === ACTIVITY_TYPES.SAVE && activity.damage?.parts?.length > 0 && !this.isMidiActive && isLocalRoll) {
       const isDnDBRoll = config.create?._isDnDBRoll === true;
 
       if (isDnDBRoll) {
         LogUtil.log("BaseActivityManager.onPostUseActivityGM - DnDB save damage roll detected", [activity.item.name]);
-        this._handleDnDBSaveDamageRoll(activity, config);
+        this._handleDnDBSaveDamageRoll(activity, config, results);
       } else {
-        LogUtil.log("BaseActivityManager.onPostUseActivityGM - triggering vanilla save damage roll for local roll", [activity, config]);
         const shouldShowDialog = config.skipRollDialog !== undefined ? !config.skipRollDialog : (isOwnerActive && !skipRollDialog);
-        const damageConfig = { ...config };
-        delete damageConfig.scaling;
-        activity.rollDamage(damageConfig, {
-          configure: shouldShowDialog
-        }, {});
+        this._rollSaveDamage(activity, config, results, { configure: shouldShowDialog });
       }
     }
+  }
+
+  /**
+   * Roll the damage of a save activity the GM used locally, linked to its usage card.
+   * When roll requests or interception are off the dialog decision is left to the pre-roll
+   * hook, which applies the skip-dialog settings in that mode.
+   * @param {Activity5e} activity - The save activity
+   * @param {Object} config - Activity usage configuration
+   * @param {Object} results - Results from activity.use()
+   * @param {Object} dialogConfig - Dialog configuration for the damage roll
+   */
+  static _rollSaveDamage(activity, config, results, dialogConfig) {
+    LogUtil.log("BaseActivityManager._rollSaveDamage - triggering vanilla save damage roll for local roll", [activity, config, dialogConfig]);
+    const damageConfig = { ...config };
+    delete damageConfig.scaling;
+    activity.rollDamage(damageConfig, dialogConfig, {
+      data: SystemCompat.getOriginMessageData(this.getUsageMessageId(results, config), ROLL_TYPES.DAMAGE)
+    });
+  }
+
+  /**
+   * ID of the usage card an activity use produced, or the one carried by the usage config
+   * when the card was created elsewhere (player request flow)
+   * @param {Object} results - Results from activity.use()
+   * @param {Object} [config] - Activity usage configuration
+   * @returns {string|null}
+   */
+  static getUsageMessageId(results, config) {
+    return results?.message?.id ?? config?.originMessageId ?? null;
+  }
+
+  /**
+   * Record the GM's current targets on a usage card that was created without any, so the card
+   * lists them and the rolls folded into it apply to the right tokens
+   * @param {Object} results - Results from activity.use()
+   */
+  static _recordTargetsOnUsageCard(results) {
+    const message = results?.message;
+    if (!message?.id || !game.user.isGM) return;
+    const targets = SystemCompat.getTargetDescriptors();
+    if (!targets.length) return;
+    SystemCompat.recordTargetsOnMessage(message, targets).catch(error => {
+      LogUtil.warn("BaseActivityManager._recordTargetsOnUsageCard - could not record targets", [error]);
+    });
   }
 
   /**
@@ -389,7 +439,7 @@ export class BaseActivityManager {
 
     if (activity.type === ACTIVITY_TYPES.SAVE && activity.damage?.parts?.length > 0) {
       if (isDnDBRoll) {
-        this._handleDnDBSaveDamageRoll(activity, config);
+        this._handleDnDBSaveDamageRoll(activity, config, results);
       } else {
         LogUtil.log("BaseActivityManager.onPostUseActivityPlayer - triggering vanilla save damage roll", [activity, config]);
         const shouldShowDialog = config.skipRollDialog !== undefined ? !config.skipRollDialog : true;
@@ -398,7 +448,8 @@ export class BaseActivityManager {
         activity.rollDamage(damageConfig, {
           configure: shouldShowDialog
         }, {
-          create: true
+          create: true,
+          data: SystemCompat.getOriginMessageData(this.getUsageMessageId(results, config), ROLL_TYPES.DAMAGE)
         });
       }
     }
@@ -407,9 +458,13 @@ export class BaseActivityManager {
   /**
    * Handle damage roll for DnDB save spells
    * Calls rollDamage with create:false, injects DnDB dice values, and posts message with proper targets
+   * linked to the usage card so the system folds it into that card
    * Note: This method is async but called from a sync hook - it handles its own promise chain
+   * @param {Activity5e} activity - The save activity
+   * @param {Object} config - Activity usage configuration
+   * @param {Object} [results] - Results from activity.use(), used for the usage card ID
    */
-  static _handleDnDBSaveDamageRoll(activity, config) {
+  static _handleDnDBSaveDamageRoll(activity, config, results) {
     LogUtil.log("BaseActivityManager._handleDnDBSaveDamageRoll - Entry", [
       "activity:", activity.item?.name,
       "hasPending:", DnDBRollExecutor.hasPendingDamageRoll()
@@ -466,6 +521,7 @@ export class BaseActivityManager {
           rsr5e: { processed: true, quickRoll: false }
         }
       }, SystemCompat.getRollMessageData(activity, "damage", { targets, onSave: activity.damage?.onSave }));
+      foundry.utils.mergeObject(messageConfig, SystemCompat.getOriginMessageData(this.getUsageMessageId(results, config), ROLL_TYPES.DAMAGE));
 
       rolls[0].toMessage(messageConfig, { rollMode }).then(() => {
         LogUtil.log("BaseActivityManager._handleDnDBSaveDamageRoll - Damage message created");
@@ -629,6 +685,8 @@ export class BaseActivityManager {
       usage: cleanUsage,
       dialog: { configure: false },
       message: {},
+      targets: SystemCompat.getTargetDescriptors(),
+      preserveTargets: SettingsUtil.get(getSettings().useGMTargetTokens.tag),
       requestedBy: game.user.name
     };
 

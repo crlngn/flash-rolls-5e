@@ -541,6 +541,7 @@ export class RollMenuOrchestrator {
       },
       skipRollDialog: config.skipRollDialog || false,
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
+      targets: SystemCompat.getTargetDescriptors(),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag),
       fromMidiWorkflow: config.fromMidiWorkflow ?? false
     };

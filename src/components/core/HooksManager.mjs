@@ -1,4 +1,5 @@
 import { HOOKS_CORE, HOOKS_DND5E, HOOKS_MIDI_QOL, HOOKS_MODULE, HOOKS_TIDY5E } from "../../constants/Hooks.mjs";
+import { CompactCardsUtil } from "../utils/CompactCardsUtil.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { DiceConfigUtil } from "../utils/DiceConfigUtil.mjs";
@@ -229,6 +230,7 @@ export class HooksManager {
     if (SystemCompat.isDnd5e60OrLater()) {
       this._registerHook(HOOKS_DND5E.RENDER_CHAT_MESSAGE_5E, ChatMessageManager.onDnd5eRenderChatMessage.bind(ChatMessageManager));
     }
+    CompactCardsUtil.init();
     this._registerHook(HOOKS_CORE.RENDER_ROLL_RESOLVER, this._onRenderRollResolver.bind(this));
     MonksActiveTilesIntegration.initialize();
   }
@@ -332,6 +334,8 @@ export class HooksManager {
     // Chat message hooks (delegated to ChatMessageManager)
     this._registerHook(HOOKS_CORE.CREATE_CHAT_MESSAGE, ChatMessageManager.onCreateChatMessage.bind(ChatMessageManager));
     this._registerHook(HOOKS_CORE.PRE_CREATE_CHAT_MESSAGE, ChatMessageManager.onPreCreateChatMessage.bind(ChatMessageManager));
+    this._registerHook(HOOKS_CORE.PRE_UPDATE_CHAT_MESSAGE, ChatMessageManager.onPreUpdateChatMessage.bind(ChatMessageManager));
+    this._registerHook(HOOKS_CORE.UPDATE_CHAT_MESSAGE, ChatMessageManager.onUpdateChatMessage.bind(ChatMessageManager));
     this._registerHook(HOOKS_CORE.RENDER_CHAT_LOG, ChatMessageManager.onRenderChatLog.bind(ChatMessageManager));
 
     // Token movement restriction hook

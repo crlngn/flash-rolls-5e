@@ -10,6 +10,8 @@ import { BaseActivityManager } from '../managers/BaseActivityManager.mjs';
 import { MidiActivityManager } from '../managers/MidiActivityManager.mjs';
 import { DnDBRollExecutor } from '../integrations/dnd-beyond/DnDBRollExecutor.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
+import { SystemCompat } from '../utils/SystemCompat.mjs';
+import { ROLL_TYPES } from '../../constants/General.mjs';
 
 /**
  * Handles roll-specific hooks
@@ -119,6 +121,8 @@ export class RollHooksHandler {
     config.advantage = stored.advantage || false;
     config.disadvantage = stored.disadvantage || false;
     messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
+    SystemCompat.applyOriginToMessageConfig(messageOptions, stored.originMessageId, ROLL_TYPES.ATTACK);
+    SystemCompat.applyTargetsToMessageConfig(messageOptions, stored.targets);
 
     if (stored.situational) {
       if (!config.rolls || config.rolls.length === 0) {
@@ -171,6 +175,8 @@ export class RollHooksHandler {
 
     if (stored.critical) config.critical = stored.critical;
     messageOptions.rollMode = stored.rollMode || messageOptions.rollMode || CONST.DICE_ROLL_MODES.PUBLIC;
+    SystemCompat.applyOriginToMessageConfig(messageOptions, stored.originMessageId, ROLL_TYPES.DAMAGE);
+    SystemCompat.applyTargetsToMessageConfig(messageOptions, stored.targets);
 
     LogUtil.log("RollHooksHandler.onPreRollDamageV2 triggered #1", [config, dialogOptions, messageOptions]);
 

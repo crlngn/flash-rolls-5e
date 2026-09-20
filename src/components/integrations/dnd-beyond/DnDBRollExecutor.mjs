@@ -712,7 +712,7 @@ export class DnDBRollExecutor {
       consume: { resources: true, spellSlot: consumeSpellSlot }
     };
 
-    await DnDBActivityUtil.ddbUse(activity, usageConfig, dialogConfig, {
+    const usageResult = await DnDBActivityUtil.ddbUse(activity, usageConfig, dialogConfig, {
       create: true,
       rollMode: rollInfo.rollMode,
       data: {
@@ -745,6 +745,7 @@ export class DnDBRollExecutor {
     const healingMessageData = SystemCompat.isDnd5e60OrLater()
       ? SystemCompat.getRollMessageData(activity, "healing", { targets })
       : { flags: { dnd5e: { roll: { type: "damage" }, targets } } };
+    foundry.utils.mergeObject(healingMessageData, SystemCompat.getOriginMessageData(usageResult?.message?.id, "damage"));
     const messageConfig = foundry.utils.mergeObject({
       speaker: ChatMessage.getSpeaker({ actor }),
       author: owner.id,

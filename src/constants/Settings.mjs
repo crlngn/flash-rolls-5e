@@ -635,12 +635,43 @@ export const getSettings = () => {
     },
 
     debugMode: {
-      tag: "debug-mode-on", 
+      tag: "debug-mode-on",
       label: game.i18n.localize("FLASH_ROLLS.settings.debugMode.label"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.debugMode.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
       default: false,
+      scope: SETTING_SCOPE.client,
+      config: true
+    },
+
+    compactActivityCards: {
+      tag: "compact-activity-cards",
+      label: game.i18n.localize("FLASH_ROLLS.settings.compactActivityCards.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.compactActivityCards.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.client,
+      config: true
+    },
+    collapseCardTags: {
+      tag: "collapse-card-tags",
+      label: game.i18n.localize("FLASH_ROLLS.settings.collapseCardTags.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.collapseCardTags.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.client,
+      config: true
+    },
+    labeledCardButtons: {
+      tag: "labeled-card-buttons",
+      label: game.i18n.localize("FLASH_ROLLS.settings.labeledCardButtons.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.labeledCardButtons.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
       scope: SETTING_SCOPE.client,
       config: true
     },

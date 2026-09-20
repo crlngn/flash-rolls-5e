@@ -437,4 +437,4 @@ I suggest you uncheck the setting "Treat Rolls from Player Sheets as Requests" w
 
 ## License
 
-This module is licensed under the GNU General Public License v3.0 or later. See the LICENSE file for details.
+This module is licensed under [Creative Commons Attribution-NonCommercial 4.0](https://creativecommons.org/licenses/by-nc/4.0/): you may use, share and adapt it for non-commercial purposes with credit. Commercial use requires permission. Releases before this change remain under the GNU General Public License v3.0 or later. See the LICENSE file for details and third-party notices.

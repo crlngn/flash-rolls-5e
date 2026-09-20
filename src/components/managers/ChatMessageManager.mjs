@@ -101,6 +101,83 @@ export class ChatMessageManager {
    */
   static onCreateChatMessage(message, options, userId, data) {
     LogUtil.log('ChatMessageManager.onCreateChatMessage', [message, options, userId, data]);
+    if (game.user.isGM) ChatMessageManager._propagateTargetsToOrigin(message);
+  }
+
+  /**
+   * Remember, on every client, when a message that had no targets is about to receive some, so the
+   * targeting mode dnd5e stored for it can be reset once the update lands
+   * @param {ChatMessage} message - The message being updated
+   * @param {Object} changed - The differential update
+   */
+  static onPreUpdateChatMessage(message, changed) {
+    const incoming = SystemCompat.isDnd5e60OrLater() ? changed?.system?.targets : changed?.flags?.dnd5e?.targets;
+    if (!Array.isArray(incoming) || incoming.length === 0) return;
+    if (SystemCompat.getMessageTargets(message).length > 0) return;
+    message._flashResetTargetMode = true;
+  }
+
+  /**
+   * Reset the targeting mode of a card that just received its first targets. dnd5e's
+   * recorded-targets element forces "selected" mode when a card renders without targets and
+   * stores that mode on the message, where the rolls folded into the card inherit it; without a
+   * reset the damage tray would keep listing the controlled token instead of the recorded targets.
+   * @param {ChatMessage} message - The updated message
+   */
+  static onUpdateChatMessage(message) {
+    if (!message._flashResetTargetMode) return;
+    delete message._flashResetTargetMode;
+    if (message._targetState?.mode === "selected") {
+      message._targetState.mode = "";
+      LogUtil.log('ChatMessageManager.onUpdateChatMessage - reset targeting mode after targets were recorded', [message.id]);
+    }
+    for (const roll of dnd5e?.registry?.messages?.get?.(message.id) ?? []) {
+      if (roll._targetState?.mode === "selected") roll._targetState.mode = "";
+    }
+    ui.chat?.updateMessage(message);
+  }
+
+  /**
+   * Give a damage or healing roll that recorded no targets the targets of the usage card it was
+   * rolled from, the way the card's own Damage button does, so the damage tray folded into the
+   * card applies to the card's targets. Runs on the creating client before the message is saved.
+   * @param {ChatMessage} message - The message being created
+   */
+  static _inheritTargetsFromOrigin(message) {
+    const rollType = SystemCompat.getMessageRollType(message);
+    if (rollType !== 'damage' && rollType !== 'healing') return;
+    const ownTargets = SystemCompat.getMessageTargets(message);
+    const originId = SystemCompat.getMessageOriginId(message);
+    LogUtil.log('ChatMessageManager._inheritTargetsFromOrigin', [rollType, 'own targets:', ownTargets.length, 'origin:', originId, 'user targets:', game.user.targets?.size]);
+    if (ownTargets.length > 0 || !originId) return;
+    const origin = game.messages.get(originId);
+    const targets = SystemCompat.getMessageTargets(origin);
+    if (!targets.length) return;
+    const key = SystemCompat.isDnd5e60OrLater() ? "system.targets" : "flags.dnd5e.targets";
+    message.updateSource({ [key]: foundry.utils.deepClone(targets) });
+    LogUtil.log('ChatMessageManager._inheritTargetsFromOrigin - copied targets from usage card', [originId, targets.length]);
+  }
+
+  /**
+   * Copy the targets of a roll message onto the usage card it was rolled from when that card
+   * recorded none. Template spells such as Fireball are cast before any token is targeted, so
+   * the usage card starts without targets and the damage roll is the first message to carry the
+   * tokens the template auto-targeted; the card needs them to list the saves. Runs on the GM
+   * client only, which sees every message and may update any of them.
+   * @param {ChatMessage} message - The created message
+   */
+  static _propagateTargetsToOrigin(message) {
+    const rollType = SystemCompat.getMessageRollType(message);
+    if (!['damage', 'healing', 'attack'].includes(rollType)) return;
+    const targets = SystemCompat.getMessageTargets(message);
+    if (!targets.length) return;
+    const originId = SystemCompat.getMessageOriginId(message);
+    const origin = originId ? game.messages.get(originId) : null;
+    if (!origin || SystemCompat.getMessageTargets(origin).length > 0) return;
+    LogUtil.log('ChatMessageManager._propagateTargetsToOrigin', [origin.id, targets.length]);
+    SystemCompat.recordTargetsOnMessage(origin, targets).catch(error => {
+      LogUtil.warn('ChatMessageManager._propagateTargetsToOrigin - update failed', [error]);
+    });
   }
 
   /**
@@ -112,6 +189,7 @@ export class ChatMessageManager {
    */
   static onPreCreateChatMessage(message, data, options, userId) {
     LogUtil.log('ChatMessageManager.onPreCreateChatMessage', [message, data, options, userId]);
+    ChatMessageManager._inheritTargetsFromOrigin(message);
 
     if (data._showRequestedBy && data.rolls?.length > 0) {
       const requestedBy = data._requestedBy || 'GM';
@@ -384,13 +462,37 @@ export class ChatMessageManager {
   /**
    * Handle dnd5e's own render hook, which fires after the system has inserted roll markup
    * and trays (dnd5e 6.0+ only). Runs the steps that must see the final card markup.
+   * A damage card folded into its usage card as a summary is hidden and gets no Select Targeted
+   * button here: the shared compact cards package draws its own on the damage row.
    * @param {ChatMessage} message - The message being rendered
    * @param {HTMLElement} html - The rendered HTML
    */
   static onDnd5eRenderChatMessage(message, html) {
     if (message.getFlag(MODULE_ID, 'preventRender')) return;
-    this._addSelectTargetsButton(message, html);
+    if (!SystemCompat.isSummarizedMessage(message)) this._addSelectTargetsButton(message, html);
     this._applyChallengeVisibility(message, html);
+  }
+
+  /**
+   * Build the "Select Targeted" button for a message
+   * @param {ChatMessage} message - The message whose recorded targets the button selects
+   * @returns {HTMLButtonElement}
+   */
+  static _createSelectTargetsButton(message) {
+    const button = document.createElement('button');
+    button.className = 'select-targeted';
+    button.type = 'button';
+    button.setAttribute("data-tooltip-direction", "LEFT");
+    button.setAttribute("data-tooltip", game.i18n.localize("FLASH_ROLLS.ui.buttons.selectTargeted"));
+    button.setAttribute("aria-label", game.i18n.localize("FLASH_ROLLS.ui.buttons.selectTargeted"));
+    button.innerHTML = '<i class="fas fa-crosshairs"></i>';
+
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._selectTargetedTokens(event, message);
+    });
+    return button;
   }
 
   /**
@@ -475,7 +577,9 @@ export class ChatMessageManager {
   }
 
   /**
-   * Add "Select Targeted" button to damage roll messages with saves
+   * Add "Select Targeted" button to damage roll messages with saves.
+   * On dnd5e 6.0+ typed cards are rendered from templates, so the button is only added to
+   * the DOM; the 5.x content update is kept unchanged.
    * @param {ChatMessage} message - The chat message
    * @param {jQuery} html - The rendered HTML
    */
@@ -486,21 +590,13 @@ export class ChatMessageManager {
     LogUtil.log("ChatMessageManager._addSelectTargetsButton #0", [message, html]);
     if (SystemCompat.getMessageRollType(message) !== 'damage' || html.querySelector('.select-targeted')) return;
 
-    const button = document.createElement('button');
-    button.className = 'select-targeted';
-    button.type = 'button';
-    button.setAttribute("data-tooltip-direction", "LEFT");
-    button.setAttribute("data-tooltip", "Select Targeted");
-    button.innerHTML = '<i class="fas fa-crosshairs"></i>';
-
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      this._selectTargetedTokens(event);
-    });
+    const button = this._createSelectTargetsButton(message);
 
     const container = html.querySelector('.message-content');
+    if (!container) return;
     container.classList.add('flash5e-select-targeted-host');
     container.appendChild(button);
+    if (SystemCompat.isDnd5e60OrLater()) return;
     message.update({
       content: html
     });
@@ -512,11 +608,12 @@ export class ChatMessageManager {
    * (the card markup no longer carries `data-target-uuid`); on 5.x they are parsed from
    * the rendered target list as before.
    * @param {Event} event - The click event
+   * @param {ChatMessage} [sourceMessage] - Message whose recorded targets to select; defaults to the rendered card's
    */
-  static _selectTargetedTokens(event) {
+  static _selectTargetedTokens(event, sourceMessage) {
     const messageElement = event.currentTarget.closest('.chat-message');
     if (SystemCompat.isDnd5e60OrLater()) {
-      const message = game.messages.get(messageElement?.dataset.messageId);
+      const message = sourceMessage ?? game.messages.get(messageElement?.dataset.messageId);
       const tokens = SystemCompat.getMessageTargets(message)
         .map(descriptor => SystemCompat.resolveTargetToken(descriptor))
         .filter(token => token?.control);

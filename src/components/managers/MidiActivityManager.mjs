@@ -350,7 +350,8 @@ export class MidiActivityManager {
       rollMode: config.message?.rollMode,
       skipRollDialog: config.usage.skipRollDialog,
       consume: config.usage.consume,
-      create: config.usage.create
+      create: config.usage.create,
+      originMessageId: config.usage.originMessageId ?? null
     };
 
     config.message.create = true;
@@ -386,7 +387,8 @@ export class MidiActivityManager {
       create: config.message?.create !== false,
       scaling: config.usage.scaling,
       skipRollDialog: config.usage.skipRollDialog,
-      consume: config.usage.consume
+      consume: config.usage.consume,
+      originMessageId: config.usage.originMessageId ?? null
     };
 
     if (isAttackActivityDamageRequest) {

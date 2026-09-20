@@ -19,6 +19,8 @@ export const HOOKS_CORE = {
   USER_CONNECTED: "userConnected",
   PRE_CREATE_CHAT_MESSAGE: "preCreateChatMessage",
   CREATE_CHAT_MESSAGE: "createChatMessage",
+  PRE_UPDATE_CHAT_MESSAGE: "preUpdateChatMessage",
+  UPDATE_CHAT_MESSAGE: "updateChatMessage",
   RENDER_ROLL_CONFIGURATION_DIALOG: "renderRollConfigurationDialog",
   COLLAPSE_SIDE_BAR: "collapseSidebar",
   REFRESH_MEASURED_TEMPLATE: "refreshMeasuredTemplate",
@@ -205,4 +207,14 @@ export const HOOKS_TIDY5E = {
  */
 export const HOOKS_MODULE = {
   READY: "ready"
+}
+
+/**
+ * Hooks fired by the compact activity cards feature (dnd5e 6.0), whichever module runs it
+ * @type {Object}
+ */
+export const HOOKS_COMPACT_CARDS = {
+  RENDER_ROLL: "dnd5e-compact-cards.renderRoll",
+  RENDER_CARD: "dnd5e-compact-cards.renderCard",
+  RESOLVED: "dnd5e-compact-cards.resolved"
 }

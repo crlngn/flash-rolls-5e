@@ -6,6 +6,7 @@ import { LogUtil } from "../utils/LogUtil.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
 import { TokenMovementManager } from "./TokenMovementManager.mjs";
+import { CompactCardsUtil } from "./CompactCardsUtil.mjs";
 
 /**
  * Utility class for managing module settings
@@ -228,6 +229,15 @@ export class SettingsUtil {
         break;
       case SETTINGS.autoBlockMovementInCombat.tag:
         SettingsUtil.applyAutoBlockMovementInCombat(newValue);
+        break;
+      case SETTINGS.compactActivityCards.tag:
+        CompactCardsUtil.applyCompactCards(newValue);
+        break;
+      case SETTINGS.collapseCardTags.tag:
+        CompactCardsUtil.applyCollapseTags(newValue);
+        break;
+      case SETTINGS.labeledCardButtons.tag:
+        CompactCardsUtil.applyLabeledButtons(newValue);
         break;
       default:
         break;
