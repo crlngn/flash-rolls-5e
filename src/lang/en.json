@@ -241,7 +241,8 @@
           "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "dndBeyond": "D&D Beyond (Patreon features)"
+          "dndBeyond": "D&D Beyond (Patreon features)",
+          "activityChatCards": "Activity Chat Cards"
         },
         "connectPatreon": "Connect to Patreon",
         "connectPatreonHint": "Open the Patreon features dialog to authenticate and unlock D&D Beyond integration."
@@ -553,7 +554,7 @@
         "hint": "Internal flag tracking whether legacy token associations have been migrated to the new scene-based format."
       },
       "compactActivityCards": {
-        "label": "Compact activity cards (dnd5e 6.0)",
+        "label": "Compact activity cards",
         "hint": "Fold attack, damage and healing rolls into the activity card that created them, as rows with a total on the right and a drawer with the dice breakdown. Requires dnd5e 6.0 and its own 'Summarize Chat Cards' setting. When Carolingian UI is active, whichever module ships the newer version of this feature runs it."
       },
       "collapseCardTags": {

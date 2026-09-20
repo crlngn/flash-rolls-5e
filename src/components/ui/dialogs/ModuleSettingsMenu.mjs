@@ -1,3 +1,4 @@
+import { CompactCardsUtil } from "../../utils/CompactCardsUtil.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
 import { getSettingMenus } from "../../../constants/SettingMenus.mjs";
 import { LogUtil } from "../../utils/LogUtil.mjs"
@@ -173,6 +174,10 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
 
           if (menuContext.fieldValues) {
             Object.assign(partContext, menuContext.fieldValues);
+          }
+
+          if (partId === 'generalSettings') {
+            partContext.compactCardsHandledBy = CompactCardsUtil.getHandledByHint();
           }
 
           // Add icon layout data for interface settings

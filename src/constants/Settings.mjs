@@ -34,7 +34,10 @@ export const getSettings = () => {
         'templateRemovalTimeout',
         'tokenMovementSpeed',
         'autoBlockMovementInCombat',
-        'disableNotifications'
+        'disableNotifications',
+        'compactActivityCards',
+        'collapseCardTags',
+        'labeledCardButtons'
       ],
       default: {
         skipRollDialog: false,
@@ -48,7 +51,10 @@ export const getSettings = () => {
         tokenMovementSpeed: 6,
         templateRemovalTimeout: 5,
         autoBlockMovementInCombat: false,
-        disableNotifications: false
+        disableNotifications: false,
+        compactActivityCards: true,
+        collapseCardTags: true,
+        labeledCardButtons: true
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -653,7 +659,7 @@ export const getSettings = () => {
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.client,
-      config: true
+      config: false
     },
     collapseCardTags: {
       tag: "collapse-card-tags",
@@ -663,7 +669,7 @@ export const getSettings = () => {
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.client,
-      config: true
+      config: false
     },
     labeledCardButtons: {
       tag: "labeled-card-buttons",
@@ -673,7 +679,7 @@ export const getSettings = () => {
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.client,
-      config: true
+      config: false
     },
 
     showMenuOnLoad: {

@@ -14,9 +14,6 @@ export class CompactCardsUtil {
   /** @type {import("../../../shared/dnd5e-compact-cards/src/CompactCards5e.mjs").CompactCards5e|null} */
   static instance = null;
 
-  /** Setting keys whose hint is rewritten when another module handles the feature */
-  static SETTING_KEYS = ["compactActivityCards", "collapseCardTags", "labeledCardButtons"];
-
   /**
    * Register this module's copy of the feature. Must run during the init hook, after settings
    * are registered.
@@ -56,18 +53,31 @@ export class CompactCardsUtil {
   }
 
   /**
-   * When another module's copy was activated, point this module's settings at it
+   * Id of the other module handling the feature, or null when this module runs it
+   * @returns {string|null}
+   */
+  static get handledBy() {
+    return CompactCardsUtil.instance?.handledBy ?? null;
+  }
+
+  /**
+   * Localized notice, shown above the compact card settings, that another module handles the
+   * feature on this client; empty when this module runs it
+   * @returns {string}
+   */
+  static getHandledByHint() {
+    const handledBy = CompactCardsUtil.handledBy;
+    if (!handledBy) return "";
+    const title = game.modules.get(handledBy)?.title ?? handledBy;
+    return game.i18n.format("FLASH_ROLLS.compactCards.handledBy", { module: title });
+  }
+
+  /**
+   * Log which module was activated when it is not this one
    * @param {string} activeId - Id of the module running the feature
    */
   static onResolved(activeId) {
     if (activeId === MODULE_ID) return;
-    const SETTINGS = getSettings();
-    const title = game.modules.get(activeId)?.title ?? activeId;
-    const hint = game.i18n.format("FLASH_ROLLS.compactCards.handledBy", { module: title });
-    for (const key of CompactCardsUtil.SETTING_KEYS) {
-      const setting = game.settings.settings.get(`${MODULE_ID}.${SETTINGS[key].tag}`);
-      if (setting) setting.hint = hint;
-    }
     LogUtil.log("CompactCardsUtil.onResolved - handled by another module", [activeId]);
   }
 
