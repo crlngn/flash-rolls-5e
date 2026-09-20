@@ -102,7 +102,7 @@
     </div>
   </fieldset>
 
-  <fieldset class="activity-chat-cards">
+  <fieldset class="activity-chat-cards{{#if compactCardsHandledBy}} handled-elsewhere{{/if}}">
     <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.activityChatCards"}}</legend>
     {{#if compactCardsHandledBy}}
     <p class="hint on">{{compactCardsHandledBy}}</p>
@@ -110,19 +110,19 @@
 
     <div class="form-group">
       <label for="compactActivityCards">{{fields.compactActivityCards.label}}</label>
-      <input type="checkbox" name="compactActivityCards" id="compactActivityCards" {{#if compactActivityCards}}checked{{/if}} />
+      <input type="checkbox" name="compactActivityCards" id="compactActivityCards" {{#if compactActivityCards}}checked{{/if}} {{#if ../compactCardsHandledBy}}disabled{{/if}} />
       <p class="hint">{{{fields.compactActivityCards.hint}}}</p>
     </div>
 
     <div class="form-group">
       <label for="collapseCardTags">{{fields.collapseCardTags.label}}</label>
-      <input type="checkbox" name="collapseCardTags" id="collapseCardTags" {{#if collapseCardTags}}checked{{/if}} />
+      <input type="checkbox" name="collapseCardTags" id="collapseCardTags" {{#if collapseCardTags}}checked{{/if}} {{#if ../compactCardsHandledBy}}disabled{{/if}} />
       <p class="hint">{{{fields.collapseCardTags.hint}}}</p>
     </div>
 
     <div class="form-group">
       <label for="labeledCardButtons">{{fields.labeledCardButtons.label}}</label>
-      <input type="checkbox" name="labeledCardButtons" id="labeledCardButtons" {{#if labeledCardButtons}}checked{{/if}} />
+      <input type="checkbox" name="labeledCardButtons" id="labeledCardButtons" {{#if labeledCardButtons}}checked{{/if}} {{#if ../compactCardsHandledBy}}disabled{{/if}} />
       <p class="hint">{{{fields.labeledCardButtons.hint}}}</p>
     </div>
   </fieldset>

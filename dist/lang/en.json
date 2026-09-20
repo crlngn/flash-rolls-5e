@@ -888,7 +888,7 @@
       "targets": "targets",
       "showAllTags": "Show all tags",
       "showFewerTags": "Show fewer tags",
-      "handledBy": "Compact activity cards are handled by {module} on this client. Its settings apply and this one is ignored.",
+      "handledBy": "Compact activity cards are handled by {module} on this client. Its settings apply and the ones below are ignored.",
       "selectTargeted": "Select the tokens this roll targeted",
       "noRecordedTargets": "This roll recorded no targets on the current scene."
     }
