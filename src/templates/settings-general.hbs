@@ -102,6 +102,7 @@
     </div>
   </fieldset>
 
+  {{#if showCompactCardSettings}}
   <fieldset class="activity-chat-cards{{#if compactCardsHandledBy}} handled-elsewhere{{/if}}">
     <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.activityChatCards"}}</legend>
     {{#if compactCardsHandledBy}}
@@ -126,5 +127,6 @@
       <p class="hint">{{{fields.labeledCardButtons.hint}}}</p>
     </div>
   </fieldset>
+  {{/if}}
   
 </section>

@@ -1,4 +1,5 @@
 import { CompactCardsUtil } from "../../utils/CompactCardsUtil.mjs";
+import { SystemCompat } from "../../utils/SystemCompat.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
 import { getSettingMenus } from "../../../constants/SettingMenus.mjs";
 import { LogUtil } from "../../utils/LogUtil.mjs"
@@ -177,6 +178,7 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
           }
 
           if (partId === 'generalSettings') {
+            partContext.showCompactCardSettings = SystemCompat.isDnd5e60OrLater();
             partContext.compactCardsHandledBy = CompactCardsUtil.getHandledByHint();
           }
 
