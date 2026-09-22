@@ -8,7 +8,9 @@ import { LogUtil } from "./LogUtil.mjs";
  * Host wrapper for the compact activity cards feature shared with Carolingian UI
  * (`shared/dnd5e-compact-cards`). Registers this module's copy at init; the shared registry
  * activates exactly one copy at setup, and when another module wins the settings of this one
- * get a hint pointing at it.
+ * get a hint pointing at it. The compact cards setting is kept in sync with the dnd5e "Summary
+ * Chat Cards" client setting: this module's value wins at load, and afterwards whichever of the
+ * two the user changed last applies to both.
  */
 export class CompactCardsUtil {
   /** @type {import("../../../shared/dnd5e-compact-cards/src/CompactCards5e.mjs").CompactCards5e|null} */
@@ -27,6 +29,7 @@ export class CompactCardsUtil {
       i18nPrefix: "FLASH_ROLLS.compactCards",
       settings: {
         compactCards: () => SettingsUtil.get(SETTINGS.compactActivityCards.tag),
+        setCompactCards: (value) => CompactCardsUtil.setCompactCards(value),
         collapseTags: () => SettingsUtil.get(SETTINGS.collapseCardTags.tag),
         labeledButtons: () => SettingsUtil.get(SETTINGS.labeledCardButtons.tag)
       },
@@ -79,6 +82,19 @@ export class CompactCardsUtil {
   static onResolved(activeId) {
     if (activeId === MODULE_ID) return;
     LogUtil.log("CompactCardsUtil.onResolved - handled by another module", [activeId]);
+  }
+
+  /**
+   * Write the compact cards setting when the dnd5e "Summary Chat Cards" setting changed, and
+   * update the checkbox in this module's settings dialog if it is open, since that form does not
+   * re-render and would otherwise save its stale value back
+   * @param {boolean} value
+   */
+  static async setCompactCards(value) {
+    const SETTINGS = getSettings();
+    await SettingsUtil.set(SETTINGS.compactActivityCards.tag, value);
+    const inputs = document.querySelectorAll('#flash-rolls-settings input[type="checkbox"][name="compactActivityCards"]');
+    for (const input of inputs) input.checked = value;
   }
 
   /**
