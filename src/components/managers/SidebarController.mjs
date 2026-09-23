@@ -139,9 +139,10 @@ export class SidebarController {
    * @param {boolean} enabled - Whether roll requests are enabled
    */
   static updateRollRequestsIcon(enabled) {
-    const sidebarIcon = document.querySelector('#flash-rolls-icon i');
-    if (sidebarIcon) {
-      sidebarIcon.className = `fas fa-bolt${enabled ? '' : '-slash'}`;
+    for (const button of document.querySelectorAll('.flash-rolls-icon')) {
+      button.classList.toggle('active', !!enabled);
+      const icon = button.querySelector('i');
+      if (icon) icon.className = `fas fa-bolt${enabled ? '' : '-slash'}`;
     }
 
     if (this.shouldUseSceneControls() && ui.controls?.rendered) {

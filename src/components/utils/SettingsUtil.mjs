@@ -7,6 +7,7 @@ import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
 import { TokenMovementManager } from "./TokenMovementManager.mjs";
 import { CompactCardsUtil } from "./CompactCardsUtil.mjs";
+import { SidebarController } from "../managers/SidebarController.mjs";
 
 /**
  * Utility class for managing module settings
@@ -239,6 +240,9 @@ export class SettingsUtil {
       case SETTINGS.labeledCardButtons.tag:
         CompactCardsUtil.applyLabeledButtons(newValue);
         break;
+      case SETTINGS.retroAdvantageButtons.tag:
+        CompactCardsUtil.applyRetroAdvantage(newValue);
+        break;
       default:
         break;
     }
@@ -248,15 +252,14 @@ export class SettingsUtil {
     SettingsUtil.checkMidiQol();
   }
 
+  /**
+   * Reflect the roll requests setting in the UI, whichever way it was changed: the chat
+   * controls icon and, when open, the requests menu
+   * @param {boolean} newValue - Whether roll requests are enabled
+   */
   static applyRollRequestsEnabled(newValue){
-    const requestsIcon = document.querySelector(".chat-controls .flash-rolls-icon");
-    if(!requestsIcon){ return; }
-    
-    if(newValue){
-      requestsIcon.classList.add("active");
-    }else{
-      requestsIcon.classList.remove("active");
-    }
+    SidebarController.updateRollRequestsIcon(newValue);
+    RollRequestsMenu.refreshIfOpen();
   }
 
   static applyCompactMode(newValue){

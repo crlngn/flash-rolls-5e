@@ -37,7 +37,8 @@ export const getSettings = () => {
         'disableNotifications',
         'compactActivityCards',
         'collapseCardTags',
-        'labeledCardButtons'
+        'labeledCardButtons',
+        'retroAdvantageButtons'
       ],
       default: {
         skipRollDialog: false,
@@ -54,7 +55,8 @@ export const getSettings = () => {
         disableNotifications: false,
         compactActivityCards: true,
         collapseCardTags: true,
-        labeledCardButtons: true
+        labeledCardButtons: true,
+        retroAdvantageButtons: true
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -679,6 +681,16 @@ export const getSettings = () => {
       inputType: SETTING_INPUT.checkbox,
       default: true,
       scope: SETTING_SCOPE.client,
+      config: false
+    },
+    retroAdvantageButtons: {
+      tag: "retro-advantage-buttons",
+      label: game.i18n.localize("FLASH_ROLLS.settings.retroAdvantageButtons.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.retroAdvantageButtons.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
+      scope: SETTING_SCOPE.world,
       config: false
     },
 

@@ -31,7 +31,8 @@ export class CompactCardsUtil {
         compactCards: () => SettingsUtil.get(SETTINGS.compactActivityCards.tag),
         setCompactCards: (value) => CompactCardsUtil.setCompactCards(value),
         collapseTags: () => SettingsUtil.get(SETTINGS.collapseCardTags.tag),
-        labeledButtons: () => SettingsUtil.get(SETTINGS.labeledCardButtons.tag)
+        labeledButtons: () => SettingsUtil.get(SETTINGS.labeledCardButtons.tag),
+        retroAdvantage: () => SettingsUtil.get(SETTINGS.retroAdvantageButtons.tag)
       },
       log: (ref, data) => LogUtil.log(ref, data),
       warn: (ref, data) => LogUtil.warn(ref, data)
@@ -119,5 +120,13 @@ export class CompactCardsUtil {
    */
   static applyLabeledButtons(value) {
     CompactCardsUtil.instance?.applyLabeledButtons(value);
+  }
+
+  /**
+   * Apply the retroactive advantage buttons setting
+   * @param {boolean} value
+   */
+  static applyRetroAdvantage(value) {
+    CompactCardsUtil.instance?.applyRetroAdvantage(value);
   }
 }
