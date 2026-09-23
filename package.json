@@ -1,6 +1,6 @@
 {
   "name": "flash-rolls-5e",
-  "version": "1.30.2",
+  "version": "1.30.3",
   "description": "A FoundryVTT module for handling roll requests between users",
   "license": "CC-BY-NC-4.0",
   "private": true,
