@@ -48,6 +48,19 @@ You can calculate group roll results via API as well, see below.
     
   - When Roll Requests are activated, clicking to roll will open a opoup on player side, with all the selected configurations from DM. If you select advantage / disadvantage or situational bonus, the option should appear on player's side
 
+### D&D Beyond rolls - Getting your Cobalt cookie
+
+Flash Token Bar needs your D&D Beyond session cookie (called `CobaltSession`) to read your player's character sheets.
+
+1. Log in to [dndbeyond.com](https://www.dndbeyond.com) in your browser.
+2. Open developer tools: press **F12** (or **Cmd+Option+I** on Mac).
+3. Find the cookies:
+   - **Chrome / Edge:** Application tab → Cookies → `https://www.dndbeyond.com`
+   - **Firefox:** Storage tab → Cookies → `https://www.dndbeyond.com`
+4. Find the row named **CobaltSession** and copy its **Value**.
+5. Paste it into the module settings.
+
+> ⚠️ Treat this cookie like a password — don't share it. If you log out of D&D Beyond, the cookie stops working and you'll need to copy a new one.
 
 ### Macros
 
