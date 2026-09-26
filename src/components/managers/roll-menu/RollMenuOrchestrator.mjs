@@ -11,6 +11,7 @@ import { RollMenuConfig } from './RollMenuConfig.mjs';
 import { OfflinePlayerManager } from './OfflinePlayerManager.mjs';
 import { RollMenuExecutor } from './RollMenuExecutor.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
+import { SystemCompat } from '../../utils/SystemCompat.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
 import { HooksManager } from '../../core/HooksManager.mjs';
 
