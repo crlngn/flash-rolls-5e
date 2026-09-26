@@ -11,14 +11,24 @@ export class SystemCompat {
   static #isDnd5e60OrLater = null;
 
   /**
+   * Whether the active dnd5e system is at least the given version
+   * @param {string} minimum - Lowest acceptable system version, e.g. "5.3.0"
+   * @returns {boolean} False when the system version is unknown
+   */
+  static isDnd5eAtLeast(minimum) {
+    const version = game.system?.version;
+    if (!version) return false;
+    return !foundry.utils.isNewerVersion(minimum, version);
+  }
+
+  /**
    * Whether the active dnd5e system is version 6.0.0 or newer
    * @returns {boolean}
    */
   static isDnd5e60OrLater() {
     if (this.#isDnd5e60OrLater === null) {
-      const version = game.system?.version;
-      if (!version) return false;
-      this.#isDnd5e60OrLater = !foundry.utils.isNewerVersion("6.0.0", version);
+      if (!game.system?.version) return false;
+      this.#isDnd5e60OrLater = this.isDnd5eAtLeast("6.0.0");
     }
     return this.#isDnd5e60OrLater;
   }

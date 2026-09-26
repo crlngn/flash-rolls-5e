@@ -555,7 +555,7 @@
       },
       "compactActivityCards": {
         "label": "Compact activity cards",
-        "hint": "Fold attack, damage and healing rolls into the activity card that created them, as rows with a total on the right and a drawer with the dice breakdown. Requires dnd5e 6.0. Kept in sync with the system's 'Summary Chat Cards' client setting: changing either one changes both. When Carolingian UI is active, whichever module ships the newer version of this feature runs it."
+        "hint": "Fold attack, damage and healing rolls into the activity card that created them, as rows with a total on the right and a drawer with the dice breakdown. Requires dnd5e 5.3 or newer and is unavailable while midi-qol is active. On dnd5e 6.0 it is kept in sync with the system's 'Summary Chat Cards' client setting: changing either one changes both. When Carolingian UI is active, whichever module ships the newer version of this feature runs it."
       },
       "collapseCardTags": {
         "label": "Collapse card tags by default",

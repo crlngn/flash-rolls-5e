@@ -1,7 +1,9 @@
 import { registerCompactCards, getCompactCardsRegistry, COMPACT_CARDS_HOOKS } from "../../../shared/dnd5e-compact-cards/src/index.mjs";
+import { MIN_SYSTEM_VERSION } from "../../../shared/dnd5e-compact-cards/src/adapters/index.mjs";
 import { MODULE_ID } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
+import { SystemCompat } from "./SystemCompat.mjs";
 import { LogUtil } from "./LogUtil.mjs";
 
 /**
@@ -38,6 +40,15 @@ export class CompactCardsUtil {
       warn: (ref, data) => LogUtil.warn(ref, data)
     });
     Hooks.once(COMPACT_CARDS_HOOKS.RESOLVED, CompactCardsUtil.onResolved);
+  }
+
+  /**
+   * Whether the running dnd5e version is one the shared package has an adapter for
+   * (5.3.0 or newer), regardless of whether the feature is enabled or another module runs it
+   * @returns {boolean}
+   */
+  static isSystemSupported() {
+    return game.system?.id === "dnd5e" && SystemCompat.isDnd5eAtLeast(MIN_SYSTEM_VERSION);
   }
 
   /**

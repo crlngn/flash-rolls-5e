@@ -1,4 +1,5 @@
 import { getDefaultIconLayout } from "./IconMappings.mjs";
+import { SystemCompat } from "../components/utils/SystemCompat.mjs";
 
 export const SETTING_INPUT = {
   select: "select", 
@@ -53,10 +54,10 @@ export const getSettings = () => {
         templateRemovalTimeout: 5,
         autoBlockMovementInCombat: false,
         disableNotifications: false,
-        compactActivityCards: true,
+        compactActivityCards: SystemCompat.isDnd5e60OrLater(),
         collapseCardTags: true,
         labeledCardButtons: true,
-        retroAdvantageButtons: true
+        retroAdvantageButtons: !game.modules?.get("midi-qol")?.active
       },
       scope: SETTING_SCOPE.world,
       config: false, 
@@ -659,7 +660,7 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.compactActivityCards.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
+      default: SystemCompat.isDnd5e60OrLater(),
       scope: SETTING_SCOPE.client,
       config: false
     },
@@ -689,7 +690,7 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.retroAdvantageButtons.hint"),
       propType: Boolean,
       inputType: SETTING_INPUT.checkbox,
-      default: true,
+      default: !game.modules?.get("midi-qol")?.active,
       scope: SETTING_SCOPE.world,
       config: false
     },
