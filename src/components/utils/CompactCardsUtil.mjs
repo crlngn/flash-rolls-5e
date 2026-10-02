@@ -60,16 +60,23 @@ export class CompactCardsUtil {
   }
 
   /**
-   * Whether rolls linked to the given usage card will be folded into it on this client, by
-   * dnd5e's own chat card summaries on 6.0+ or by the compact activity cards on 5.x, which fold
-   * rolls into any activity usage card
+   * Whether rolls linked to the given usage card will be folded into it on this client. When a
+   * copy of the compact cards feature runs on this client, whichever module provides it, its state
+   * is the truth: it owns the compact cards setting and keeps dnd5e's "Summarize Chat Cards" in
+   * line with it. When no copy runs (unsupported system, or midi-qol active), dnd5e's own summaries
+   * on 6.0+ decide; nothing folds on 5.x then
    * @param {string|null|undefined} originMessageId - ID of the usage card
    * @returns {boolean}
    */
   static foldsIntoOrigin(originMessageId) {
     if (!originMessageId) return false;
-    if (SystemCompat.isDnd5e60OrLater()) return SystemCompat.originRendersSummaries(originMessageId);
-    return CompactCardsUtil.isActive && game.messages.get(originMessageId)?.type === "usage";
+    const origin = game.messages.get(originMessageId);
+    if (!origin) return false;
+    const isV6 = SystemCompat.isDnd5e60OrLater();
+    const cardFolds = isV6 ? !!origin.system?.rendersSummaries : origin.type === "usage";
+    const running = getCompactCardsRegistry()?.active;
+    if (running?.activated && running.isSupported) return CompactCardsUtil.isActive && cardFolds;
+    return isV6 && SystemCompat.isChatCardSummaryEnabled() && cardFolds;
   }
 
   /**

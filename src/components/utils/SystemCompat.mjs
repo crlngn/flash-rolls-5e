@@ -262,17 +262,6 @@ export class SystemCompat {
   }
 
   /**
-   * Whether dnd5e itself will render rolls linked to the given card as summaries on this client
-   * (dnd5e 6.0+ with "Summarize Chat Cards" on and a card that renders summaries)
-   * @param {string|null|undefined} originMessageId - ID of the usage card
-   * @returns {boolean}
-   */
-  static originRendersSummaries(originMessageId) {
-    if (!originMessageId || !this.isChatCardSummaryEnabled()) return false;
-    return !!game.messages.get(originMessageId)?.system?.rendersSummaries;
-  }
-
-  /**
    * Normalised roll information for a chat message, independent of system version.
    * `type` uses the 5.x vocabulary: ability, skill, tool, save, death, concentration,
    * attack, damage, healing, hitDie, hitPoints, generic, initiative.
