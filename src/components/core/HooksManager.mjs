@@ -461,12 +461,13 @@ export class HooksManager {
   /**
    * Handle crlngn-ui element visibility changes
    * Repositions flash rolls icon when chat controls are shown/hidden
-   * @param {Object} changedSettings - Object containing the changed visibility settings
+   * @param {string} settingTag - Tag of the crlngn-ui visibility setting that changed
+   * @param {*} value - New value of the setting
    */
-  static _onCrlngnElementVisibilityChanged(changedSettings) {
-    LogUtil.log("_onCrlngnElementVisibilityChanged", [changedSettings]);
+  static _onCrlngnElementVisibilityChanged(settingTag, value) {
+    LogUtil.log("_onCrlngnElementVisibilityChanged", [settingTag, value]);
 
-    if ('v2-chat-log-controls-hide' in changedSettings) {
+    if (settingTag === 'v2-chat-log-controls-hide') {
       SidebarController.repositionFlashRollsIcon();
     }
   }
@@ -1226,11 +1227,30 @@ export class HooksManager {
 
     const tokensToTarget = canvas.tokens.placeables.filter(token => {
       if (token.document.disposition > maxDisposition) return false;
-      const point = { x: token.center.x, y: token.center.y, elevation: token.document.elevation ?? 0 };
-      return regions.some(region => region.testPoint?.(point) || region.object?.testPoint?.(point, point.elevation));
+      return regions.some(region => this._isTokenInsideRegion(token, region));
     });
     LogUtil.log("HooksManager.onPostCreateTemplateRegions", [activity?.name, regions.length, tokensToTarget.length]);
     this._applyTemplateTargets(tokensToTarget);
+  }
+
+  /**
+   * Whether a token is inside a region, using Foundry's own containment test so the result matches
+   * what the region itself considers inside. On v14 that test covers the token's footprint, level
+   * and elevation, so a token is found even when its center sits on the region's edge, as with a
+   * single-square template; on v13 it is a center point test. Falls back to a center point test
+   * when the method is unavailable or throws.
+   * @param {Token} token - The token placeable
+   * @param {RegionDocument} region - The region created for the template
+   * @returns {boolean}
+   */
+  static _isTokenInsideRegion(token, region) {
+    try {
+      if (typeof token.document?.testInsideRegion === "function") return token.document.testInsideRegion(region);
+    } catch (error) {
+      LogUtil.warn("HooksManager._isTokenInsideRegion - containment test failed, using center point", [token.name, error]);
+    }
+    const point = { x: token.center.x, y: token.center.y, elevation: token.document.elevation ?? 0 };
+    return !!(region.testPoint?.(point) || region.object?.testPoint?.(point, point.elevation));
   }
 
   /**
