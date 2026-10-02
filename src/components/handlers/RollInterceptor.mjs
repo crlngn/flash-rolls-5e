@@ -18,6 +18,7 @@ import { ChatMessageManager } from '../managers/ChatMessageManager.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
 import { isTransientItem } from '../helpers/Helpers.mjs';
 import { SystemCompat } from '../utils/SystemCompat.mjs';
+import { CardSaveBatchHandler } from './CardSaveBatchHandler.mjs';
 
 /**
  * Handles intercepting D&D5e rolls on the GM side and redirecting them to players
@@ -202,6 +203,10 @@ export class RollInterceptor {
 
     // === Only intercept on GM side ===
     if (!game.user.isGM) return;
+
+    if (rollType === ROLL_TYPES.SAVE && !isMidiOn && CardSaveBatchHandler.intercept(config, message)) {
+      return false;
+    }
 
     // === Skip interception if shouldSkipDialog is true and no active player owner ===
     if (shouldSkipDialog && !isOwnerActive) {
