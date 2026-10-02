@@ -24,6 +24,8 @@
       "clickMapToPlaceTemplate": "Click on the map to place the template",
       "macroDataMalformed": "Macro execution failed. The macro data may be malformed.",
       "unknownRequestType": "Unknown request type '{requestType}'. Please check the macro configuration.",
+      "missingRollKey": "Request type '{requestType}' requires a rollKey.",
+      "invalidRollKey": "Unknown rollKey '{rollKey}' for request type '{requestType}'. Valid keys are listed in {lookup}.",
       "macroCreated": "Macro \"{macroName}\" created successfully",
       "actorAddedToFavorites": "{actor} was added to Flash Token Bar favorites",
       "actorRemovedFromFavorites": "{actor} was removed from Flash Token Bar favorites",

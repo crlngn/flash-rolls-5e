@@ -244,13 +244,32 @@ export class SystemCompat {
    * @returns {boolean}
    */
   static isSummarizedMessage(message) {
+    if (!this.isChatCardSummaryEnabled()) return false;
+    return !!(message?.system?.summaryTemplate && message.system.origin?.system?.rendersSummaries);
+  }
+
+  /**
+   * Whether dnd5e's own "Summarize Chat Cards" client setting is on (dnd5e 6.0+ only)
+   * @returns {boolean}
+   */
+  static isChatCardSummaryEnabled() {
     if (!this.isDnd5e60OrLater()) return false;
     try {
-      if (!game.settings.get("dnd5e", "chatCardSummary")) return false;
+      return !!game.settings.get("dnd5e", "chatCardSummary");
     } catch (error) {
       return false;
     }
-    return !!(message?.system?.summaryTemplate && message.system.origin?.system?.rendersSummaries);
+  }
+
+  /**
+   * Whether dnd5e itself will render rolls linked to the given card as summaries on this client
+   * (dnd5e 6.0+ with "Summarize Chat Cards" on and a card that renders summaries)
+   * @param {string|null|undefined} originMessageId - ID of the usage card
+   * @returns {boolean}
+   */
+  static originRendersSummaries(originMessageId) {
+    if (!originMessageId || !this.isChatCardSummaryEnabled()) return false;
+    return !!game.messages.get(originMessageId)?.system?.rendersSummaries;
   }
 
   /**

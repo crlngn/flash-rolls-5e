@@ -181,8 +181,8 @@ game.modules.get('flash-rolls-5e').api.requestRoll(options);
 Triggers roll requests for the provided actors using Flash Token Bar 5e's roll orchestration flow.
 
 **Parameters:**
-- `options.requestType` (string) - Type of roll: `'skill'`, `'ability'`, `'savingthrow'`, `'tool'`, `'initiative'`, `'deathsave'`, `'hitdie'`, `'custom'`
-- `options.rollKey` (string, optional) - Specific roll key (e.g., `'acr'` for Acrobatics, `'str'` for Strength)
+- `options.requestType` (string) - Type of roll: `'skill'`, `'abilitycheck'`, `'savingthrow'`, `'tool'`, `'concentration'`, `'initiative'`, `'deathsave'`, `'hitdie'`, `'custom'`. The aliases `'ability'`, `'check'` and `'save'` are also accepted. Attack, damage and item rolls are not available through this method.
+- `options.rollKey` (string, optional) - Which roll of that type to make. The keys come from the dnd5e system's own configuration, so they follow whatever the system (or a module) has registered in the running game. See [Roll keys](#roll-keys) below.
 - `options.actorIds` (string[], optional) - Array of actor IDs or token IDs to roll for
 - `options.dc` (number, optional) - Difficulty Class for the roll
 - `options.situationalBonus` (string, optional) - Situational bonus (e.g., `'+2'`, `'1d4'`)
@@ -191,6 +191,27 @@ Triggers roll requests for the provided actors using Flash Token Bar 5e's roll o
 - `options.rollMode` (string, optional) - Roll visibility mode from `CONST.DICE_ROLL_MODES`: `'publicroll'`, `'gmroll'`, `'blindroll'`, `'selfroll'`
 - `options.skipRollDialog` (boolean, optional) - Skip the roll dialog
 - `options.sendAsRequest` (boolean, optional) - Send to players instead of rolling locally. Default is true.
+- `options.groupRollId` (string, optional) - Group roll identifier for combining the rolls into one group roll card
+- `options.isContestedRoll` (boolean, optional) - Mark the request as part of a contested roll. Default is false.
+- `options.workflowId` (string, optional) - Midi-QOL workflow id, when the request is made from a Midi-QOL workflow. Lets the module recover the right check key from the workflow's check activity.
+- `options.originMessageId` (string, optional) - ID of the chat message the rolls belong to, such as an activity usage card. The roll messages are linked to it on both dnd5e generations (`system.origin` on 6.0+, `flags.dnd5e.originatingMessage` on 5.x). They are summarized in the card when it renders summaries: dnd5e's "Summarize Chat Cards" on 6.0+, or the compact activity cards on 5.x. When the card will render them, the card takes precedence: no group roll card is created and `groupRollId` is ignored (contested rolls excepted), and the linked roll messages are never removed after the roll. When nothing renders the card's summaries, the request behaves as if `originMessageId` had not been given.
+
+##### Roll keys
+
+`rollKey` is read from `CONFIG.DND5E`, the dnd5e system's configuration object. Run the lookups below in the browser console (F12) or a script macro to see the keys available in your game, including any added by modules or homebrew. A key that is missing, or not registered there, is rejected with an error notification and no request is sent. For `'custom'`, the formula must parse with Foundry's `Roll`.
+
+| `requestType` | `rollKey` | Where to find the keys |
+|---|---|---|
+| `'skill'` | Skill key, e.g. `'acr'`, `'ste'`, `'prc'` | `Object.keys(CONFIG.DND5E.skills)` |
+| `'abilitycheck'`, `'savingthrow'` | Ability key, e.g. `'str'`, `'dex'`, `'con'` | `Object.keys(CONFIG.DND5E.abilities)` |
+| `'tool'` | Tool key, e.g. `'thief'`, `'alchemist'`, `'lute'` | `Object.keys(CONFIG.DND5E.tools)`. The actor must own that tool for the roll to use its proficiency. |
+| `'custom'` | A roll formula, e.g. `'1d20 + @abilities.wis.mod'` | Any formula Foundry's `Roll` accepts. `@` references resolve against the actor's roll data (`actor.getRollData()`). |
+| `'concentration'`, `'initiative'`, `'deathsave'`, `'hitdie'` | Not used | Leave it out. Hit die rolls always use the largest denomination the actor has available. |
+
+For example, to list every skill with its label:
+```javascript
+Object.entries(CONFIG.DND5E.skills).map(([key, skill]) => `${key}: ${skill.label}`);
+```
 
 **Example:**
 ```javascript

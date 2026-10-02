@@ -18,6 +18,11 @@ export class RollMenuConfig {
    * @param {string} rollKey - The roll key
    * @param {boolean} skipRollDialog - Whether to skip dialogs
    * @param {Array} pcActors - PC actors with owners
+   * @param {Object} [configOverrides={}] - Options from the caller (menu, macro or FlashAPI.requestRoll)
+   * @param {string} [configOverrides.groupRollId] - Group roll id to carry into the configuration
+   * @param {boolean} [configOverrides.fromMidiWorkflow] - Whether the request comes from a Midi-QOL workflow
+   * @param {string} [configOverrides.workflowId] - Midi-QOL workflow id
+   * @param {string} [configOverrides.originMessageId] - Usage card the rolls should fold into
    * @returns {Promise<BasicRollProcessConfiguration|null>} Process configuration or null if cancelled
    */
   static async getRollConfiguration(actors, rollMethodName, rollKey, skipRollDialog, pcActors, configOverrides = {}) {
@@ -73,6 +78,10 @@ export class RollMenuConfig {
         config.workflowId = configOverrides.workflowId ?? null;
       }
 
+      if (config && configOverrides.originMessageId) {
+        config.originMessageId = configOverrides.originMessageId;
+      }
+
       return config;
     } else {
       const config = {
@@ -107,6 +116,10 @@ export class RollMenuConfig {
       if (configOverrides.fromMidiWorkflow) {
         config.fromMidiWorkflow = true;
         config.workflowId = configOverrides.workflowId ?? null;
+      }
+
+      if (configOverrides.originMessageId) {
+        config.originMessageId = configOverrides.originMessageId;
       }
 
       return config;

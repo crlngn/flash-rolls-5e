@@ -60,6 +60,29 @@ export class CompactCardsUtil {
   }
 
   /**
+   * Whether rolls linked to the given usage card will be folded into it on this client, by
+   * dnd5e's own chat card summaries on 6.0+ or by the compact activity cards on 5.x, which fold
+   * rolls into any activity usage card
+   * @param {string|null|undefined} originMessageId - ID of the usage card
+   * @returns {boolean}
+   */
+  static foldsIntoOrigin(originMessageId) {
+    if (!originMessageId) return false;
+    if (SystemCompat.isDnd5e60OrLater()) return SystemCompat.originRendersSummaries(originMessageId);
+    return CompactCardsUtil.isActive && game.messages.get(originMessageId)?.type === "usage";
+  }
+
+  /**
+   * Whether a roll message is folded into the usage card it points at on this client, so the
+   * message must be kept for the card to keep showing the roll
+   * @param {ChatMessage} message - The roll message
+   * @returns {boolean}
+   */
+  static isFoldedMessage(message) {
+    return CompactCardsUtil.foldsIntoOrigin(SystemCompat.getMessageOriginId(message));
+  }
+
+  /**
    * Id of the module running the feature, or null before the registry resolved
    * @returns {string|null}
    */

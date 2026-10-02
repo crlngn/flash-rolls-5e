@@ -12,6 +12,7 @@ import { OfflinePlayerManager } from './OfflinePlayerManager.mjs';
 import { RollMenuExecutor } from './RollMenuExecutor.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { SystemCompat } from '../../utils/SystemCompat.mjs';
+import { CompactCardsUtil } from '../../utils/CompactCardsUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
 import { HooksManager } from '../../core/HooksManager.mjs';
 
@@ -85,7 +86,12 @@ export class RollMenuOrchestrator {
       item && item.actor && allActorIds.includes(item.actor.id)
     ));
 
-    const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
+    const foldsIntoOrigin = !config.isContestedRoll && CompactCardsUtil.foldsIntoOrigin(config.originMessageId);
+    if (foldsIntoOrigin) {
+      LogUtil.log('orchestrateRollsForActors - rolls fold into their usage card, no group roll card', [config.originMessageId, config.groupRollId]);
+      config.groupRollId = null;
+    }
+    const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag) && !foldsIntoOrigin;
     const useCondensedRollMessage = SettingsUtil.get(SETTINGS.useCondensedRollMessage.tag);
     const showNPCRequestPrompt = SettingsUtil.get(SETTINGS.showNPCRequestPrompt.tag);
     const isMultiActorRoll = allActors.length > 1;
@@ -517,8 +523,7 @@ export class RollMenuOrchestrator {
     delete cleanConfig.skipRollDialog;
     delete cleanConfig.isRollRequest;
     delete cleanConfig.sendRequest;
-    
-    const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag) === true;
+    delete cleanConfig.originMessageId;
 
     if (!cleanConfig.rollMode) {
       const isPublicRollsOn = SettingsUtil.get(SETTINGS.publicPlayerRolls.tag) === true;
@@ -544,6 +549,7 @@ export class RollMenuOrchestrator {
       targetTokenIds: Array.from(game.user.targets).map(t => t.id),
       targets: SystemCompat.getTargetDescriptors(),
       preserveTargets: SettingsUtil.get(SETTINGS.useGMTargetTokens.tag),
+      originMessageId: config.originMessageId ?? null,
       fromMidiWorkflow: config.fromMidiWorkflow ?? false
     };
 

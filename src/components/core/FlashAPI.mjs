@@ -41,6 +41,12 @@ export class FlashAPI {
    * @param {boolean} [options.sendAsRequest] - Send to players instead of rolling locally
    * @param {string} [options.groupRollId=null] - Group roll identifier for combining multiple rolls into one message
    * @param {boolean} [options.isContestedRoll=false] - Whether this is part of a contested roll
+   * @param {string} [options.workflowId=null] - Midi-QOL workflow id, when the request comes from a workflow
+   * @param {string} [options.originMessageId=null] - ID of the chat message the rolls belong to. The roll
+   *   messages are linked to it on both dnd5e generations (`system.origin` on 6.0+,
+   *   `flags.dnd5e.originatingMessage` on 5.x) and fold into it wherever summaries render: dnd5e's own
+   *   chat card summaries on 6.0+, or the compact activity cards on 5.x. When the card will render them,
+   *   no group roll card is created and `groupRollId` is ignored, except for contested rolls
    * @returns {Promise<void>}
    */
   static async requestRoll(options = {}) {
@@ -53,6 +59,7 @@ export class FlashAPI {
 
       let { requestType, rollKey = null } = options;
       const { actorIds = [], dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest = true, groupRollId = null, isContestedRoll = false, workflowId = null } = options;
+      const originMessageId = typeof options.originMessageId === "string" && options.originMessageId ? options.originMessageId : null;
 
       if (!requestType) {
         ui.notifications.error(game.i18n.localize("FLASH_ROLLS.notifications.missingRequestType"));
@@ -60,9 +67,9 @@ export class FlashAPI {
       }
 
       const fromMidiWorkflow = !!workflowId;
-      const config = { dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest, groupRollId, isContestedRoll, fromMidiWorkflow, workflowId };
+      const config = { dc, situationalBonus, advantage, disadvantage, rollMode, skipRollDialog, sendAsRequest, groupRollId, isContestedRoll, fromMidiWorkflow, workflowId, originMessageId };
 
-      LogUtil.log('FlashAPI.requestRoll', [requestType, rollKey, actorIds, 'workflowId:', workflowId, 'fromMidiWorkflow:', fromMidiWorkflow, config]);
+      LogUtil.log('FlashAPI.requestRoll', [requestType, rollKey, actorIds, 'workflowId:', workflowId, 'fromMidiWorkflow:', fromMidiWorkflow, 'originMessageId:', originMessageId, config]);
 
       const normalized = FlashAPI.normalizeCheckRequest(FlashAPI.resolveRequestTypeAlias(requestType), rollKey, workflowId);
       requestType = normalized.requestType;
@@ -84,7 +91,14 @@ export class FlashAPI {
       }
       
       const normalizedRequestType = rollOption.name;
-      
+
+      const rollKeyError = FlashAPI.validateRollKey(normalizedRequestType, rollKey, workflowId);
+      if (rollKeyError) {
+        LogUtil.warn('FlashAPI.requestRoll - rejected roll key', [normalizedRequestType, rollKey]);
+        ui.notifications.error(rollKeyError);
+        return;
+      }
+
       if (actorIds.length === 0) {
         FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noActorsSelected"));
         return;
@@ -180,6 +194,55 @@ export class FlashAPI {
     if (CONFIG.DND5E?.tools?.[key] || CONFIG.DND5E?.vehicleTypes?.[key]) return ROLL_TYPES.TOOL;
     if (CONFIG.DND5E?.abilities?.[key]) return ROLL_TYPES.ABILITY_CHECK;
     return null;
+  }
+
+  /**
+   * dnd5e configuration each keyed request type reads its roll keys from, with the lookup shown to
+   * callers in error messages
+   * @returns {Object<string, {keys: Object, lookup: string}>}
+   */
+  static getRollKeySources() {
+    return {
+      [ROLL_TYPES.SKILL]: { keys: CONFIG.DND5E?.skills ?? {}, lookup: "CONFIG.DND5E.skills" },
+      [ROLL_TYPES.ABILITY_CHECK]: { keys: CONFIG.DND5E?.abilities ?? {}, lookup: "CONFIG.DND5E.abilities" },
+      [ROLL_TYPES.SAVING_THROW]: { keys: CONFIG.DND5E?.abilities ?? {}, lookup: "CONFIG.DND5E.abilities" },
+      [ROLL_TYPES.TOOL]: { keys: { ...(CONFIG.DND5E?.tools ?? {}), ...(CONFIG.DND5E?.vehicleTypes ?? {}) }, lookup: "CONFIG.DND5E.tools" }
+    };
+  }
+
+  /**
+   * Validate the roll key of a request against the dnd5e configuration
+   * Skill, ability check, saving throw and tool requests need a key registered in CONFIG.DND5E; custom
+   * requests need a formula Foundry can parse; the other request types ignore the key. A skill or tool
+   * request that carries a Midi-QOL workflow id may use an ability key instead, since Midi-QOL sends the
+   * check activity's ability and the rolling client recovers the real key from the workflow
+   * @param {string} requestType - Canonical roll request name from ROLL_REQUEST_OPTIONS
+   * @param {string|null|undefined} rollKey - Roll key provided by the caller
+   * @param {string|null} [workflowId=null] - Midi-QOL workflow id, when the request comes from a workflow
+   * @returns {string|null} Localized error message, or null when the key is acceptable
+   */
+  static validateRollKey(requestType, rollKey, workflowId = null) {
+    const hasKey = typeof rollKey === "string" && rollKey.trim() !== "";
+
+    if (requestType === ROLL_TYPES.CUSTOM) {
+      if (!hasKey) return game.i18n.format("FLASH_ROLLS.notifications.missingRollKey", { requestType });
+      if (!Roll.validate(rollKey)) return game.i18n.format("FLASH_ROLLS.notifications.invalidFormula", { formula: rollKey });
+      return null;
+    }
+
+    const source = FlashAPI.getRollKeySources()[requestType];
+    if (!source) return null;
+    if (!hasKey) return game.i18n.format("FLASH_ROLLS.notifications.missingRollKey", { requestType });
+    if (source.keys[rollKey]) return null;
+
+    const isCheckFromWorkflow = !!workflowId && (requestType === ROLL_TYPES.SKILL || requestType === ROLL_TYPES.TOOL);
+    if (isCheckFromWorkflow && CONFIG.DND5E?.abilities?.[rollKey]) return null;
+
+    return game.i18n.format("FLASH_ROLLS.notifications.invalidRollKey", {
+      rollKey,
+      requestType,
+      lookup: source.lookup
+    });
   }
 
   /**

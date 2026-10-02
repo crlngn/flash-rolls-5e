@@ -11,6 +11,7 @@ import { HooksManager } from "../core/HooksManager.mjs";
 import { RollRequestManager } from "./RollRequestManager.mjs";
 import { SocketUtil } from "../utils/SocketUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
+import { CompactCardsUtil } from "../utils/CompactCardsUtil.mjs";
 
 /**
  * Utility class for managing group roll chat messages
@@ -2095,8 +2096,12 @@ export class ChatMessageManager {
     if (game.user.isGM) {
       LogUtil.log('interceptRollMessage - Updating group message', [groupRollId, uniqueId, actor.name, roll.total, 'rollMode:', rollMode]);
       this.updateGroupRollMessage(groupRollId, uniqueId, roll, rollMode);
-      
-      this._scheduleMessageDeletion(message.id, 'interceptRollMessage');
+
+      if (CompactCardsUtil.isFoldedMessage(message)) {
+        LogUtil.log('interceptRollMessage - Message is folded into its usage card, keeping it', [message.id]);
+      } else {
+        this._scheduleMessageDeletion(message.id, 'interceptRollMessage');
+      }
     } else {
       // Player side - don't try to update the message (no permission)
       LogUtil.log('interceptRollMessage - Player roll intercepted, GM will handle update', [groupRollId]);
@@ -2285,6 +2290,10 @@ export class ChatMessageManager {
     LogUtil.log('_processMatchedExternalRoll - Updating group message', [groupRollId, uniqueId, actor.name, roll.total, 'rollMode:', rollMode]);
     this.updateGroupRollMessage(groupRollId, uniqueId, roll, rollMode);
 
+    if (CompactCardsUtil.isFoldedMessage(message)) {
+      LogUtil.log('_processMatchedExternalRoll - Message is folded into its usage card, keeping it', [message.id]);
+      return;
+    }
     this._scheduleMessageDeletion(message.id, '_processMatchedExternalRoll');
   }
 
@@ -2417,6 +2426,10 @@ export class ChatMessageManager {
     const SETTINGS = getSettings();
     const removeSaveMsgAfterRoll = SettingsUtil.get(SETTINGS.removeSaveMsgAfterRoll.tag);
     if (!removeSaveMsgAfterRoll) return;
+    if (CompactCardsUtil.isFoldedMessage(message)) {
+      LogUtil.log('_scheduleMidiSaveRemoval - Message is folded into its usage card, keeping it', [message.id]);
+      return;
+    }
 
     LogUtil.log('_scheduleMidiSaveRemoval - Scheduling hide/delete for Midi-QOL save message', [message.id]);
     this._scheduleDelayedMessageRemoval(message.id, '_scheduleMidiSaveRemoval');
@@ -2442,6 +2455,10 @@ export class ChatMessageManager {
 
     const isSaveRoll = rollType === ROLL_TYPES.SAVE || rollType === ROLL_TYPES.SAVING_THROW;
     if (!isSaveRoll) return;
+    if (CompactCardsUtil.isFoldedMessage(message)) {
+      LogUtil.log('_scheduleIndividualMessageRemoval - Message is folded into its usage card, keeping it', [message.id]);
+      return;
+    }
 
     LogUtil.log('_scheduleIndividualMessageRemoval - Scheduling hide/delete for individual save message', [message.id, 'midiRequestId:', midiRequestId]);
 
