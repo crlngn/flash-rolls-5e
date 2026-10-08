@@ -13,6 +13,7 @@ const PROXY_BASE_URL = "https://proxy.carolingian.io";
 export class DnDBConnection {
   static _eventSource = null;
   static _sessionId = null;
+  static _lastEventId = null;
   static _isConnecting = false;
   static _reconnectAttempts = 0;
   static _maxReconnectAttempts = 5;
@@ -91,6 +92,9 @@ export class DnDBConnection {
       }
 
       const data = await response.json();
+      if (data.sessionId !== this._sessionId) {
+        this._lastEventId = null;
+      }
       this._sessionId = data.sessionId;
 
       LogUtil.log("DnDBConnection: Connection established", [this._sessionId]);
@@ -108,7 +112,8 @@ export class DnDBConnection {
   }
 
   /**
-   * Establish the SSE event stream
+   * Establish the SSE event stream. When rejoining a session already used by this client,
+   * passes the last received event ID so the proxy only replays events that were missed.
    */
   static _establishEventStream() {
     if (!this._sessionId) {
@@ -117,7 +122,8 @@ export class DnDBConnection {
     }
 
     const sessionToken = PatronSessionManager.getSessionToken();
-    const eventUrl = `${PROXY_BASE_URL}/ddb/events/${this._sessionId}?token=${encodeURIComponent(sessionToken || '')}`;
+    const resumeParam = this._lastEventId ? `&lastEventId=${encodeURIComponent(this._lastEventId)}` : "";
+    const eventUrl = `${PROXY_BASE_URL}/ddb/events/${this._sessionId}?token=${encodeURIComponent(sessionToken || '')}${resumeParam}`;
 
     this._eventSource = new EventSource(eventUrl, {
       withCredentials: false
@@ -143,6 +149,9 @@ export class DnDBConnection {
    * @param {MessageEvent} event - The SSE event
    */
   static _handleEvent(event) {
+    if (event.lastEventId) {
+      this._lastEventId = event.lastEventId;
+    }
     const raw = event.data;
     if (raw === "pong" || raw === "ping") {
       return;
@@ -167,11 +176,50 @@ export class DnDBConnection {
   }
 
   /**
-   * Handle disconnection
+   * Handle a dropped event stream. Keeps the session ID so the next connect rejoins
+   * the same proxy session instead of leaving it orphaned.
    */
   static _handleDisconnect() {
-    this.disconnect();
+    this._closeStream();
+    this._notifyStatusChange();
     this._scheduleReconnect();
+  }
+
+  /**
+   * Close the local event stream and cancel pending reconnects, leaving the proxy session alive
+   */
+  static _closeStream() {
+    if (this._eventSource) {
+      this._eventSource.close();
+      this._eventSource = null;
+    }
+
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+
+    this._isConnecting = false;
+  }
+
+  /**
+   * Ask the proxy to close a session and its D&D Beyond socket
+   * @param {string} sessionId - Proxy session ID to close
+   */
+  static _endProxySession(sessionId) {
+    const sessionToken = PatronSessionManager.getSessionToken();
+    const headers = {};
+    if (sessionToken) {
+      headers["Authorization"] = `Bearer ${sessionToken}`;
+    }
+    fetch(`${PROXY_BASE_URL}/ddb/disconnect/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers,
+      keepalive: true
+    }).catch(error => {
+      LogUtil.log("DnDBConnection: Failed to end proxy session", [error.message]);
+    });
   }
 
   /**
@@ -219,21 +267,17 @@ export class DnDBConnection {
   }
 
   /**
-   * Disconnect from the proxy server
+   * Disconnect from the proxy server and end the proxy session
    */
   static disconnect() {
-    if (this._eventSource) {
-      this._eventSource.close();
-      this._eventSource = null;
-    }
+    this._closeStream();
 
-    if (this._reconnectTimer) {
-      clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = null;
+    if (this._sessionId) {
+      this._endProxySession(this._sessionId);
     }
 
     this._sessionId = null;
-    this._isConnecting = false;
+    this._lastEventId = null;
 
     LogUtil.log("DnDBConnection: Disconnected");
     this._notifyStatusChange();
