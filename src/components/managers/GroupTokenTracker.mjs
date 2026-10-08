@@ -743,7 +743,7 @@ export class GroupTokenTracker {
     }
 
     // Check for movement restrictions that might be inherited
-    if (moduleFlags.movementRestriction && !groupId) {
+    if ((moduleFlags.movementRestricted || moduleFlags.combatMovementRestricted) && !groupId) {
       // Token has movement restriction but no group association
       // This suggests it inherited the flag from a copy operation
       shouldCleanup = true;

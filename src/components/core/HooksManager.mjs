@@ -20,9 +20,12 @@ import { RollMenuDragManager } from "../managers/roll-menu/RollMenuDragManager.m
 import { RollHooksHandler } from "../handlers/RollHooksHandler.mjs";
 import { BaseActivityManager } from "../managers/BaseActivityManager.mjs";
 import { GroupTokenTracker } from "../managers/GroupTokenTracker.mjs";
-import { TokenMovementManager } from "../utils/TokenMovementManager.mjs";
-import { TokenAnimationManager } from "../managers/TokenAnimationManager.mjs";
-import { TokenTeleportManager } from "../managers/TokenTeleportManager.mjs";
+import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";
+import { TokenAnimationSpeed } from "@ftb-core/tokens/TokenAnimationSpeed.mjs";
+import { TokenTeleport } from "@ftb-core/tokens/TokenTeleport.mjs";
+import { TemplateAutoTarget } from "@ftb-core/tokens/TemplateAutoTarget.mjs";
+import { HOOKS_MODULE as CORE_HOOKS } from "@ftb-core/constants/Hooks.mjs";
+import { MovementFlagMigration } from "../utils/MovementFlagMigration.mjs";
 import { TooltipUtil } from "../utils/TooltipUtil.mjs";
 import { UpdateNewsUtil } from "../utils/UpdateNewsUtil.mjs";
 import { MidiActivityManager } from "../managers/MidiActivityManager.mjs";
@@ -38,7 +41,6 @@ import { PatronSessionManager } from "../managers/PatronSessionManager.mjs";
 export class HooksManager {
   static registeredHooks = new Map();
   static midiTimeout = null;
-  static throttleTimers = {};
   static activityConfigCache = new Map(); // In-memory cache for activity configs
   static CACHE_EXPIRY_MS = 30000; // 30 seconds expiry for cache entries
   static templateRemovalTimers = new Set(); // Track items that already have template removal scheduled
@@ -276,7 +278,7 @@ export class HooksManager {
     // Register all hooks after determining user role
     this._registerHooks();
 
-    TokenAnimationManager.initialize();
+    TokenAnimationSpeed.initialize();
     TooltipUtil.initialize();
 
     if (game.user.isGM) {
@@ -291,7 +293,8 @@ export class HooksManager {
       DiceConfigUtil.getDiceConfig();
     }
     updateSidebarClass(isSidebarExpanded());
-    TokenMovementManager.initializeCombatMovementRestrictions();
+    await MovementFlagMigration.run();
+    TokenMovementLock.initializeCombatMovementRestrictions();
 
     // Initialize public API for other modules
     const module = game.modules.get("flash-rolls-5e");
@@ -330,6 +333,7 @@ export class HooksManager {
     this._registerHook(HOOKS_CORE.REFRESH_MEASURED_TEMPLATE, this.onRefreshTemplate.bind(this));
     this._registerHook(HOOKS_DND5E.POST_CREATE_MEASURED_TEMPLATE, this.onPostCreateTemplateRegions.bind(this));
     this._registerHook(HOOKS_CORE.CANVAS_READY, this._onCanvasReady.bind(this));
+    this._registerHook(CORE_HOOKS.REFRESH_MENU, () => RollRequestsMenu.refreshIfOpen());
 
     // Chat message hooks (delegated to ChatMessageManager)
     this._registerHook(HOOKS_CORE.CREATE_CHAT_MESSAGE, ChatMessageManager.onCreateChatMessage.bind(ChatMessageManager));
@@ -911,7 +915,7 @@ export class HooksManager {
     const user = game.users.get(userId);
     if (!user) return;
 
-    const isMovementAllowed = TokenMovementManager.isMovementAllowed(tokenDoc, user, updateData);
+    const isMovementAllowed = TokenMovementLock.isMovementAllowed(tokenDoc, user, updateData);
     LogUtil.log('Movement check result:', { isMovementAllowed, user: user.name, token: tokenDoc.name });
 
     if (!isMovementAllowed) {
@@ -990,13 +994,7 @@ export class HooksManager {
     LogUtil.log('HooksManager._onCanvasReady - Re-rendering roll requests menu due to scene view change');
     RollRequestsMenu.refreshIfOpen();
 
-    const isTeleporting = TokenTeleportManager.isTeleporting();
-    LogUtil.log("HooksManager._onCanvasReady - Checking for teleport", { isTeleporting });
-
-    if (isTeleporting) {
-      LogUtil.log("HooksManager._onCanvasReady - Calling TokenTeleportManager._onSceneChange");
-      TokenTeleportManager._onSceneChange();
-    }
+    TokenTeleport.onSceneChange();
   }
 
   static _onActorUpdate(actor, changes, options, userId) {
@@ -1156,101 +1154,26 @@ export class HooksManager {
   }
 
   /**
-   * Maximum token disposition the template auto-targeting setting allows, or null when
-   * auto-targeting is disabled
-   * @returns {number|null}
-   */
-  static _getTemplateAutoTargetDisposition() {
-    const SETTINGS = getSettings();
-    switch (SettingsUtil.get(SETTINGS.templateAutoTarget.tag)) {
-      case 1: return 3;
-      case 2: return 0;
-      default: return null;
-    }
-  }
-
-  /**
-   * Replace the current user's targets with the given tokens and broadcast the change
-   * @param {Token[]} tokensToTarget - Tokens to target
-   */
-  static _applyTemplateTargets(tokensToTarget) {
-    game.user.targets.forEach(t => t.setTarget(false, { releaseOthers: false }));
-    tokensToTarget.forEach((token, i) => {
-      token.setTarget(true, { releaseOthers: i === 0, groupSelection: true });
-    });
-    if (tokensToTarget.length > 0) {
-      game.user.broadcastActivity({ targets: game.user.targets.ids });
-    }
-  }
-
-  /**
-   * TEMPLATES (dnd5e 5.x MeasuredTemplate placeables).
-   * Auto-targets tokens inside a template the current user placed, throttled per template.
+   * TEMPLATES (MeasuredTemplate placeables, dnd5e 5.x). Auto-targets tokens inside a template the
+   * current user placed.
    * @param {MeasuredTemplate} template - The refreshed template placeable
    * @param {Object} options - Refresh options
    */
   static onRefreshTemplate(template, options) {
-    if(template.document.author !== game.user){ return; }
-    const throttleKey = `refresh-template-${template.id}`;
-    
-    if (HooksManager.throttleTimers[throttleKey]) {
-      clearTimeout(HooksManager.throttleTimers[throttleKey]);
-    }
-
-    HooksManager.throttleTimers[throttleKey] = setTimeout(() => {
-      const maxDisposition = this._getTemplateAutoTargetDisposition();
-      if (maxDisposition === null) return;
-
-      const tokensToTarget = [];
-      for(let token of canvas.tokens.placeables){
-        if(token.document.disposition <= maxDisposition && template.shape.contains(token.center.x-template.x,token.center.y-template.y)){
-          tokensToTarget.push(token);
-        }
-      }
-      this._applyTemplateTargets(tokensToTarget);
-      delete HooksManager.throttleTimers[throttleKey];
-    }, 50);
+    TemplateAutoTarget.onRefreshMeasuredTemplate(template, options);
   }
 
   /**
-   * TEMPLATES (dnd5e 6.0+ Region documents).
-   * dnd5e 6.0 places activity templates as Regions and fires `dnd5e.postCreateMeasuredTemplate`
-   * on the placing client with the created RegionDocuments, so `refreshMeasuredTemplate`
-   * never fires for them. Auto-targets tokens whose center lies inside any created region.
+   * TEMPLATES (dnd5e 6.0+ Region documents). dnd5e 6.0 places activity templates as Regions and
+   * fires `dnd5e.postCreateMeasuredTemplate` on the placing client with the created RegionDocuments,
+   * so `refreshMeasuredTemplate` never fires for them.
    * @param {Activity} activity - Activity the templates were placed for
    * @param {RegionDocument[]} regions - The created regions
    */
   static onPostCreateTemplateRegions(activity, regions) {
     if (!SystemCompat.isDnd5e60OrLater() || !regions?.length) return;
-    const maxDisposition = this._getTemplateAutoTargetDisposition();
-    if (maxDisposition === null) return;
-
-    const tokensToTarget = canvas.tokens.placeables.filter(token => {
-      if (token.document.disposition > maxDisposition) return false;
-      return regions.some(region => this._isTokenInsideRegion(token, region));
-    });
-    LogUtil.log("HooksManager.onPostCreateTemplateRegions", [activity?.name, regions.length, tokensToTarget.length]);
-    this._applyTemplateTargets(tokensToTarget);
-  }
-
-  /**
-   * Whether a token is inside a region, using Foundry's own containment test so the result matches
-   * what the region itself considers inside. On v14 that test covers the token's footprint, level
-   * and elevation, so a token is found even when its center sits on the region's edge, as with a
-   * single-square template; on v13 it is a center point test. Falls back to a center point test
-   * when the method is unavailable or throws.
-   * @param {Token} token - The token placeable
-   * @param {RegionDocument} region - The region created for the template
-   * @returns {boolean}
-   */
-  static _isTokenInsideRegion(token, region) {
-    try {
-      if (typeof token.document?.testInsideRegion === "function") return token.document.testInsideRegion(region);
-    } catch (error) {
-      LogUtil.warn("HooksManager._isTokenInsideRegion - containment test failed, using center point", [token.name, error]);
-    }
-    const point = { x: token.center.x, y: token.center.y, elevation: token.document.elevation ?? 0 };
-    return !!(region.testPoint?.(point) || region.object?.testPoint?.(point, point.elevation));
+    const targeted = TemplateAutoTarget.targetTokensInRegions(regions);
+    LogUtil.log("HooksManager.onPostCreateTemplateRegions", [activity?.name, regions.length, targeted.length]);
   }
 
   /**
@@ -1309,7 +1232,7 @@ export class HooksManager {
    * @param {object} updateData - Update data
    */
   static _onCombatStart(combat, updateData) {
-    TokenMovementManager.onCombatStart(combat, updateData);
+    TokenMovementLock.onCombatStart(combat, updateData);
   }
 
   /**
@@ -1319,7 +1242,7 @@ export class HooksManager {
    * @param {object} current - The current turn state
    */
   static _onCombatTurnChange(combat, prior, current) {
-    TokenMovementManager.onCombatTurnChange(combat, prior, current);
+    TokenMovementLock.onCombatTurnChange(combat, prior, current);
   }
 
   /**
@@ -1327,7 +1250,7 @@ export class HooksManager {
    * @param {Combat} combat - The combat instance
    */
   static _onDeleteCombat(combat) {
-    TokenMovementManager.onCombatEnd(combat);
+    TokenMovementLock.onCombatEnd(combat);
   }
 
   /**
@@ -1337,7 +1260,7 @@ export class HooksManager {
    * @param {string} userId - The user ID who created the combatant
    */
   static _onCreateCombatant(combatant, options, userId) {
-    TokenMovementManager.onCreateCombatant(combatant, options, userId);
+    TokenMovementLock.onCreateCombatant(combatant, options, userId);
     this._handleAutoInitiativeRequest(combatant, options, userId);
   }
 

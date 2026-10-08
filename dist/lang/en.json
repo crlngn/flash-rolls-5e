@@ -1,4 +1,410 @@
 {
+  "FLASH_TOKEN_BAR": {
+    "ui": {
+      "menus": {
+        "tokenBarTitle": "Flash Token Bar",
+        "dragHandleTooltip": "Drag to reposition menu",
+        "pcs": "Player Characters",
+        "npcs": "NPCs",
+        "groups": "Groups",
+        "noActors": "No actors available",
+        "noActorsDropHint": "No actors (drop actors here or select tokens)",
+        "noGroups": "No groups available",
+        "noGroupsDropHint": "No groups available (drop actors to create)",
+        "noStatusEffects": "No status effects available",
+        "customRoll": "Custom Roll",
+        "rollTypesNotConfigured": "Roll types not configured for this system"
+      },
+      "search": {
+        "placeholder": "Search..."
+      },
+      "tabs": {
+        "statusEffects": "Status",
+        "actions": "Actions",
+        "rollTypes": "Rolls"
+      },
+      "inputs": {
+        "lockMenu": "Lock Menu",
+        "toggleRequests": "Toggle Roll Requests",
+        "skipRollDialog": "Skip Roll Dialogs",
+        "groupRollsMsg": "Toggle Group Rolls",
+        "showOptionsListOnHover": "Show Options on Hover",
+        "openSettings": "Open Settings",
+        "selectAll": "Select All",
+        "filterActors": "Filter Actors",
+        "toggleTargets": "Toggle Targets",
+        "placeTokens": "Place Tokens",
+        "teleportTokens": "Teleport Tokens",
+        "healAll": "Heal All",
+        "killAll": "Kill All",
+        "removeStatus": "Remove Status Effects",
+        "openSheets": "Open Sheets",
+        "groupSelected": "Group Actors",
+        "toggleMovement": "Toggle Movement Lock"
+      },
+      "tooltips": {
+        "favorite": "Drag out to remove",
+        "movementLocked": "Movement locked"
+      },
+      "dialogs": {
+        "worldSettingsLabel": "World Settings",
+        "userSettingsLabel": "User Settings",
+        "userSettingsGMHint": "Your choices here are the defaults for every user. Players may change them for themselves; Reset on their side returns to your defaults.",
+        "toggleHints": "Show/Hide Hints",
+        "rollPromptsFieldset": "Roll & Request Prompts",
+        "customRollTitle": "Custom Roll",
+        "rollFormula": "Roll Formula",
+        "formulaValid": "Formula is valid",
+        "formulaInvalid": "Formula is invalid",
+        "rollButton": "Roll",
+        "formulaPlaceholder": "Type a formula or pick dice below",
+        "reloadRequired": "Some settings require a reload to take effect. Reload now?"
+      },
+      "settings": {
+        "moduleActionsTitle": "Module Actions",
+        "actorActionsTitle": "Actor Actions",
+        "systemDefault": "System default",
+        "firstResource": "First available resource"
+      },
+      "filters": {
+        "title": "Filter Actors",
+        "inCombat": "In Combat",
+        "visible": "Visible Tokens Only",
+        "removeDead": "Hide Dead NPCs"
+      },
+      "contextMenu": {
+        "allGroups": "All Groups",
+        "removeIcon": "Remove Icon",
+        "createMacro": "Create Macro"
+      },
+      "buttons": {
+        "createMacro": "Create Macro",
+        "reset": "Reset",
+        "save": "Save"
+      },
+      "groupRolls": {
+        "selectLeader": "Click an actor to select as Leader",
+        "selectWeakest": "Click an actor to select as Weakest Link",
+        "selectedBadge": "Selected",
+        "targetNumber": "Target",
+        "groupResult": "Group Result",
+        "success": "Success",
+        "failure": "Failure",
+        "successes": "{count} Successes",
+        "failures": "{count} Failures",
+        "pending": "Click to roll",
+        "rollForActor": "Roll for {actor}",
+        "title": "Group Roll",
+        "states": {
+          "requested": "Waiting for player…",
+          "declined": "Declined",
+          "timedOut": "Timed out",
+          "error": "Roll failed",
+          "helping": "Helping"
+        },
+        "details": {
+          "standard": "{successes} successes, {failures} failures (need {required})",
+          "average": "Average: {average}",
+          "averageTarget": "Average: {average} vs {target}",
+          "leader": "Leader: {leader} + {successes} help - {failures} failures = {total}",
+          "weakest": "Weakest: {weakest} + {successes} successes = {total}",
+          "noRolls": "No rolls to evaluate",
+          "noSelection": "No actor selected",
+          "leaderWithAdvantage": "Leader rolled {successes} successes for the group"
+        },
+        "leaderWithAdvantageDescription": "{leader} takes on the challenge, helped with {die}",
+        "followTheExpertDescription": "{expert} ({rank}) leads: followers get +{bonus} circumstance, and untrained followers add their level",
+        "noHelp": "no help",
+        "makeLeader": "Click to take on the challenge instead"
+      },
+      "groups": {
+        "createTitle": "Save Selection as Group",
+        "nameLabel": "Group name",
+        "createButton": "Save Group",
+        "deleteTitle": "Delete Group",
+        "deleteConfirm": "Delete the group \"{name}\"? The actors themselves are not affected.",
+        "toggleMembers": "Show or hide members",
+        "allGroupsTitle": "All Saved Groups",
+        "noSavedGroups": "No groups have been saved yet. Select actors in the bar and use Group Actors to save one.",
+        "memberSummary": "{stored} members, {onScene} on this scene",
+        "selectInBar": "Select in the token bar"
+      }
+    },
+    "settings": {
+      "moduleSettingsMenu": {
+        "label": "Flash Token Bar Settings",
+        "title": "Flash Token Bar Settings",
+        "hint": "Configure Flash Token Bar module settings",
+        "tabs": {
+          "generalSettings": "General Settings",
+          "interfaceSettings": "Interface",
+          "rollRequestsSettings": "Roll Requests",
+          "groupRollsSettings": "Group Rolls"
+        }
+      },
+      "showTokenVisionOnHover": {
+        "label": "Show Token Vision on Hover",
+        "hint": "When enabled, the GM can hover over a token on menu list to temporarily see what the token sees. "
+      },
+      "templateAutoTarget": {
+        "label": "Template Auto Targeting",
+        "hint": "When a template is drawn on canvas, should tokens be automatically targeted / selected?",
+        "choices": {
+          "all": {
+            "label": "Target all tokens"
+          },
+          "notFriendly": {
+            "label": "Target non-friendly"
+          },
+          "none": {
+            "label": "Disable auto targetting"
+          }
+        }
+      },
+      "showMenuOnLoad": {
+        "label": "Show Menu on Load",
+        "hint": "When enabled, the flash token bar menu will automatically be visible when you reload Foundry."
+      },
+      "compactMode": {
+        "label": "Use Compact Mode",
+        "hint": "Use compact layout for the flash token bar menu. The character information will only show on hover."
+      },
+      "actorImageSource": {
+        "label": "Portrait Source",
+        "hint": "Show the token image or the actor's portrait on the rows of the bar.",
+        "choices": {
+          "token": "Token image",
+          "actor": "Actor portrait"
+        }
+      },
+      "menuLayout": {
+        "label": "Menu Layout",
+        "hint": "Choose the layout direction for the flash token bar menu.",
+        "choices": {
+          "vertical": "Vertical",
+          "horizontal": "Horizontal"
+        }
+      },
+      "maxIconsPerRow": {
+        "label": "Max Action Icons Visible",
+        "hint": "Maximum number of actor action icons to show at once. When more icons are enabled, navigation arrows will appear to scroll through them."
+      },
+      "menuIconsLayout": {
+        "label": "Menu Icon Layout",
+        "hint": "Customize which icons appear in the menu and their order. Drag icons to reorder them and toggle them on/off."
+      },
+      "rollRequestsEnabled": {
+        "label": "Enable Roll Requests",
+        "hint": "When enabled, rolls for player-owned actors will be sent as requests for the player to roll instead of being rolled by the GM. Requires the socketlib module."
+      },
+      "skipRollDialog": {
+        "label": "Skip Roll Dialogs (GM)",
+        "hint": "Skip the system roll configuration dialog and roll with the system defaults. Choose which rolls it applies to below. Holding Shift, Alt, Ctrl or Cmd while rolling always skips the dialog, whether this is on or not."
+      },
+      "skipRollDialogOption": {
+        "label": "Which Roll Dialogs to Skip (GM)",
+        "hint": "Which dialogs are skipped while Skip Roll Dialogs is on. Requested rolls skip the dialog on the player’s side; local rolls skip it on yours. Systems whose adapter ignores the option still show their dialog.",
+        "choices": {
+          "1": "All roll dialogs",
+          "2": "Only when sending roll requests",
+          "3": "Only on local rolls"
+        }
+      },
+      "showRequestPrompt": {
+        "label": "Show Roll Dialog to Player on Request",
+        "hint": "When enabled, a requested roll is triggered on the player's client right away and they get the system roll dialog. When disabled, the request is posted to chat and the player must click the dice button on the card to roll."
+      },
+      "autoRollNPCs": {
+        "label": "Auto-Roll for GM-Controlled Characters",
+        "hint": "When enabled, actors you control roll immediately. When disabled, their roll is posted to chat and you click the dice button on the card to roll."
+      },
+      "rollPacingDelay": {
+        "label": "Delay Between Rolls (GM)",
+        "hint": "How long to wait between the rolls of a multi-actor action, so they arrive one at a time instead of all at once. When Dice So Nice is installed each roll waits for its dice animation to finish and this delay is only used for rolls it does not animate. Set to 0 to roll everyone at once."
+      },
+      "publicPlayerRolls": {
+        "label": "Public Player Rolls",
+        "hint": "When enabled, player rolls (including roll requests) will always be public. When disabled, players use their current roll privacy setting. GMs always use their own roll privacy setting."
+      },
+      "initiateCombatOnInitiative": {
+        "label": "Initiate Combat on Request",
+        "hint": "When enabled, requesting a roll will automatically start combat if not already in combat."
+      },
+      "useGMTargetTokens": {
+        "label": "Use GM Target Tokens",
+        "hint": "When enabled, the player will use the GM's currently targeted tokens when rolling. When disabled, the player will use their own targets."
+      },
+      "groupRollsMsgEnabled": {
+        "label": "Enable Group Roll Messages",
+        "hint": "When enabled, rolling for multiple actors will create a single group roll chat message instead of individual messages."
+      },
+      "groupRollResultMode": {
+        "label": "Group Roll Calculation Method",
+        "hint": "How to calculate the group roll result. 'Half Must Succeed' requires half to succeed, 'Group Average' averages all rolls, 'Leader with Help' and 'Weakest Link' require GM to select an actor after rolls complete. 'Follow the Expert' (Pathfinder 2e) lets the most proficient actor, at least Expert, lead: everyone else gets a circumstance bonus from the expert's rank (+2 Expert, +3 Master, +4 Legendary) and untrained followers add their level; each character keeps their own degree of success.",
+        "choices": {
+          "0": "System default",
+          "1": "Half Must Succeed",
+          "2": "Group Average",
+          "3": "Leader with Help",
+          "4": "Weakest Link",
+          "5": "Follow the Expert",
+          "6": "Leader with Advantage"
+        },
+        "followTheExpertBonus": "Follow the Expert"
+      },
+      "showTargetValueToPlayers": {
+        "label": "Show Target Value to Players",
+        "hint": "When enabled, players can see the target value/DC in group roll messages. When disabled, only the GM can see it."
+      },
+      "showGroupResultToPlayers": {
+        "label": "Show Group Result to Players",
+        "hint": "When enabled, players can see the success/failure summary in group roll messages. When disabled, only the GM can see it."
+      },
+      "groupRollNPCHidden": {
+        "label": "Hide NPC Rolls from Players",
+        "hint": "When enabled, NPC rolls in group messages will be hidden from players. GMs can always see all rolls."
+      },
+      "concealNPCNames": {
+        "label": "Conceal NPC Names",
+        "hint": "When enabled, NPC names in group roll messages will be replaced with '???' for players. GMs can always see true names."
+      },
+      "playerAccess": {
+        "label": "Show Bar to Players",
+        "hint": "Players get the bolt icon and a bar limited to player characters and their groups. They can only select and act on characters they own; GM-only actions are hidden."
+      },
+      "showOnlyPCsWithToken": {
+        "label": "Only Show Actors with Tokens",
+        "hint": "The PCs and Groups tabs on the menu will only show actors with tokens in the current scene, unless you explicitly drag an actor from directory into the menu. If disabled, all characters with player ownership will be shown."
+      },
+      "showOptionsListOnHover": {
+        "label": "Show Roll/Status Menu on Hover",
+        "hint": "When enabled, the roll options accordion will appear when you hover over the menu with actors selected. When disabled, click the toggle list button to show roll options."
+      },
+      "autoHideActionIcons": {
+        "label": "Auto-Hide Action Icons",
+        "hint": "When enabled, the action icons will be hidden until you hover over the token bar."
+      },
+      "tooltipAutoDismiss": {
+        "label": "Tooltip Auto-Dismiss (seconds)",
+        "hint": "Time in seconds before tooltips automatically disappear. Set to 0 to disable tooltips entirely. Default is 2 seconds."
+      },
+      "tokenMovementSpeed": {
+        "label": "Token Movement Speed (sq/second)",
+        "hint": "Controls how fast tokens animate when dragged (grid spaces per second). Foundry default is 6. Higher = faster, lower = slower."
+      },
+      "autoBlockMovementInCombat": {
+        "label": "Auto Block Movement in Combat",
+        "hint": "When enabled, players won't be able to move tokens when out of turn. The GM can still move tokens at all times, and can momentarily unblock them for players during combat via menu when needed."
+      },
+      "debugMode": {
+        "label": "Debug Mode",
+        "hint": "Enable debug mode to show additional logging information"
+      },
+      "supportPatreon": {
+        "label": "Support on Patreon",
+        "buttonLabel": "Support on Patreon",
+        "hint": "Support the development of Flash Token Bar and other Carolingian modules"
+      },
+      "flashIconInSceneControls": {
+        "label": "Bolt Icon in Scene Controls",
+        "hint": "Show the token bar toggle in the scene controls on the left instead of next to the chat controls. Used automatically when the chat controls are hidden."
+      },
+      "lockMenuPosition": {
+        "label": "Lock Menu Position",
+        "hint": "When the menu is locked, also prevent it from being dragged."
+      },
+      "selectedTrackedResource": {
+        "label": "Tracked Resource",
+        "hint": "Resource shown as the bar under each actor and used by Heal All and Kill All. Leave empty to use the first resource the system provides."
+      },
+      "addMacrosToFolder": {
+        "label": "Add Macros to Folder",
+        "hint": "Place macros created from the token bar in a \"Flash Token Bar\" macro folder."
+      },
+      "rollRequestTimeout": {
+        "label": "Roll Request Timeout (seconds)",
+        "hint": "How long the GM waits for a player to answer a roll request before the group roll marks it as timed out. Set to 0 to wait forever."
+      },
+      "showOfflineNotifications": {
+        "label": "Offline Owner Notifications",
+        "hint": "Notify the GM when a roll for a player-owned actor is rolled locally because its owner is offline."
+      }
+    },
+    "contextMenu": {
+      "blockFromMenu": "Block from Token Bar",
+      "unblockFromMenu": "Unblock from Token Bar",
+      "toggleFavorite": "Toggle Token Bar Favorite"
+    },
+    "notifications": {
+      "rollRequest": "{gm} requested a {rollType} roll for {actor}",
+      "rollRequestSent": "Roll request sent to {player} for {actor}",
+      "rollRequestsSent": "Roll requests sent for {actors}",
+      "rollRequestsPosted": "Roll requests posted to chat for {actors}",
+      "rollError": "Failed to execute roll for {actor}",
+      "noPermissionToRoll": "You do not have permission to roll for this actor",
+      "socketlibMissing": "socketlib module is required for roll requests. Please install and enable it.",
+      "followTheExpert": "{expert} ({rank}) is leading the group",
+      "noExpertFound": "No actor has at least Expert proficiency. Rolling without Follow the Expert bonus.",
+      "actorBlocked": "{actor} has been blocked from the token bar",
+      "actorUnblocked": "{actor} has been unblocked from the token bar",
+      "noValidActorsSelected": "No valid actors selected",
+      "actorsHealed": "Selected actors are fully healed",
+      "actorsKilled": "Selected actors HP set to 0",
+      "statusEffectsRemoved": "Removed {count} status effect(s) from {actors} actor(s)",
+      "noStatusEffectsToRemove": "No status effects to remove",
+      "noActorsSelected": "No actors selected",
+      "noOwnedActorsSelected": "None of the selected actors are owned by you",
+      "movementLocked": "Movement locked for {count} token(s)",
+      "movementUnlocked": "Movement unlocked for {count} token(s)",
+      "movementRestricted": "The GM has restricted movement for this token",
+      "noTokensForMovementLock": "No tokens found for selected actors",
+      "settingsUpdated": "Settings updated successfully",
+      "tokensPlaced": "Placed {count} token(s)",
+      "tokenPlacementCancelled": "Token placement cancelled",
+      "noActorsSelectedForPlacement": "No actors selected for token placement",
+      "tokensTeleported": "Teleported {count} token(s)",
+      "teleportCancelled": "Teleport cancelled",
+      "teleportReady": "Teleporting {count} token(s). Navigate to desired scene and click canvas to place them. Right-click to cancel.",
+      "noTokensSelectedForTeleport": "No tokens selected for teleport",
+      "iconRemoved": "Icon {iconName} removed from menu",
+      "iconRemoveFailed": "Failed to remove icon from menu",
+      "macroCreated": "Macro \"{macroName}\" created successfully",
+      "macroCreationFailed": "Failed to create macro",
+      "libWrapperRecommended": "Flash Token Bar: for optimal compatibility, consider installing the libWrapper module.",
+      "invalidFormula": "Invalid formula: {formula}",
+      "statusEffectApplied": "Applied \"{effectName}\" to {success}/{total} actor(s)",
+      "statusEffectRemoved": "Removed \"{effectName}\" from {success}/{total} actor(s)",
+      "statusEffectNotFound": "Status effect \"{effectId}\" not found",
+      "menuNotOpen": "Open the token bar first",
+      "groupCreated": "Group \"{name}\" created",
+      "conflictingModule": "{module} did not start because {conflicts} is active and already includes the token bar. Enable only one of the two modules.",
+      "systemSpecificModule": "{system} has a dedicated module with more features: {module} ({url}). You can keep using Flash Token Bar or switch to it.",
+      "actorNotFound": "Actor not found",
+      "dropError": "Error adding actor to menu",
+      "actorAlreadyAdded": "{actor} is already in the menu",
+      "actorsHealedCount": "Fully healed {affected} of {total} selected actor(s)",
+      "actorsKilledCount": "Set {affected} of {total} selected actor(s) to 0",
+      "noActorsAffected": "No changes made to the {total} selected actor(s)",
+      "gmOnlyTeleport": "Only GMs can teleport tokens to another scene",
+      "teleportInProgress": "Teleportation already in progress",
+      "teleportFailed": "Failed to teleport tokens",
+      "noValidTokensForTeleport": "No valid tokens found for teleportation",
+      "invalidTeleportDestination": "Invalid destination scene or location provided for teleportation",
+      "sceneNotFound": "Scene \"{scene}\" not found",
+      "someTokensSkippedForTeleport": "Some token IDs were invalid and skipped. {count} token(s) will be teleported.",
+      "gmOnlyPlacement": "Only GMs can place tokens",
+      "placementInProgress": "Token placement already in progress",
+      "placementReady": "Click to place {count} token(s) one at a time, right-click to skip current token",
+      "invalidPlacementLocation": "Invalid location provided for token placement",
+      "movementUpdateFailed": "Failed to update token movement restrictions",
+      "rollRequestTimedOut": "Roll request for {actor} timed out",
+      "ownerOffline": "{player} is offline; rolling for {actor} locally",
+      "ownersOffline": "Owners offline; rolled locally for {actors}",
+      "macroNotAvailable": "No macro is available for the {iconName} icon",
+      "macroFolderFailed": "Failed to create the Flash Token Bar macro folder. The macro will be created without a folder.",
+      "groupNotOnScene": "No member of this group is on the current scene"
+    }
+  },
   "FLASH_ROLLS": {
     "notifications": {
       "playerOffline": "{player} is offline. Rolling locally",

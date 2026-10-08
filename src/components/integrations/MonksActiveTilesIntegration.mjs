@@ -2,7 +2,7 @@ import { MODULE_ID, ROLL_TYPES, ROLL_REQUEST_OPTIONS, DICE_OPTIONS } from '../..
 import { LogUtil } from '../utils/LogUtil.mjs';
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { getActorData } from '../helpers/Helpers.mjs';
-import { TokenTeleportManager } from '../managers/TokenTeleportManager.mjs';
+import { TokenTeleport } from '@ftb-core/tokens/TokenTeleport.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 
 /**
@@ -188,7 +188,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }
@@ -311,7 +311,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }
@@ -373,7 +373,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }
@@ -435,7 +435,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }
@@ -497,7 +497,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }
@@ -792,7 +792,7 @@ export class MonksActiveTilesIntegration {
       fn: async (args) => {
         const { action, tokens, tile } = args;
 
-        if (TokenTeleportManager._isTeleporting) {
+        if (TokenTeleport.isTeleporting()) {
           LogUtil.log('MATT Action - Skipping action because teleportation is in progress');
           return {};
         }

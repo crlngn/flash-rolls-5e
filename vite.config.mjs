@@ -3,6 +3,7 @@ import copy from "rollup-plugin-copy";
 import { defineConfig } from "vite";
 import path from "path";
 import vitePluginVersion from './vite-plugin-version.js';
+import { mergeLang } from './shared/flash-token-bar-core/build/vite-plugin-merge-lang.mjs';
 
 import { readFileSync } from 'fs';
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
@@ -18,6 +19,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@host": path.resolve(__dirname, "./src/host"),
+      "@ftb-core": path.resolve(__dirname, "./shared/flash-token-bar-core/src"),
       "@": path.resolve(__dirname, "./src")
     }
   },
@@ -53,12 +56,12 @@ export default defineConfig({
   },
   plugins: [
     vitePluginVersion(),
+    mergeLang({ coreLangDir: "shared/flash-token-bar-core/src/lang", hostLangDir: "src/lang" }),
     copy({
       targets: [
         { src: "src/module.json", dest: "dist" },
         { src: "src/templates", dest: "dist" },
         { src: "shared/dnd5e-compact-cards/templates/*", dest: "dist/templates" },
-        { src: "src/lang", dest: "dist" },
         { src: "src/assets", dest: "dist" }
       ],
       hook: "writeBundle",

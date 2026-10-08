@@ -5,7 +5,7 @@ import { getDefaultIconLayout } from "../../constants/IconMappings.mjs";
 import { LogUtil } from "../utils/LogUtil.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
-import { TokenMovementManager } from "./TokenMovementManager.mjs";
+import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";
 import { CompactCardsUtil } from "./CompactCardsUtil.mjs";
 import { SidebarController } from "../managers/SidebarController.mjs";
 
@@ -405,9 +405,9 @@ export class SettingsUtil {
     LogUtil.log('applyAutoBlockMovementInCombat', [newValue, activeCombat]);
 
     if (newValue) {
-      TokenMovementManager.onCombatStart(activeCombat, {});
+      TokenMovementLock.onCombatStart(activeCombat, {});
     } else {
-      TokenMovementManager.onCombatEnd(activeCombat);
+      TokenMovementLock.onCombatEnd(activeCombat);
     }
   }
 }

@@ -10,11 +10,11 @@ import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";
 import { ModuleSettingsMenu } from "../ui/dialogs/ModuleSettingsMenu.mjs";
 import { PremiumFeaturesDialog } from "../ui/dialogs/PremiumFeaturesDialog.mjs";
 import { RollMenuEventManager } from "../managers/roll-menu/RollMenuEventManager.mjs";
-import { TokenMovementManager } from "../utils/TokenMovementManager.mjs";
+import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";
 import { RollMenuStateManager } from "../managers/roll-menu/RollMenuStateManager.mjs";
 import { SidebarController } from "../managers/SidebarController.mjs";
-import { TokenPlacementManager } from "../managers/TokenPlacementManager.mjs";
-import { TokenTeleportManager } from "../managers/TokenTeleportManager.mjs";
+import { TokenPlacement } from "@ftb-core/tokens/TokenPlacement.mjs";
+import { TokenTeleport } from "@ftb-core/tokens/TokenTeleport.mjs";
 import { TransformationManager } from "../managers/TransformationManager.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
@@ -1012,9 +1012,9 @@ export class FlashAPI {
 
     if (actorIds && actorIds.length > 0) {
       const tempMenu = { selectedActors: new Set(actorIds) };
-      await TokenMovementManager.toggleMovementForSelected(tempMenu);
+      await TokenMovementLock.toggleMovementForSelected(tempMenu);
     } else if (menu && menu.rendered) {
-      await TokenMovementManager.toggleMovementForSelected(menu);
+      await TokenMovementLock.toggleMovementForSelected(menu);
     } else {
       FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noActorsSelected"));
     }
@@ -1047,13 +1047,13 @@ export class FlashAPI {
 
     if (actorIds && actorIds.length > 0) {
       if (location && typeof location === 'object' && typeof location.x === 'number' && typeof location.y === 'number') {
-        await TokenPlacementManager.placeTokensAtLocation(actorIds, location);
+        await TokenPlacement.placeTokensAtLocation(actorIds, location);
       } else {
         const tempMenu = { selectedActors: new Set(actorIds) };
-        await TokenPlacementManager.placeTokensForSelectedActors(tempMenu);
+        await TokenPlacement.placeTokensForSelectedActors(tempMenu);
       }
     } else if (menu && menu.rendered) {
-      await TokenPlacementManager.placeTokensForSelectedActors(menu);
+      await TokenPlacement.placeTokensForSelectedActors(menu);
     } else {
       FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noActorsSelected"));
     }
@@ -1070,13 +1070,13 @@ export class FlashAPI {
 
     if (actorIds && actorIds.length > 0) {
       if (destinationScene && centerLocation && typeof centerLocation === 'object' && typeof centerLocation.x === 'number' && typeof centerLocation.y === 'number') {
-        await TokenTeleportManager.teleportToDestination(actorIds, destinationScene, centerLocation);
+        await TokenTeleport.teleportToDestination(actorIds, destinationScene, centerLocation);
       } else {
         const tempMenu = { selectedActors: new Set(actorIds) };
-        await TokenTeleportManager.teleportSelectedTokens(tempMenu);
+        await TokenTeleport.teleportSelectedTokens(tempMenu);
       }
     } else if (menu && menu.rendered) {
-      await TokenTeleportManager.teleportSelectedTokens(menu);
+      await TokenTeleport.teleportSelectedTokens(menu);
     } else {
       FlashAPI.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noActorsSelected"));
     }

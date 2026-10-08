@@ -7,7 +7,7 @@ import { RollMenuActorUtil } from '../../utils/RollMenuActorUtil.mjs';
 import { ActorStatusManager } from '../ActorStatusManager.mjs';
 import { RollMenuStatusManager } from './RollMenuStatusManager.mjs';
 import { RollMenuStateManager } from './RollMenuStateManager.mjs';
-import { TokenMovementManager } from '../../utils/TokenMovementManager.mjs';
+import { TokenMovementLock } from '@ftb-core/tokens/TokenMovementLock.mjs';
 
 /**
  * Utility class for processing actors for the Roll Requests Menu
@@ -334,7 +334,7 @@ export class RollMenuActorProcessor {
       tokenId: token?.id || null,
       isToken: !!token,
       uniqueId: token?.id || actor.id,
-      movementRestricted: token ? TokenMovementManager.isMovementRestricted(token) : false
+      movementRestricted: token ? TokenMovementLock.isMovementRestricted(token) : false
     };
   }
 

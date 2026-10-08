@@ -4,7 +4,10 @@ import { delay, getActorData, updateCanvasTokenSelection } from '../../helpers/H
 import { getSettings } from '../../../constants/Settings.mjs';
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 import { MODULE_ID } from '../../../constants/General.mjs';
-import { TokenMovementManager } from '../../utils/TokenMovementManager.mjs';
+import { TokenMovementLock } from '@ftb-core/tokens/TokenMovementLock.mjs';
+import { TokenPlacement } from '@ftb-core/tokens/TokenPlacement.mjs';
+import { TokenTeleport } from '@ftb-core/tokens/TokenTeleport.mjs';
+import { TokenVisionPreview } from '@ftb-core/tokens/TokenVisionPreview.mjs';
 import { IconContextMenu } from '../../ui/IconContextMenu.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
@@ -13,30 +16,6 @@ import { FlashAPI } from '../../core/FlashAPI.mjs';
  * Handles Roll Requests Menu event listeners
  */
 export class RollMenuEventManager {
-
-  /**
-   * Set to track tokens that were temporarily selected on hover
-   * @type {Set<Token>}
-   */
-  static _hoveredTokens = new Set();
-
-  /**
-   * Token that was temporarily controlled for vision preview
-   * @type {Token|null}
-   */
-  static _previewControlToken = null;
-
-  /**
-   * Previously controlled tokens before vision preview
-   * @type {Token[]}
-   */
-  static _previouslyControlledTokens = [];
-
-  /**
-   * Original controlled property descriptor for restoring
-   * @type {PropertyDescriptor|null}
-   */
-  static _originalControlledGetter = null;
 
   /**
    * Reference to the active menu instance
@@ -1019,45 +998,13 @@ export class RollMenuEventManager {
   }
 
   /**
-   * Show temporary token selection preview on hover
+   * Highlight the hovered actor's token and, for the GM with the setting on, preview its vision
    * @param {HTMLElement} wrapper - The actor wrapper element
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static showTokenSelectionPreview(wrapper, menu) {
-    const tokenId = wrapper.dataset.tokenId;
-    const actorId = wrapper.dataset.actorId;
-
-    let token = tokenId ? canvas.tokens.get(tokenId) : null;
-    if (!token && actorId) {
-      token = canvas.tokens.placeables.find(t => t.actor?.id === actorId);
-    }
-
-    if (token && !token.hover) {
-      token.hover = true;
-      token.renderFlags.set({refreshState: true});
-      this._hoveredTokens.add(token);
-
-      const SETTINGS = getSettings();
-      const showTokenVisionOnHover = SettingsUtil.get(SETTINGS.showTokenVisionOnHover.tag);
-
-      if (showTokenVisionOnHover && canvas.scene?.tokenVision && token.document.sight?.enabled && game.user.isGM) {
-        this._previouslyControlledTokens = [...canvas.tokens.controlled];
-        this._previewControlToken = token;
-
-        this._originalControlledGetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(token), 'controlled');
-
-        Object.defineProperty(token, 'controlled', {
-          get: () => true,
-          configurable: true
-        });
-
-        token.initializeVisionSource();
-        canvas.perception.update({
-          initializeVision: true,
-          refreshVision: true
-        });
-      }
-    }
+    const uniqueId = wrapper.dataset.tokenId || wrapper.dataset.actorId;
+    if (uniqueId) TokenVisionPreview.show(uniqueId);
   }
 
   /**
@@ -1112,49 +1059,13 @@ export class RollMenuEventManager {
   }
 
   /**
-   * Hide temporary token selection preview on mouse leave
+   * Remove the hover highlight and restore the vision state
    * @param {HTMLElement} wrapper - The actor wrapper element
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static hideTokenSelectionPreview(wrapper, menu) {
-    const tokenId = wrapper.dataset.tokenId;
-    const actorId = wrapper.dataset.actorId;
-
-    let token = tokenId ? canvas.tokens.get(tokenId) : null;
-    if (!token && actorId) {
-      token = canvas.tokens.placeables.find(t => t.actor?.id === actorId);
-    }
-
-    if (token && this._hoveredTokens.has(token)) {
-      token.hover = false;
-      token.renderFlags.set({refreshState: true});
-      this._hoveredTokens.delete(token);
-
-      if (this._previewControlToken === token && game.user.isGM) {
-        delete token.controlled;
-
-        if (this._originalControlledGetter) {
-          Object.defineProperty(token, 'controlled', this._originalControlledGetter);
-          this._originalControlledGetter = null;
-        }
-
-        token.initializeVisionSource();
-
-        this._previouslyControlledTokens.forEach(t => {
-          if (t.scene === canvas.scene) {
-            t.initializeVisionSource();
-          }
-        });
-
-        canvas.perception.update({
-          initializeVision: true,
-          refreshVision: true
-        });
-
-        this._previewControlToken = null;
-        this._previouslyControlledTokens = [];
-      }
-    }
+    const uniqueId = wrapper.dataset.tokenId || wrapper.dataset.actorId;
+    if (uniqueId) TokenVisionPreview.hide(uniqueId);
   }
 
   /**
@@ -1313,7 +1224,7 @@ export class RollMenuEventManager {
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static async toggleMovementForSelected(menu) {
-    await TokenMovementManager.toggleMovementForSelected(menu);
+    await TokenMovementLock.toggleMovementForSelected(menu);
   }
 
   /**
@@ -1365,8 +1276,7 @@ export class RollMenuEventManager {
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static async placeTokensForSelected(menu) {
-    const { TokenPlacementManager } = await import('../TokenPlacementManager.mjs');
-    await TokenPlacementManager.placeTokensForSelectedActors(menu);
+    await TokenPlacement.placeTokensForSelectedActors(menu);
   }
 
   /**
@@ -1374,8 +1284,7 @@ export class RollMenuEventManager {
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static async teleportTokensForSelected(menu) {
-    const { TokenTeleportManager } = await import('../TokenTeleportManager.mjs');
-    await TokenTeleportManager.teleportSelectedTokens(menu);
+    await TokenTeleport.teleportSelectedTokens(menu);
   }
 
   /**

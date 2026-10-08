@@ -12,6 +12,7 @@ import { RollRequestManager } from "./RollRequestManager.mjs";
 import { SocketUtil } from "../utils/SocketUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
 import { CompactCardsUtil } from "../utils/CompactCardsUtil.mjs";
+import { TokenVisionPreview } from "@ftb-core/tokens/TokenVisionPreview.mjs";
 
 /**
  * Utility class for managing group roll chat messages
@@ -649,86 +650,21 @@ export class ChatMessageManager {
   
 
   /**
-   * Token that was temporarily controlled for vision preview
-   * @type {Token|null}
-   */
-  static _previewToken = null;
-
-  /**
-   * Previously controlled tokens before vision preview
-   * @type {Token[]}
-   */
-  static _previouslyControlled = [];
-
-  /**
-   * Original controlled property descriptor for restoring
-   * @type {PropertyDescriptor|null}
-   */
-  static _originalControlledGetter = null;
-
-  /**
-   * Show token vision for a chat message actor result
+   * Highlight the token of a group roll entry and, for the GM with the setting on, preview its vision
    * @param {HTMLElement} actorElement - The actor result element
    */
   static _showTokenVision(actorElement) {
-    if (!canvas?.tokens || !canvas.scene?.tokenVision || !game.user.isGM) return;
-
-    const tokenId = actorElement.dataset.tokenId;
-    const actorId = actorElement.dataset.actorId;
-
-    let token = tokenId ? canvas.tokens.get(tokenId) : null;
-    if (!token && actorId) {
-      token = canvas.tokens.placeables.find(t => t.actor?.id === actorId);
-    }
-
-    if (!token || !token.document.sight?.enabled) return;
-
-    this._previouslyControlled = [...canvas.tokens.controlled];
-    this._previewToken = token;
-
-    this._originalControlledGetter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(token), 'controlled');
-
-    Object.defineProperty(token, 'controlled', {
-      get: () => true,
-      configurable: true
-    });
-
-    token.initializeVisionSource();
-    canvas.perception.update({
-      initializeVision: true,
-      refreshVision: true
-    });
+    const uniqueId = actorElement.dataset.tokenId || actorElement.dataset.actorId;
+    if (uniqueId) TokenVisionPreview.show(uniqueId);
   }
 
   /**
-   * Hide token vision for a chat message actor result
+   * Remove the highlight and restore the vision state for a group roll entry
    * @param {HTMLElement} actorElement - The actor result element
    */
   static _hideTokenVision(actorElement) {
-    if (!this._previewToken || !game.user.isGM) return;
-
-    delete this._previewToken.controlled;
-
-    if (this._originalControlledGetter) {
-      Object.defineProperty(this._previewToken, 'controlled', this._originalControlledGetter);
-      this._originalControlledGetter = null;
-    }
-
-    this._previewToken.initializeVisionSource();
-
-    this._previouslyControlled.forEach(t => {
-      if (t.scene === canvas.scene) {
-        t.initializeVisionSource();
-      }
-    });
-
-    canvas.perception.update({
-      initializeVision: true,
-      refreshVision: true
-    });
-
-    this._previewToken = null;
-    this._previouslyControlled = [];
+    const uniqueId = actorElement.dataset.tokenId || actorElement.dataset.actorId;
+    if (uniqueId) TokenVisionPreview.hide(uniqueId);
   }
 
   /**

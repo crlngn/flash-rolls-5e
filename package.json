@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "watch": "WATCH_MODE=true watch 'npm run build' ./src",
+    "watch": "WATCH_MODE=true watch 'npm run build' ./src ./shared/flash-token-bar-core/src",
     "createSymlinks": "node ./tools/create-symlinks.mjs",
     "postinstall": "npm run createSymlinks",
     "bump": "npm version patch --no-git-tag-version && git add package.json ./src/module.json README.md && npm run build",

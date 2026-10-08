@@ -1,3 +1,6 @@
 [submodule "shared/dnd5e-compact-cards"]
 	path = shared/dnd5e-compact-cards
 	url = ../dnd5e-compact-cards.git
+[submodule "shared/flash-token-bar-core"]
+	path = shared/flash-token-bar-core
+	url = ../flash-token-bar-core.git
