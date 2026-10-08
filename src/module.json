@@ -45,7 +45,14 @@
         }
       }
     ],
-    "recommends": []
+    "recommends": [],
+    "conflicts": [
+      {
+        "id": "flash-token-bar",
+        "type": "module",
+        "reason": "Flash Token Bar 5e already includes the token bar. Enable only one of the two modules."
+      }
+    ]
   },
   "socket": true,
   "esmodules": [
