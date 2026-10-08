@@ -1,4 +1,4 @@
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * DDB ability ID to Foundry ability key mapping

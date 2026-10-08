@@ -1,5 +1,5 @@
 import { MODULE_ID } from "../../constants/General.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 const PROXY_BASE_URL = "https://proxy.carolingian.io";
 const HEARTBEAT_INTERVAL = 60000;

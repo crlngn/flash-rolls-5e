@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../../constants/General.mjs";
 import { FLAGS } from "@ftb-core/constants/General.mjs";
-import { LogUtil } from "./LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 const LEGACY_FLAG = "movementRestriction";
 

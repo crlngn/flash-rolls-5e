@@ -1,4 +1,4 @@
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
 import { CompactCardsUtil } from "../utils/CompactCardsUtil.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";

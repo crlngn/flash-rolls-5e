@@ -1,5 +1,5 @@
 import { isPlayerOwned, hasTokenInScene } from '../helpers/Helpers.mjs';
-import { LogUtil } from './LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 

@@ -1,5 +1,5 @@
-import { LogUtil } from './LogUtil.mjs';
-import { SocketUtil } from './SocketUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 
 /**
  * Utility class for managing dice configurations across users

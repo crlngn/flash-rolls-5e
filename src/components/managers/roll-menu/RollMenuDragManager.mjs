@@ -1,5 +1,5 @@
 import { MODULE } from '../../../constants/General.mjs';
-import { LogUtil } from '../../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { adjustMenuOffset } from '../../helpers/Helpers.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';

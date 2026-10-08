@@ -1,4 +1,4 @@
-import { LogUtil } from '../../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { RollMenuDragManager } from './RollMenuDragManager.mjs';
 import { delay, getActorData, updateCanvasTokenSelection } from '../../helpers/Helpers.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';

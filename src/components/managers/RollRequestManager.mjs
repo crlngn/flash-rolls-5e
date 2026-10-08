@@ -1,7 +1,7 @@
 import { MODULE_ID, ROLL_TYPES, FLASH_ROLL_MODES } from "../../constants/General.mjs";
 import { getRollTypeDisplay, applyTargetTokens, NotificationManager, getConsumptionConfig, getCreateConfig, getConcentrationConfig, showConsumptionConfig } from "../helpers/Helpers.mjs";
 import { RollHandlers } from "../handlers/RollHandlers.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";

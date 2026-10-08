@@ -1,4 +1,4 @@
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { ROLL_TYPES, MODULE_ID, FLASH_ROLL_MODES } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";

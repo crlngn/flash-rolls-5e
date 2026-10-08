@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../../../constants/General.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { getPlayerOwner, getTargetDescriptors } from "../../helpers/Helpers.mjs";
 import { DnDBRollParser } from "./DnDBRollParser.mjs";

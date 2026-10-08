@@ -1,8 +1,8 @@
 import { MODULE_ID } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
-import { SocketUtil } from "../utils/SocketUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { getPlayerOwner } from "../helpers/Helpers.mjs";
 import { DnDBConnection } from "./dnd-beyond/DnDBConnection.mjs";
 import { DnDBRollParser } from "./dnd-beyond/DnDBRollParser.mjs";

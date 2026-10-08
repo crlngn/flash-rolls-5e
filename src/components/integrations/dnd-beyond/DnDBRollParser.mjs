@@ -1,4 +1,4 @@
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Parses and categorizes D&D Beyond roll events

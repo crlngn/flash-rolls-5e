@@ -1,4 +1,4 @@
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { MODULE_ID } from "../../../constants/General.mjs";
 import { GeneralUtil } from "../../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../../core/FlashAPI.mjs";

@@ -1,5 +1,5 @@
 import { getSettings } from "../../../constants/Settings.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 

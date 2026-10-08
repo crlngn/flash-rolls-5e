@@ -1,5 +1,5 @@
 import { MODULE } from "../../../constants/General.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Custom Roll Dialog - ApplicationV2 component for custom roll formulas

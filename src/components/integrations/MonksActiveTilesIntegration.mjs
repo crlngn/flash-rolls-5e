@@ -1,5 +1,5 @@
 import { MODULE_ID, ROLL_TYPES, ROLL_REQUEST_OPTIONS, DICE_OPTIONS } from '../../constants/General.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { getActorData } from '../helpers/Helpers.mjs';
 import { TokenTeleport } from '@ftb-core/tokens/TokenTeleport.mjs';

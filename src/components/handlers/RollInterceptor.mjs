@@ -1,8 +1,8 @@
 import { HOOKS_DND5E } from '../../constants/Hooks.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
-import { SocketUtil } from '../utils/SocketUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { MODULE_ID, DEBUG_TAG, ROLL_TYPES, ACTIVITY_TYPES, FLASH_ROLL_MODES } from '../../constants/General.mjs';
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog, GMDamageConfigDialog, GMAttackConfigDialog } from '../ui/dialogs/gm-dialogs/index.mjs';
 import { RollHandlers } from './RollHandlers.mjs';

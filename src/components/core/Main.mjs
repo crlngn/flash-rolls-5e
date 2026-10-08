@@ -1,13 +1,12 @@
 import { getSettings } from "../../constants/Settings.mjs";
 import { SOCKET_CALLS } from "../../constants/General.mjs";
-import { SocketUtil } from "../utils/SocketUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { DiceConfigUtil } from "../utils/DiceConfigUtil.mjs";
 import { HooksManager } from "./HooksManager.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { RollRequestManager } from "../managers/RollRequestManager.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { HOOKS_CORE } from "../../constants/Hooks.mjs";
-import { ActorDirectoryIconUtil } from "../utils/ActorDirectoryIconUtil.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { GroupTokenTracker } from "../managers/GroupTokenTracker.mjs";
 

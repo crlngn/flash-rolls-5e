@@ -1,4 +1,4 @@
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { getActorData } from "../helpers/Helpers.mjs";
 import { TransformationDialog } from "../ui/dialogs/TransformationDialog.mjs";

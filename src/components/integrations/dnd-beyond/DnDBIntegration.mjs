@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../../../constants/General.mjs";
 import { HOOKS_DND5E, HOOKS_MIDI_QOL } from "../../../constants/Hooks.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { GeneralUtil } from "../../utils/GeneralUtil.mjs";
 import { ModuleHelpers } from "../../helpers/ModuleHelpers.mjs";
 import { DnDBRollUtil } from "./DnDBRollUtil.mjs";

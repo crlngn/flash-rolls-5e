@@ -1,6 +1,7 @@
 import { MODULE_ACTION_ICONS, ACTOR_ACTION_ICONS, ICON_TYPES, getIconConfiguration, getDefaultIconLayout } from '../../constants/IconMappings.mjs';
 import { SettingsUtil } from './SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Utility class for managing icon layout and drag-and-drop functionality

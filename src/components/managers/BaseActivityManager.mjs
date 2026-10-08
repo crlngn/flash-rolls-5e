@@ -1,4 +1,4 @@
-import { LogUtil } from '../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES, SOCKET_CALLS } from '../../constants/General.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
@@ -10,7 +10,7 @@ import { DnDBRollUtil } from '../integrations/dnd-beyond/DnDBRollUtil.mjs';
 import { DnDBIntegration } from '../integrations/dnd-beyond/DnDBIntegration.mjs';
 import { RollHelpers } from '../helpers/RollHelpers.mjs';
 import { HooksManager } from '../core/HooksManager.mjs';
-import { SocketUtil } from '../utils/SocketUtil.mjs';
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { VanillaActivityManager } from './VanillaActivityManager.mjs';
 import { MidiActivityManager } from './MidiActivityManager.mjs';

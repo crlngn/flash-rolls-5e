@@ -2,7 +2,7 @@
  * Helper functions for the Flash Token Bar 5e module
  */
 import { MODULE, ROLL_TYPES } from '../../constants/General.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';

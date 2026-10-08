@@ -1,5 +1,5 @@
 import { MODULE } from "../../../constants/General.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Manages FTB Homebrew compendiums for storing placeholder items from D&D Beyond imports

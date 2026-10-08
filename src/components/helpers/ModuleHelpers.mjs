@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../../constants/General.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 

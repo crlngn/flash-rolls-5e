@@ -7,14 +7,14 @@ import { RollInterceptor } from "../handlers/RollInterceptor.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { updateSidebarClass, isSidebarExpanded } from "../helpers/Helpers.mjs";
 import { SidebarController } from "../managers/SidebarController.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { MODULE_ID } from "../../constants/General.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { ModuleHelpers } from "../helpers/ModuleHelpers.mjs";
 import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
-import { ActorStatusManager } from "../managers/ActorStatusManager.mjs";
-import { ActorDirectoryIconUtil } from "../utils/ActorDirectoryIconUtil.mjs";
+import { ActorStatusFlags } from "@ftb-core/actors/ActorStatusFlags.mjs";
+import { ActorDirectoryIcons } from "@ftb-core/actors/ActorDirectoryIcons.mjs";
 import { FlashAPI } from "./FlashAPI.mjs";
 import { RollMenuDragManager } from "../managers/roll-menu/RollMenuDragManager.mjs";
 import { RollHooksHandler } from "../handlers/RollHooksHandler.mjs";
@@ -26,10 +26,10 @@ import { TokenTeleport } from "@ftb-core/tokens/TokenTeleport.mjs";
 import { TemplateAutoTarget } from "@ftb-core/tokens/TemplateAutoTarget.mjs";
 import { HOOKS_MODULE as CORE_HOOKS } from "@ftb-core/constants/Hooks.mjs";
 import { MovementFlagMigration } from "../utils/MovementFlagMigration.mjs";
-import { TooltipUtil } from "../utils/TooltipUtil.mjs";
+import { TooltipUtil } from "@ftb-core/utils/TooltipUtil.mjs";
 import { UpdateNewsUtil } from "../utils/UpdateNewsUtil.mjs";
 import { MidiActivityManager } from "../managers/MidiActivityManager.mjs";
-import { LibWrapperUtil } from "../utils/LibWrapperUtil.mjs";
+import { LibWrapperUtil } from "@ftb-core/utils/LibWrapperUtil.mjs";
 import { MonksActiveTilesIntegration } from "../integrations/MonksActiveTilesIntegration.mjs";
 import { DnDBeyondIntegration } from "../integrations/DnDBeyondIntegration.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
@@ -99,13 +99,13 @@ export class HooksManager {
         callback: li => {
           const actorId = li.dataset.entryId;
           if (actorId) {
-            ActorStatusManager.toggleBlocked(actorId, false);
+            ActorStatusFlags.toggleBlocked(actorId, false);
           }
           return actorId;
         },
         condition: li => {
           const actorId = li?.dataset?.entryId;
-          const isBlocked = ActorStatusManager.isBlocked(actorId);
+          const isBlocked = ActorStatusFlags.isBlocked(actorId);
           return isBlocked;
         }
       });
@@ -116,13 +116,13 @@ export class HooksManager {
         callback: li => {
           const actorId = li.dataset.entryId;
           if (actorId) {
-            ActorStatusManager.toggleBlocked(actorId, true);
+            ActorStatusFlags.toggleBlocked(actorId, true);
           }
           return actorId;
         },
         condition: li => {
           const actorId = li?.dataset?.entryId;
-          const isBlocked = ActorStatusManager.isBlocked(actorId);
+          const isBlocked = ActorStatusFlags.isBlocked(actorId);
           return !isBlocked;
         }
       });
@@ -243,7 +243,7 @@ export class HooksManager {
   static _onReady() {
     LogUtil.log("CONFIG.DND5E",[CONFIG.DND5E]);
     SettingsUtil.registerSettingsMenu();
-    ActorDirectoryIconUtil.initialize();
+    ActorDirectoryIcons.initialize();
     SidebarController.addSidebarControls(ui.sidebar, ui.sidebar?.element);
     UpdateNewsUtil.init();
     PatronSessionManager.initialize();

@@ -1,7 +1,7 @@
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Utility class for managing sidebar controls

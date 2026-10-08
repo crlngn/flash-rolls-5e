@@ -1,12 +1,11 @@
 import { CompactCardsUtil } from "../../utils/CompactCardsUtil.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
 import { getSettingMenus } from "../../../constants/SettingMenus.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs"
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { GeneralUtil } from "../../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../../core/FlashAPI.mjs";
 import { IconLayoutUtil } from "../../utils/IconLayoutUtil.mjs";
-import { LibWrapperUtil } from "../../utils/LibWrapperUtil.mjs";
 import { PremiumFeaturesDialog } from "./PremiumFeaturesDialog.mjs";
 
 const { FormDataExtended } = foundry.applications.ux;

@@ -1,7 +1,7 @@
 import { ROLL_TYPES } from '../../../constants/General.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
-import { LogUtil } from '../../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { GMRollConfigDialog, GMSkillToolConfigDialog, GMHitDieConfigDialog } from '../../ui/dialogs/gm-dialogs/index.mjs';
 import { CustomRollDialog } from '../../ui/dialogs/CustomRollDialog.mjs';
 import { RollHelpers } from '../../helpers/RollHelpers.mjs';

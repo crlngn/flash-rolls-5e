@@ -1,5 +1,5 @@
 import { getSettings } from '../../constants/Settings.mjs';
-import { LogUtil } from './LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from './SettingsUtil.mjs';
 
 export class UpdateNewsUtil {

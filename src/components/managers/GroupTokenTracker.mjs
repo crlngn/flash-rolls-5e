@@ -1,6 +1,6 @@
 import { MODULE_ID } from '../../constants/General.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
-import { LibWrapperUtil } from '../utils/LibWrapperUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
+import { LibWrapperUtil } from "@ftb-core/utils/LibWrapperUtil.mjs";
 import { HOOKS_CORE, HOOKS_DND5E } from '../../constants/Hooks.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import RollRequestsMenu from '../ui/RollRequestsMenu.mjs';

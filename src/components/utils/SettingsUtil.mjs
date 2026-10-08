@@ -2,7 +2,7 @@ import { MODULE_ID } from "../../constants/General.mjs";
 import { getSettings, SETTING_SCOPE } from "../../constants/Settings.mjs";
 import { getSettingMenus } from "../../constants/SettingMenus.mjs";
 import { getDefaultIconLayout } from "../../constants/IconMappings.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { GeneralUtil } from "./GeneralUtil.mjs";
 import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";

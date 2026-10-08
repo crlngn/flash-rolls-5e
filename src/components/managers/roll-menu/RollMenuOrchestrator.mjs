@@ -1,8 +1,8 @@
 import { MODULE, ROLL_TYPES, FLASH_ROLL_MODES } from '../../../constants/General.mjs';
-import { LogUtil } from '../../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
-import { SocketUtil } from '../../utils/SocketUtil.mjs';
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { delay, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, getActorData } from '../../helpers/Helpers.mjs';
 import { RollHandlers } from '../../handlers/RollHandlers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from '../../helpers/RollValidationHelpers.mjs';

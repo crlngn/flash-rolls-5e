@@ -2,7 +2,7 @@ import { HOOKS_DND5E } from '../../constants/Hooks.mjs';
 import { MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { RollHelpers } from '../helpers/RollHelpers.mjs';
 import { HooksManager } from '../core/HooksManager.mjs';

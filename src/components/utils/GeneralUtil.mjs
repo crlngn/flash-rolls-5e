@@ -1,7 +1,7 @@
 import { getSettings } from "../../constants/Settings.mjs";
-import { LogUtil } from "./LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
-import { SocketUtil } from "./SocketUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { SystemCompat } from "./SystemCompat.mjs";
 
 /**

@@ -4,7 +4,7 @@ import { MODULE_ID } from "../../constants/General.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "./SettingsUtil.mjs";
 import { SystemCompat } from "./SystemCompat.mjs";
-import { LogUtil } from "./LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 
 /**
  * Host wrapper for the compact activity cards feature shared with Carolingian UI

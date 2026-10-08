@@ -1,9 +1,8 @@
 import { MODULE, MODULE_ID, ROLL_TYPES } from '../../constants/General.mjs';
 import { HOOKS_CORE } from '../../constants/Hooks.mjs';
-import { LogUtil } from '../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from '../utils/SettingsUtil.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
-import { SocketUtil } from '../utils/SocketUtil.mjs';
 import { SidebarController } from '../managers/SidebarController.mjs';
 import { getPlayerOwner, isPlayerOwned, hasTokenInScene, updateCanvasTokenSelection, delay, buildRollTypes, NotificationManager, filterActorsForDeathSaves, categorizeActorsByOwnership, adjustMenuOffset, getActorData } from '../helpers/Helpers.mjs';
 import { RollHandlers } from '../handlers/RollHandlers.mjs';
@@ -16,15 +15,14 @@ import { ChatMessageManager } from '../managers/ChatMessageManager.mjs';
 import { RollMenuActorUtil } from '../utils/RollMenuActorUtil.mjs';
 import { RollMenuConfig } from '../managers/roll-menu/RollMenuConfig.mjs';
 import { RollMenuDragManager } from '../managers/roll-menu/RollMenuDragManager.mjs';
-import { ActorStatusManager } from '../managers/ActorStatusManager.mjs';
-import { ActorDragUtil } from '../utils/ActorDragUtil.mjs';
-import { ActorDropUtil } from '../utils/ActorDropUtil.mjs';
+import { ActorDragUtil } from "@ftb-core/actors/drag/ActorDragUtil.mjs";
+import { ActorDropUtil } from "@ftb-core/actors/drag/ActorDropUtil.mjs";
 import { RollMenuEventManager } from '../managers/roll-menu/RollMenuEventManager.mjs';
 import { RollMenuOrchestrator } from '../managers/roll-menu/RollMenuOrchestrator.mjs';
 import { RollMenuActorProcessor } from '../managers/roll-menu/RollMenuActorProcessor.mjs';
 import { RollMenuExecutor } from '../managers/roll-menu/RollMenuExecutor.mjs';
 import { RollMenuStateManager } from '../managers/roll-menu/RollMenuStateManager.mjs';
-import { RollMenuStatusManager } from '../managers/roll-menu/RollMenuStatusManager.mjs';
+import { StatusEffectActions } from "@ftb-core/conditions/StatusEffectActions.mjs";
 import { ModuleSettingsMenu } from '../ui/dialogs/ModuleSettingsMenu.mjs';
 import { PremiumFeaturesDialog } from '../ui/dialogs/PremiumFeaturesDialog.mjs';
 import { IconLayoutUtil } from '../utils/IconLayoutUtil.mjs';
@@ -682,7 +680,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const statusEffectId = event.currentTarget.dataset.id;
     LogUtil.log('_onStatusEffectClick', [statusEffectId]);
     
-    await RollMenuStatusManager.toggleStatusOnSelected(statusEffectId, this);
+    await StatusEffectActions.toggleOnSelected(statusEffectId, this);
   }
 
   /**
@@ -1201,6 +1199,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   async _onClose(options) {
     LogUtil.log('_onClose',[options]);
+    ActorDragUtil.removeDragListeners(this);
 
     const interfaceEl = document.querySelector('#interface');
     if (this.element && this.isCustomPosition && this.element.parentElement === interfaceEl) {

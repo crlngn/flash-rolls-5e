@@ -1,11 +1,11 @@
 import { MODULE, MODULE_ID } from '../../../constants/General.mjs';
-import { LogUtil } from '../../utils/LogUtil.mjs';
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 import { getSettings } from '../../../constants/Settings.mjs';
 import { buildRollTypes } from '../../helpers/Helpers.mjs';
 import { RollMenuActorUtil } from '../../utils/RollMenuActorUtil.mjs';
-import { ActorStatusManager } from '../ActorStatusManager.mjs';
-import { RollMenuStatusManager } from './RollMenuStatusManager.mjs';
+import { ActorStatusFlags } from "@ftb-core/actors/ActorStatusFlags.mjs";
+import { StatusEffectCatalog } from "@ftb-core/conditions/StatusEffectCatalog.mjs";
 import { RollMenuStateManager } from './RollMenuStateManager.mjs';
 import { TokenMovementLock } from '@ftb-core/tokens/TokenMovementLock.mjs';
 
@@ -142,7 +142,7 @@ export class RollMenuActorProcessor {
     
     const requestTypes = this.buildRequestTypes(menu);
     const rollTypes = buildRollTypes(menu.selectedRequestType, menu.selectedActors);
-    const statusEffects = RollMenuStatusManager.getStatusEffectsForTemplate();
+    const statusEffects = StatusEffectCatalog.getStatusEffects();
     
     return {
       ...baseContext,
@@ -211,13 +211,13 @@ export class RollMenuActorProcessor {
    * @returns {Array} Array of actor data entries
    */
   static async processActor(actor, currentScene, menu, isPlayerOwned, primaryPartyMemberIds) {
-    if (ActorStatusManager.isBlocked(actor)) {
+    if (ActorStatusFlags.isBlocked(actor)) {
       return [];
     }
 
     const SETTINGS = getSettings();
     const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken?.tag);
-    const isFavorite = ActorStatusManager.isFavorite(actor);
+    const isFavorite = ActorStatusFlags.isFavorite(actor);
     const isPrimaryPartyMember = primaryPartyMemberIds.has(actor.id);
     const tokensInScene = currentScene?.tokens.filter(token => token.actorId === actor.id) || [];
 
@@ -351,7 +351,7 @@ export class RollMenuActorProcessor {
    * @returns {Array} Array of group actor data objects with members for menu display
    */
   static async processGroupActor(actor, currentScene, menu) {
-    if (ActorStatusManager.isBlocked(actor)) {
+    if (ActorStatusFlags.isBlocked(actor)) {
       return [];
     }
 
@@ -374,7 +374,7 @@ export class RollMenuActorProcessor {
       const tokenAssociations = tokenAssociationsByScene[currentScene?.id] || {};
 
       for (const member of actor.system.members || []) {
-        if (member.actor && !ActorStatusManager.isBlocked(member.actor)) {
+        if (member.actor && !ActorStatusFlags.isBlocked(member.actor)) {
           const memberActorId = member.actor.id;
           const associatedTokenIds = tokenAssociations[memberActorId] || [];
 
@@ -446,7 +446,7 @@ export class RollMenuActorProcessor {
       for (const member of actor.system.members || []) {
         try {
           const memberActor = await fromUuid(member.uuid);
-          if (memberActor && !ActorStatusManager.isBlocked(memberActor)) {
+          if (memberActor && !ActorStatusFlags.isBlocked(memberActor)) {
             const memberActorId = memberActor.id;
             const associatedTokenIds = tokenAssociations[memberActorId] || [];
 
@@ -532,7 +532,7 @@ export class RollMenuActorProcessor {
       }
 
       const memberDataList = memberActors.map(memberActor => {
-        if (!ActorStatusManager.isBlocked(memberActor)) {
+        if (!ActorStatusFlags.isBlocked(memberActor)) {
           if (hasActiveFilters) {
             if (!RollMenuStateManager.doesActorPassFilters(memberActor, actorFilters, null)) {
               return null;

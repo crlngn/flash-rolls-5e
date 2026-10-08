@@ -1,4 +1,4 @@
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { DnDBCharacterFetcher } from "./DnDBCharacterFetcher.mjs";
 import { DnDBCompendiumMatcher } from "./DnDBCompendiumMatcher.mjs";
 import { DnDBCharacterTransformer } from "./DnDBCharacterTransformer.mjs";

@@ -1,5 +1,5 @@
 import { MODULE_ID } from "../../../constants/General.mjs";
-import { LogUtil } from "../../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { getSettings } from "../../../constants/Settings.mjs";
 import { RollHelpers } from "../../helpers/RollHelpers.mjs";

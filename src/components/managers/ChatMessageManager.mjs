@@ -3,13 +3,13 @@ import { MODULE_ID, ROLL_TYPES, SOCKET_CALLS } from "../../constants/General.mjs
 import { getSettings } from "../../constants/Settings.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../core/FlashAPI.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { RollHandlers } from "../handlers/RollHandlers.mjs";
 import { HooksManager } from "../core/HooksManager.mjs";
 import { RollRequestManager } from "./RollRequestManager.mjs";
-import { SocketUtil } from "../utils/SocketUtil.mjs";
+import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
 import { CompactCardsUtil } from "../utils/CompactCardsUtil.mjs";
 import { TokenVisionPreview } from "@ftb-core/tokens/TokenVisionPreview.mjs";

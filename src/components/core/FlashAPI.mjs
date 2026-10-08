@@ -2,7 +2,7 @@ import { MODULE, ROLL_TYPES } from "../../constants/General.mjs";
 import { RollMenuOrchestrator } from "../managers/roll-menu/RollMenuOrchestrator.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { getActorData, getFullRollName } from "../helpers/Helpers.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import { getSettings } from "../../constants/Settings.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";

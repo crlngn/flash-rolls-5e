@@ -1,7 +1,7 @@
 import { ROLL_TYPES, MODULE_ID } from "../../constants/General.mjs";
 import { BaseActivityManager } from "../managers/BaseActivityManager.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
-import { LogUtil } from "../utils/LogUtil.mjs";
+import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { CustomRollDialog } from "../ui/dialogs/CustomRollDialog.mjs";
 import { NotificationManager } from "../helpers/Helpers.mjs";
 import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";

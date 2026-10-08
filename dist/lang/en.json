@@ -333,7 +333,8 @@
     "contextMenu": {
       "blockFromMenu": "Block from Token Bar",
       "unblockFromMenu": "Unblock from Token Bar",
-      "toggleFavorite": "Toggle Token Bar Favorite"
+      "toggleFavorite": "Toggle Token Bar Favorite",
+      "removeFavorite": "Remove from Token Bar favourites"
     },
     "notifications": {
       "rollRequest": "{gm} requested a {rollType} roll for {actor}",
@@ -370,7 +371,7 @@
       "iconRemoveFailed": "Failed to remove icon from menu",
       "macroCreated": "Macro \"{macroName}\" created successfully",
       "macroCreationFailed": "Failed to create macro",
-      "libWrapperRecommended": "Flash Token Bar: for optimal compatibility, consider installing the libWrapper module.",
+      "libWrapperRecommended": "Flash Token Bar 5e: libWrapper is not required, but it is recommended for token movement speed and tooltip auto-dismiss.",
       "invalidFormula": "Invalid formula: {formula}",
       "statusEffectApplied": "Applied \"{effectName}\" to {success}/{total} actor(s)",
       "statusEffectRemoved": "Removed \"{effectName}\" from {success}/{total} actor(s)",

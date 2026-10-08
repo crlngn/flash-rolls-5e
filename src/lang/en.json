@@ -905,5 +905,10 @@
       "selectTargeted": "Select the tokens this roll targeted",
       "noRecordedTargets": "This roll recorded no targets on the current scene."
     }
+  },
+  "FLASH_TOKEN_BAR": {
+    "notifications": {
+      "libWrapperRecommended": "Flash Token Bar 5e: libWrapper is not required, but it is recommended for token movement speed and tooltip auto-dismiss."
+    }
   }
 }
