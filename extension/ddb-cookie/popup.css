@@ -1,0 +1,143 @@
+:root {
+  --accent: #c53131;
+  --accent-hover: #a82626;
+  --bg: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #e2e2e5;
+  --soft: #f5f5f7;
+  --ok: #1f7a3d;
+  --error: #b42318;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1f22;
+    --fg: #f2f2f4;
+    --muted: #a1a1a8;
+    --line: #36363b;
+    --soft: #2a2a2e;
+    --ok: #4ade80;
+    --error: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+h1 {
+  margin: 0;
+  font-size: 14px;
+}
+
+main {
+  padding: 12px 14px;
+}
+
+p {
+  margin: 0 0 10px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+button {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.account {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--soft);
+}
+
+.account .label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cookie-row code {
+  display: block;
+  padding: 6px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.cookie-row {
+  margin-bottom: 4px;
+}
+
+.status {
+  min-height: 1em;
+  font-weight: 600;
+}
+
+.status[data-kind="ok"] {
+  color: var(--ok);
+}
+
+.status[data-kind="error"] {
+  color: var(--error);
+}
+
+.next-step {
+  font-size: 12px;
+}
+
+footer {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+footer p {
+  margin: 0;
+}

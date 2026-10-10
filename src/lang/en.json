@@ -1,5 +1,34 @@
 {
   "FLASH_ROLLS": {
+    "ddbCookieGuide": {
+      "title": "Finding your D&D Beyond cookie",
+      "warning": "Your CobaltSession cookie works like a password for your D&D Beyond account. Never share it or post screenshots of it. Flash Rolls keeps it only in this browser and sends it only to the Flash Rolls proxy to talk to D&D Beyond. Logging out of D&D Beyond invalidates it.",
+      "extension": {
+        "title": "Easiest: the Flash Rolls Cookie Helper extension",
+        "body": "Install the extension in the browser where you're signed in to D&D Beyond, click its icon, then click \"Copy cookie\" and paste it into Flash Rolls. It only reads the D&D Beyond login cookie and never sends it anywhere.",
+        "chrome": "Chrome, Edge, Brave",
+        "firefox": "Firefox"
+      },
+      "importer": {
+        "title": "Already using DDB Importer?",
+        "body": "Close this guide and click \"Use DDB Importer's cookie\" under the cookie field. Flash Rolls will reuse the cookie DDB Importer already has."
+      },
+      "manual": {
+        "title": "Copy it from your browser's developer tools",
+        "body": "Do this in Chrome (or Edge, Brave, Opera), signed in to D&D Beyond. Not in the Foundry desktop app."
+      },
+      "common": {
+        "signIn": "Open <a href=\"https://www.dndbeyond.com\" target=\"_blank\" rel=\"noopener noreferrer\">dndbeyond.com</a> and make sure you're signed in.",
+        "openDevtools": "Open the developer tools: press <kbd>F12</kbd> on Windows/Linux or <kbd>Cmd</kbd>+<kbd>Option</kbd>+<kbd>I</kbd> on Mac.",
+        "paste": "Paste the value into the <strong>Cobalt Session Cookie</strong> field in Flash Rolls. It's a long text that usually starts with <code>eyJ</code>."
+      },
+      "chromium": {
+        "tab": "Click the <strong>Application</strong> tab. If you don't see it, click <strong>»</strong> to show more tabs.",
+        "tree": "In the left sidebar, under <strong>Storage</strong>, expand <strong>Cookies</strong> and click <strong>https://www.dndbeyond.com</strong>.",
+        "copy": "Click the <strong>CobaltSession</strong> row, then select and copy its value from the <strong>Cookie Value</strong> panel at the bottom (or double-click the Value cell and press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>C</kbd>)."
+      },
+      "tip": "Flash Rolls also accepts the value with the \"CobaltSession=\" prefix or DDB Importer's JSON format, and cleans it up for you."
+    },
     "notifications": {
       "playerOffline": "{player} is offline. Rolling locally",
       "rollRequestSent": "Roll request for {actor} sent to {player}",
@@ -77,7 +106,8 @@
       "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again.",
       "ddbAuthFailed": "D&D Beyond rejected your Cobalt cookie. It has probably expired: copy a fresh one from dndbeyond.com into the Flash Rolls D&D Beyond settings.",
       "ddbSessionLimit": "You already have {max} active D&D Beyond Game Log connections. Close one of your other Foundry worlds, then reconnect.",
-      "ddbServerBusy": "The D&D Beyond Game Log relay is at capacity. Flash Rolls will retry in {minutes} minutes."
+      "ddbServerBusy": "The D&D Beyond Game Log relay is at capacity. Flash Rolls will retry in {minutes} minutes.",
+      "ddbCookieMovedToBrowser": "Flash Rolls: your D&D Beyond Cobalt cookie is now stored only in this browser. If you run this world from another browser or computer, enter the cookie there again."
     },
     "rollModePlayerChoice": "Player's Choice",
     "contextMenu": {
@@ -365,6 +395,10 @@
         "reloadPrompt": "Settings have been imported. Reload the page to apply all changes?"
       },
       "premiumFeatures": {
+        "useDdbImporterCookie": "Use DDB Importer's cookie",
+        "ddbImporterCookieUsed": "Copied the Cobalt cookie from DDB Importer.",
+        "ddbImporterNoCookie": "DDB Importer doesn't have a Cobalt cookie saved for this browser.",
+        "findCookieGuide": "How do I find my cookie?",
         "label": "Patreon Features",
         "buttonLabel": "Patreon Features",
         "title": "Patreon Features",
@@ -396,7 +430,7 @@
         "testConnectionBtn": "Test Connection",
         "testGameLogBtn": "Test DDB Connection",
         "ddbSettings": "D&D Beyond (Patreon features)",
-        "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your cobalt cookie, campaign id and user id in the fields below.",
+        "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your Cobalt cookie below, then choose your campaign.",
         "ddbWarningImportItems": "If you did not purchase official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium before importing the character.",
         "ddbWarningAfter": "If DDB Importer module is active, it is used for character import. If not available, Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items",
         "noApiKey": "Please enter an API key first.",
@@ -471,20 +505,24 @@
         "patreonRequired": "Connect to Patreon to access special features."
       },
       "ddbCampaignId": {
-        "label": "D&D Beyond Campaign ID",
-        "hint": "ID found in your campaign URL: dndbeyond.com/campaigns/XXXXXX)."
+        "label": "D&D Beyond Campaign",
+        "hint": "Your D&D Beyond campaigns load from your cookie. Without a cookie, enter the campaign ID or paste the campaign URL (dndbeyond.com/campaigns/XXXXXX).",
+        "choose": "Choose a campaign…",
+        "dm": "DM",
+        "refresh": "Reload campaigns from D&D Beyond",
+        "placeholder": "Campaign ID or URL",
+        "loading": "Loading your D&D Beyond campaigns…",
+        "loadFailed": "Couldn't load your campaigns from D&D Beyond. You can enter the campaign ID instead.",
+        "noCampaigns": "This D&D Beyond account isn't in any campaigns yet.",
+        "savedCampaign": "Saved campaign #{id}"
       },
       "ddbUserId": {
         "label": "D&D Beyond User ID",
-        "hint": "User ID found in browser console - go to campaign page and type console.log(Cobalt.User.ID) in the developer console. This is required to capture D&D Beyond rolls"
+        "hint": "Filled in automatically from your cookie when your campaigns load. To find it manually, open your campaign page on D&D Beyond and run console.log(Cobalt.User.ID) in the browser console."
       },
       "ddbCobaltCookie": {
         "label": "Cobalt Session Cookie",
-        "hint": "Your CobaltSession cookie value from D&D Beyond (required for authentication)"
-      },
-      "proxyApiKey": {
-        "label": "Proxy API Key",
-        "hint": "API key for the Carolingian proxy service (obtained after Patreon authentication)"
+        "hint": "Your CobaltSession cookie value from D&D Beyond (required for authentication). Stored only in this browser."
       },
       "ddbCharacterMappings": {
         "label": "D&D Beyond Character Mappings",

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>D&amp;D Beyond Cookie Helper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon-32.png" alt="" width="24" height="24">
+    <h1>D&amp;D Beyond Cookie Helper</h1>
+  </header>
+
+  <main>
+    <section id="state-loading">
+      <p class="muted">Looking for your D&amp;D Beyond login…</p>
+    </section>
+
+    <section id="state-permission" hidden>
+      <p>The helper needs permission to read your D&amp;D Beyond login cookie.</p>
+      <button id="grant" class="primary">Allow access to dndbeyond.com</button>
+    </section>
+
+    <section id="state-signed-out" hidden>
+      <p>You're not signed in to D&amp;D Beyond in this browser.</p>
+      <button id="open-ddb" class="primary">Open D&amp;D Beyond</button>
+      <p class="muted">Sign in, then click this extension's icon again.</p>
+    </section>
+
+    <section id="state-ready" hidden>
+      <div id="account" class="account" hidden>
+        <span class="label">Signed in as</span>
+        <strong id="account-name"></strong>
+        <span class="muted">User ID <code id="account-id"></code></span>
+      </div>
+
+      <div class="cookie-row">
+        <code id="cookie-preview" title="Your cookie is hidden on purpose"></code>
+      </div>
+      <p id="cookie-expiry" class="muted"></p>
+
+      <button id="copy-cookie" class="primary">Copy cookie</button>
+      <button id="copy-user-id" hidden>Copy user ID</button>
+
+      <p id="status" class="status" role="status"></p>
+
+      <p class="next-step">Then in Foundry: <strong>Configure Settings → Flash Token Bar 5e → Patreon Features</strong>, and paste it into <strong>Cobalt Session Cookie</strong>.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>This cookie works like a password for your D&amp;D Beyond account. Never share it. This extension only reads it on your request and never sends it anywhere except D&amp;D Beyond.</p>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

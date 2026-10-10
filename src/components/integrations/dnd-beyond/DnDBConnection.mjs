@@ -1,6 +1,7 @@
 import { getSettings } from "../../../constants/Settings.mjs";
 import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
+import { DnDBCookieUtil } from "./DnDBCookieUtil.mjs";
 import { PremiumFeaturesDialog } from "../../ui/dialogs/PremiumFeaturesDialog.mjs";
 import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 
@@ -37,7 +38,7 @@ export class DnDBConnection {
     const SETTINGS = getSettings();
     const campaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag)?.trim() || "";
     const userId = SettingsUtil.get(SETTINGS.ddbUserId.tag)?.trim() || "";
-    const cobaltCookie = SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag)?.trim() || "";
+    const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const sessionToken = PatronSessionManager.getSessionToken();
 
     return {

@@ -1,0 +1,57 @@
+<div class="ddb-cookie-guide">
+  <p class="guide-warning">{{localize "FLASH_ROLLS.ddbCookieGuide.warning"}}</p>
+
+  <section class="guide-option">
+    <h3><span class="option-badge">1</span>{{localize "FLASH_ROLLS.ddbCookieGuide.extension.title"}}</h3>
+    <p>{{localize "FLASH_ROLLS.ddbCookieGuide.extension.body"}}</p>
+    <div class="extension-links">
+      <a href="{{extensionLinks.chrome}}" target="_blank" rel="noopener noreferrer"><i class="fab fa-chrome"></i> {{localize "FLASH_ROLLS.ddbCookieGuide.extension.chrome"}}</a>
+      <a href="{{extensionLinks.firefox}}" target="_blank" rel="noopener noreferrer"><i class="fab fa-firefox-browser"></i> {{localize "FLASH_ROLLS.ddbCookieGuide.extension.firefox"}}</a>
+    </div>
+  </section>
+
+  {{#if hasDDBImporterCookie}}
+  <section class="guide-option">
+    <h3><span class="option-badge">2</span>{{localize "FLASH_ROLLS.ddbCookieGuide.importer.title"}}</h3>
+    <p>{{localize "FLASH_ROLLS.ddbCookieGuide.importer.body"}}</p>
+  </section>
+  {{/if}}
+
+  <section class="guide-option">
+    <h3><span class="option-badge">{{#if hasDDBImporterCookie}}3{{else}}2{{/if}}</span>{{localize "FLASH_ROLLS.ddbCookieGuide.manual.title"}}</h3>
+    <p>{{localize "FLASH_ROLLS.ddbCookieGuide.manual.body"}}</p>
+
+    <div class="browser-steps">
+      <ol>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.common.signIn"}}}</li>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.common.openDevtools"}}}</li>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.chromium.tab"}}}</li>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.chromium.tree"}}}</li>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.chromium.copy"}}}</li>
+        <li>{{{localize "FLASH_ROLLS.ddbCookieGuide.common.paste"}}}</li>
+      </ol>
+      <figure class="devtools-mock" aria-hidden="true">
+        <div class="dt-tabs">
+          <span>Elements</span><span>Console</span><span>Sources</span><span>Network</span><span class="hl"><b class="marker">3</b>Application</span>
+        </div>
+        <div class="dt-body">
+          <ul class="dt-tree">
+            <li class="dt-group">Storage</li>
+            <li>Local storage</li>
+            <li>Session storage</li>
+            <li class="dt-open">Cookies</li>
+            <li class="dt-child hl"><b class="marker">4</b>https://www.dndbeyond.com</li>
+          </ul>
+          <div class="dt-table">
+            <div class="dt-row dt-header"><span>Name</span><span>Value</span></div>
+            <div class="dt-row"><span>Preferences</span><span>…</span></div>
+            <div class="dt-row hl"><span><b class="marker">5</b>CobaltSession</span><span>eyJhbGciOiJkaXIi…</span></div>
+            <div class="dt-row"><span>ResponsiveSwitch</span><span>…</span></div>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <p class="guide-tip"><i class="fas fa-lightbulb"></i> {{localize "FLASH_ROLLS.ddbCookieGuide.tip"}}</p>
+  </section>
+</div>

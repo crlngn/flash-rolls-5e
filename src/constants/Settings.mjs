@@ -867,17 +867,7 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.ddbCobaltCookie.hint"),
       propType: String,
       default: "",
-      scope: SETTING_SCOPE.world,
-      config: false
-    },
-
-    proxyApiKey: {
-      tag: "proxy-api-key",
-      label: game.i18n.localize("FLASH_ROLLS.settings.proxyApiKey.label"),
-      hint: game.i18n.localize("FLASH_ROLLS.settings.proxyApiKey.hint"),
-      propType: String,
-      default: "",
-      scope: SETTING_SCOPE.world,
+      scope: SETTING_SCOPE.client,
       config: false
     },
 

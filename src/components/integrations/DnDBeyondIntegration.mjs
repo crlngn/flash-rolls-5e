@@ -8,6 +8,7 @@ import { DnDBConnection } from "./dnd-beyond/DnDBConnection.mjs";
 import { DnDBRollParser } from "./dnd-beyond/DnDBRollParser.mjs";
 import { DnDBRollExecutor } from "./dnd-beyond/DnDBRollExecutor.mjs";
 import { DnDBIntegration } from "./dnd-beyond/DnDBIntegration.mjs";
+import { DnDBSecretsMigration } from "./dnd-beyond/DnDBSecretsMigration.mjs";
 import { PatronSessionManager } from "../managers/PatronSessionManager.mjs";
 
 const SOCKET_HANDLERS = {
@@ -32,6 +33,8 @@ export class DnDBeyondIntegration {
     if (!game.user.isGM) {
       return;
     }
+
+    await DnDBSecretsMigration.run();
 
     const patronStatus = await PatronSessionManager.getInstance().validateSession();
     if (!patronStatus.isPatron) {

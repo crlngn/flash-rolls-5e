@@ -5,6 +5,8 @@ import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { DnDBeyondIntegration } from "../../integrations/DnDBeyondIntegration.mjs";
 import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 import { DnDBCharacterImporter } from "../../integrations/dnd-beyond/DnDBCharacterImporter.mjs";
+import { DnDBCookieUtil } from "../../integrations/dnd-beyond/DnDBCookieUtil.mjs";
+import { DnDBCookieGuideDialog } from "./DnDBCookieGuideDialog.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -27,6 +29,10 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     this._authStatus = null;
     this._campaignCharacters = [];
     this._isLoadingCharacters = false;
+    this._ddbCampaigns = null;
+    this._ddbCampaignsCookie = null;
+    this._ddbCampaignsError = null;
+    this._isLoadingCampaigns = false;
     this._patronVerified = false;
     this._ddbGameLogStatus = "unknown";
     this._initialDataLoaded = false;
@@ -72,6 +78,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       testConnection: PremiumFeaturesDialog.#onTestConnection,
       testGameLog: PremiumFeaturesDialog.#onTestGameLog,
       refreshCharacters: PremiumFeaturesDialog.#onRefreshCharacters,
+      refreshCampaigns: PremiumFeaturesDialog.#onRefreshCampaigns,
       mapCharacter: PremiumFeaturesDialog.#onMapCharacter,
       unlinkCharacter: PremiumFeaturesDialog.#onUnlinkCharacter,
       importCharacter: PremiumFeaturesDialog.#onImportCharacter,
@@ -80,7 +87,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       syncAll: PremiumFeaturesDialog.#onSyncAll,
       redeemLinkCode: PremiumFeaturesDialog.#onRedeemLinkCode,
       save: PremiumFeaturesDialog.#onSave,
-      toggleDdbSettings: PremiumFeaturesDialog.#onToggleDdbSettings
+      toggleDdbSettings: PremiumFeaturesDialog.#onToggleDdbSettings,
+      useDdbImporterCookie: PremiumFeaturesDialog.#onUseDdbImporterCookie,
+      showCookieGuide: PremiumFeaturesDialog.#onShowCookieGuide
     }
   };
 
@@ -157,7 +166,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
     const ddbCampaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag) || "";
     const ddbUserId = SettingsUtil.get(SETTINGS.ddbUserId.tag) || "";
-    const ddbCobaltCookie = SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag) || "";
+    const ddbCobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const ddbNoAutoConsumeSpellSlot = SettingsUtil.get(SETTINGS.ddbNoAutoConsumeSpellSlot.tag) || false;
     const ddbImportOwnership = SettingsUtil.get(SETTINGS.ddbImportOwnership.tag) ?? true;
     const hasSessionToken = !!PatronSessionManager.getSessionToken();
@@ -223,6 +232,10 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           campaignCharacters: charactersWithMapping,
           hasCharacters: charactersWithMapping.length > 0,
           hasDDBImporter,
+          campaignOptions: this._getCampaignOptions(ddbCampaignId),
+          hasCampaignOptions: !!this._ddbCampaigns?.length,
+          isLoadingCampaigns: this._isLoadingCampaigns,
+          campaignsError: this._ddbCampaignsError,
           characterCount: characterCountText,
           hasMappedCharacters: mappedCount > 0,
           hasUnmappedCharacters: unmappedCount > 0
@@ -345,13 +358,110 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   }
 
   /**
+   * Extract a campaign ID from a pasted value, accepting a bare ID or a campaign URL
+   * such as https://www.dndbeyond.com/campaigns/5236097
+   * @param {string} value - Raw field value
+   * @returns {string} The campaign ID, or the trimmed value when no ID is found
+   */
+  static parseCampaignId(value) {
+    const text = String(value ?? "").trim();
+    const match = text.match(/campaigns\/(\d+)/) || text.match(/^(\d+)$/);
+    return match ? match[1] : text;
+  }
+
+  /**
+   * Build the campaign select options, marking the saved campaign as selected and keeping it
+   * listed even when D&D Beyond no longer returns it
+   * @param {string} savedId - Saved campaign ID
+   * @returns {Array<{id: string, name: string, dmUsername: string|null, selected: boolean}>}
+   */
+  _getCampaignOptions(savedId) {
+    if (!this._ddbCampaigns?.length) return [];
+    const options = this._ddbCampaigns.map(campaign => ({
+      ...campaign,
+      selected: !!savedId && campaign.id === String(savedId)
+    }));
+    if (savedId && !options.some(option => option.selected)) {
+      options.unshift({
+        id: String(savedId),
+        name: game.i18n.format("FLASH_ROLLS.settings.ddbCampaignId.savedCampaign", { id: savedId }),
+        dmUsername: null,
+        selected: true
+      });
+    }
+    return options;
+  }
+
+  /**
+   * Load the D&D Beyond campaigns for the saved cookie through the proxy, and fill in the
+   * D&D Beyond user ID the cookie belongs to. Skips the request when the list was already
+   * loaded for the same cookie, unless refresh is requested.
+   * @param {object} [options]
+   * @param {boolean} [options.refresh=false] - Ask the proxy to bypass its cache
+   * @returns {Promise<void>}
+   */
+  async _fetchCampaigns({ refresh = false } = {}) {
+    const SETTINGS = getSettings();
+    const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
+    const sessionToken = PatronSessionManager.getSessionToken();
+
+    if (!sessionToken || !cobaltCookie) {
+      this._ddbCampaigns = null;
+      this._ddbCampaignsCookie = null;
+      return;
+    }
+    if (!refresh && this._ddbCampaignsCookie === cobaltCookie) return;
+
+    this._isLoadingCampaigns = true;
+    this._ddbCampaignsError = null;
+    this.render({ parts: ["ddbSettings"] });
+
+    try {
+      const response = await fetch(`${PROXY_BASE_URL}/ddb/campaigns${refresh ? "?refresh=1" : ""}`, {
+        headers: {
+          "Authorization": `Bearer ${sessionToken}`,
+          "X-Cobalt-Cookie": cobaltCookie
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        this._ddbCampaigns = null;
+        this._ddbCampaignsError = data.code === "ddb_auth_failed"
+          ? game.i18n.localize("FLASH_ROLLS.notifications.ddbAuthFailed")
+          : game.i18n.localize("FLASH_ROLLS.settings.ddbCampaignId.loadFailed");
+        return;
+      }
+
+      this._ddbCampaigns = data.campaigns || [];
+      this._ddbCampaignsCookie = cobaltCookie;
+      if (!this._ddbCampaigns.length) {
+        this._ddbCampaignsError = game.i18n.localize("FLASH_ROLLS.settings.ddbCampaignId.noCampaigns");
+      }
+
+      const savedUserId = SettingsUtil.get(SETTINGS.ddbUserId.tag);
+      if (data.userId && data.userId !== String(savedUserId ?? "")) {
+        await SettingsUtil.set(SETTINGS.ddbUserId.tag, data.userId);
+        LogUtil.log("PremiumFeaturesDialog: Filled D&D Beyond user ID from cookie", [data.userId]);
+      }
+    } catch (error) {
+      LogUtil.error("PremiumFeaturesDialog: Failed to fetch campaigns", [error]);
+      this._ddbCampaigns = null;
+      this._ddbCampaignsError = game.i18n.localize("FLASH_ROLLS.settings.ddbCampaignId.loadFailed");
+    } finally {
+      this._isLoadingCampaigns = false;
+      this.render({ parts: ["ddbSettings"] });
+    }
+  }
+
+  /**
    * Fetch campaign characters from proxy
    * @param {boolean} [showLoading=true] - Whether to show loading state and trigger re-renders
    */
   async _fetchCampaignCharacters(showLoading = true) {
     const SETTINGS = getSettings();
     const campaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag);
-    const cobaltCookie = SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag);
+    const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const sessionToken = PatronSessionManager.getSessionToken();
 
     if (!sessionToken || !campaignId || !cobaltCookie) {
@@ -547,9 +657,11 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   static async #onSave(event, target) {
     const SETTINGS = getSettings();
 
-    const ddbCampaignId = this.element.querySelector('input[name="ddbCampaignId"]')?.value;
+    const ddbCampaignIdField = this.element.querySelector('[name="ddbCampaignId"]');
+    const ddbCampaignId = ddbCampaignIdField ? PremiumFeaturesDialog.parseCampaignId(ddbCampaignIdField.value) : undefined;
     const ddbUserId = this.element.querySelector('input[name="ddbUserId"]')?.value;
-    const ddbCobaltCookie = this.element.querySelector('input[name="ddbCobaltCookie"]')?.value;
+    const ddbCobaltCookieInput = this.element.querySelector('input[name="ddbCobaltCookie"]');
+    const ddbCobaltCookie = ddbCobaltCookieInput ? DnDBCookieUtil.normalize(ddbCobaltCookieInput.value) : undefined;
     const ddbNoAutoConsumeSpellSlot = this.element.querySelector('input[name="ddbNoAutoConsumeSpellSlot"]')?.checked;
     const ddbImportOwnership = this.element.querySelector('input[name="ddbImportOwnership"]')?.checked;
 
@@ -571,6 +683,30 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
     ui.notifications.info(game.i18n.localize("FLASH_ROLLS.notifications.settingsUpdated"));
     this.close();
+  }
+
+  /**
+   * Fill the Cobalt cookie field with the cookie DDB Importer already has for this GM,
+   * then save it through the field's regular input handler
+   */
+  static #onUseDdbImporterCookie(event, target) {
+    const cookie = DnDBCookieUtil.getFromDDBImporter();
+    if (!cookie) {
+      ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.ddbImporterNoCookie"));
+      return;
+    }
+    const input = this.element.querySelector('input[name="ddbCobaltCookie"]');
+    if (!input) return;
+    input.value = cookie;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    ui.notifications.info(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.ddbImporterCookieUsed"));
+  }
+
+  /**
+   * Open the guide explaining how to find the Cobalt cookie
+   */
+  static #onShowCookieGuide(event, target) {
+    DnDBCookieGuideDialog.show();
   }
 
   /**
@@ -806,7 +942,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     const SETTINGS = getSettings();
     const campaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag)?.trim();
     const userId = SettingsUtil.get(SETTINGS.ddbUserId.tag)?.trim();
-    const cobaltCookie = SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag)?.trim();
+    const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
 
     if (!campaignId || !userId || !cobaltCookie) return;
 
@@ -855,9 +991,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       return;
     }
 
-    const campaignId = this.element.querySelector('input[name="ddbCampaignId"]')?.value?.trim();
+    const campaignId = PremiumFeaturesDialog.parseCampaignId(this.element.querySelector('[name="ddbCampaignId"]')?.value);
     const userId = this.element.querySelector('input[name="ddbUserId"]')?.value?.trim();
-    const cobaltCookie = this.element.querySelector('input[name="ddbCobaltCookie"]')?.value?.trim();
+    const cobaltCookie = DnDBCookieUtil.normalize(this.element.querySelector('input[name="ddbCobaltCookie"]')?.value);
 
     if (!campaignId || !userId || !cobaltCookie) {
       ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.missingDDBCredentials"));
@@ -901,6 +1037,13 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     this._updateDDBStatusIndicator();
+  }
+
+  /**
+   * Reload the D&D Beyond campaign list, bypassing the proxy cache
+   */
+  static async #onRefreshCampaigns(event, target) {
+    await this._fetchCampaigns({ refresh: true });
   }
 
   /**
@@ -1228,6 +1371,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       this._updatePatreonStatusIndicator();
       if (this._patronVerified) {
         this.render({ parts: ["ddbSettings"] });
+        await this._fetchCampaigns();
         await this._fetchCampaignCharacters();
 
         const activeTab = this.tabGroups["primary"];
@@ -1249,7 +1393,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       });
     });
 
-    const campaignIdInput = this.element.querySelector('input[name="ddbCampaignId"]');
+    const campaignIdInput = this.element.querySelector('[name="ddbCampaignId"]');
     const userIdInput = this.element.querySelector('input[name="ddbUserId"]');
     const cobaltCookieInput = this.element.querySelector('input[name="ddbCobaltCookie"]');
 
@@ -1257,14 +1401,15 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       if (!PatronSessionManager.isPatron()) return;
 
       const SETTINGS = getSettings();
-      const campaignId = campaignIdInput?.value?.trim();
+      const campaignId = PremiumFeaturesDialog.parseCampaignId(campaignIdInput?.value);
       const userId = userIdInput?.value?.trim();
-      const cobaltCookie = cobaltCookieInput?.value?.trim();
+      const cobaltCookie = DnDBCookieUtil.normalize(cobaltCookieInput?.value);
 
       if (campaignId) await SettingsUtil.set(SETTINGS.ddbCampaignId.tag, campaignId);
       if (userId) await SettingsUtil.set(SETTINGS.ddbUserId.tag, userId);
       if (cobaltCookie) await SettingsUtil.set(SETTINGS.ddbCobaltCookie.tag, cobaltCookie);
 
+      await this._fetchCampaigns();
       await this._fetchCampaignCharacters();
     }, 1000);
 

@@ -21,11 +21,52 @@
 
     <div class="collapsible-content">
       <div class="form-group">
+        <label>{{localize "FLASH_ROLLS.settings.ddbCobaltCookie.label"}}</label>
+        <div class="form-fields">
+          <input type="password" name="ddbCobaltCookie" value="{{ddbCobaltCookie}}"
+                placeholder="CobaltSession cookie value" autocomplete="off" />
+        </div>
+        <p class="hint">{{localize "FLASH_ROLLS.settings.ddbCobaltCookie.hint"}}</p>
+      </div>
+      <div class="ddb-cookie-helpers">
+        <a data-action="showCookieGuide">
+          <i class="fas fa-circle-question"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.findCookieGuide"}}
+        </a>
+        {{#if hasDDBImporter}}
+        <a data-action="useDdbImporterCookie">
+          <i class="fas fa-file-import"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.useDdbImporterCookie"}}
+        </a>
+        {{/if}}
+      </div>
+
+      <div class="form-group">
         <label>{{localize "FLASH_ROLLS.settings.ddbCampaignId.label"}}</label>
         <div class="form-fields">
+          {{#if hasCampaignOptions}}
+          <select name="ddbCampaignId">
+            {{#unless ddbCampaignId}}
+            <option value="" selected disabled>{{localize "FLASH_ROLLS.settings.ddbCampaignId.choose"}}</option>
+            {{/unless}}
+            {{#each campaignOptions}}
+            <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}{{#if dmUsername}} ({{localize "FLASH_ROLLS.settings.ddbCampaignId.dm"}}: {{dmUsername}}){{/if}}</option>
+            {{/each}}
+          </select>
+          <button type="button" class="campaigns-refresh-btn" data-action="refreshCampaigns"
+                  data-tooltip="{{localize 'FLASH_ROLLS.settings.ddbCampaignId.refresh'}}">
+            <i class="fas fa-sync-alt {{#if isLoadingCampaigns}}fa-spin{{/if}}"></i>
+          </button>
+          {{else}}
           <input type="text" name="ddbCampaignId" value="{{ddbCampaignId}}"
-                placeholder="5555555" />
+                placeholder="{{localize 'FLASH_ROLLS.settings.ddbCampaignId.placeholder'}}" />
+          {{/if}}
         </div>
+        {{#if isLoadingCampaigns}}
+        <p class="hint on campaigns-status"><i class="fas fa-spinner fa-spin"></i> {{localize "FLASH_ROLLS.settings.ddbCampaignId.loading"}}</p>
+        {{else if campaignsError}}
+        <p class="hint on campaigns-status">{{campaignsError}}</p>
+        {{/if}}
         <p class="hint">{{localize "FLASH_ROLLS.settings.ddbCampaignId.hint"}}</p>
       </div>
 
@@ -36,15 +77,6 @@
                 placeholder="111111111" />
         </div>
         <p class="hint">{{localize "FLASH_ROLLS.settings.ddbUserId.hint"}}</p>
-      </div>
-
-      <div class="form-group">
-        <label>{{localize "FLASH_ROLLS.settings.ddbCobaltCookie.label"}}</label>
-        <div class="form-fields">
-          <input type="password" name="ddbCobaltCookie" value="{{ddbCobaltCookie}}"
-                placeholder="CobaltSession cookie value" autocomplete="off" />
-        </div>
-        <p class="hint">{{localize "FLASH_ROLLS.settings.ddbCobaltCookie.hint"}}</p>
       </div>
     </div>
   </fieldset>

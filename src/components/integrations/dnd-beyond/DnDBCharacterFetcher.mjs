@@ -1,6 +1,7 @@
 import { getSettings } from "../../../constants/Settings.mjs";
 import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
+import { DnDBCookieUtil } from "./DnDBCookieUtil.mjs";
 import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 
 function getProxyBaseUrl() {
@@ -86,7 +87,7 @@ export class DnDBCharacterFetcher {
    */
   static _getConfig() {
     const SETTINGS = getSettings();
-    const cobaltCookie = SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag)?.trim() || "";
+    const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const sessionToken = PatronSessionManager.getSessionToken();
 
     return {
