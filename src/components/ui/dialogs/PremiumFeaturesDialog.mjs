@@ -883,6 +883,13 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
         this._ddbGameLogStatus = "connected";
         ui.notifications.info(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.gameLogTestSuccess"));
         this._collapseDdbSettingsFieldset();
+        const SETTINGS = getSettings();
+        await SettingsUtil.set(SETTINGS.ddbCampaignId.tag, campaignId);
+        await SettingsUtil.set(SETTINGS.ddbUserId.tag, userId);
+        await SettingsUtil.set(SETTINGS.ddbCobaltCookie.tag, cobaltCookie);
+        if (!DnDBeyondIntegration.isConnected()) {
+          DnDBeyondIntegration.connect();
+        }
       } else {
         this._ddbGameLogStatus = "error";
         ui.notifications.error(game.i18n.format("FLASH_ROLLS.settings.premiumFeatures.gameLogTestFailed", { error: data.error || "Unknown error" }));

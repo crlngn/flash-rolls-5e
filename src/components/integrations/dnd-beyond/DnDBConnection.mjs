@@ -88,6 +88,9 @@ export class DnDBConnection {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (this._handleConnectRejection(errorData)) {
+          return;
+        }
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
@@ -109,6 +112,53 @@ export class DnDBConnection {
       this._isConnecting = false;
       this._notifyStatusChange();
     }
+  }
+
+  /**
+   * Handle proxy rejections that retrying on the normal schedule cannot fix.
+   * An invalid cookie or the per-user session limit stops reconnecting until the GM acts;
+   * a full server retries once after the delay the proxy asks for.
+   * @param {{code?: string, retryAfter?: number}} errorData - Error body returned by /ddb/connect
+   * @returns {boolean} True when the rejection was handled and no regular retry should run
+   */
+  static _handleConnectRejection(errorData) {
+    switch (errorData?.code) {
+      case "ddb_auth_failed":
+        this._stopWithError(game.i18n.localize("FLASH_ROLLS.notifications.ddbAuthFailed"));
+        return true;
+      case "patron_session_limit":
+        this._stopWithError(game.i18n.format("FLASH_ROLLS.notifications.ddbSessionLimit", { max: 2 }));
+        return true;
+      case "server_busy": {
+        const retryAfterMs = (Number(errorData.retryAfter) || 300) * 1000;
+        ui.notifications.warn(game.i18n.format("FLASH_ROLLS.notifications.ddbServerBusy", {
+          minutes: Math.ceil(retryAfterMs / 60000)
+        }));
+        PatronSessionManager.setDDBConnected(false);
+        if (this._reconnectTimer) {
+          clearTimeout(this._reconnectTimer);
+        }
+        this._reconnectTimer = setTimeout(() => {
+          this._reconnectTimer = null;
+          this.connect();
+        }, retryAfterMs);
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Stop reconnecting and tell the GM why
+   * @param {string} message - Localized error message
+   */
+  static _stopWithError(message) {
+    this._closeStream();
+    this._reconnectAttempts = 0;
+    PatronSessionManager.setDDBConnected(false);
+    ui.notifications.error(message, { permanent: true });
+    this._notifyStatusChange();
   }
 
   /**
@@ -159,6 +209,15 @@ export class DnDBConnection {
 
     try {
       const data = JSON.parse(raw);
+      if (data.type === "connected" && data.status === "auth_failed") {
+        this._stopWithError(game.i18n.localize("FLASH_ROLLS.notifications.ddbAuthFailed"));
+        return;
+      }
+      if (data.type === "status" && data.status === "failed") {
+        const key = data.reason === "auth_failed" ? "ddbAuthFailed" : "ddbConnectionFailed";
+        this._stopWithError(game.i18n.localize(`FLASH_ROLLS.notifications.${key}`));
+        return;
+      }
       if (data.eventType === "dice/roll/fulfilled") {
         LogUtil.log("DnDBConnection: Roll received", [
           `messageScope=${data.messageScope}`,

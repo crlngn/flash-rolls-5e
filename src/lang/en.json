@@ -74,7 +74,10 @@
       "libWrapperRecommended": "Flash Rolls 5e: libWrapper module is not required, but is recommended",
       "autoRollTimeout": "Flash Token Bar: Auto-rolling for {actor} (Midi-QoL timeout expired)",
       "ddbConnected": "Connected to D&D Beyond.",
-      "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again."
+      "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again.",
+      "ddbAuthFailed": "D&D Beyond rejected your Cobalt cookie. It has probably expired: copy a fresh one from dndbeyond.com into the Flash Rolls D&D Beyond settings.",
+      "ddbSessionLimit": "You already have {max} active D&D Beyond Game Log connections. Close one of your other Foundry worlds, then reconnect.",
+      "ddbServerBusy": "The D&D Beyond Game Log relay is at capacity. Flash Rolls will retry in {minutes} minutes."
     },
     "rollModePlayerChoice": "Player's Choice",
     "contextMenu": {
