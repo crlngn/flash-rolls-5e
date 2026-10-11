@@ -127,7 +127,18 @@
         "allGroupsTitle": "All Saved Groups",
         "noSavedGroups": "No groups have been saved yet. Select actors in the bar and use Group Actors to save one.",
         "memberSummary": "{stored} members, {onScene} on this scene",
-        "selectInBar": "Select in the token bar"
+        "memberCount": "{count} members",
+        "createGroup": "Create group",
+        "savedGroupsSource": "Flash Token Bar groups",
+        "actorTypeSource": "{type} actors",
+        "memberCountOne": "{count} member",
+        "selectInBar": "Select in the token bar",
+        "panToToken": "Pan to token",
+        "removeMember": "Remove from group",
+        "removeMemberTitle": "Remove from Group",
+        "removeMemberConfirm": "Remove {member} from {group}? This changes the group in the game system.",
+        "deleteEmptyTitle": "Delete Empty Group",
+        "deleteEmptyConfirm": "{member} was the last member of {group}. Delete the group too?"
       }
     },
     "settings": {
@@ -272,6 +283,10 @@
         "label": "Show Bar to Players",
         "hint": "Players get the bolt icon and a bar limited to player characters and their groups. They can only select and act on characters they own; GM-only actions are hidden."
       },
+      "groupSources": {
+        "label": "Group actor types to use",
+        "hint": "Which groups the Groups tab shows: groups saved with Flash Token Bar, and any actor type in this system that holds members. Group actor types left out here don't show in the PCs or NPCs tabs either."
+      },
       "showOnlyPCsWithToken": {
         "label": "Only Show Actors with Tokens",
         "hint": "The PCs and Groups tabs on the menu will only show actors with tokens in the current scene, unless you explicitly drag an actor from directory into the menu. If disabled, all characters with player ownership will be shown."
@@ -354,6 +369,7 @@
       "statusEffectsRemoved": "Removed {count} status effect(s) from {actors} actor(s)",
       "noStatusEffectsToRemove": "No status effects to remove",
       "noActorsSelected": "No actors selected",
+      "selectTokensToGroup": "Select tokens to group",
       "noOwnedActorsSelected": "None of the selected actors are owned by you",
       "movementLocked": "Movement locked for {count} token(s)",
       "movementUnlocked": "Movement unlocked for {count} token(s)",
@@ -403,10 +419,76 @@
       "ownersOffline": "Owners offline; rolled locally for {actors}",
       "macroNotAvailable": "No macro is available for the {iconName} icon",
       "macroFolderFailed": "Failed to create the Flash Token Bar macro folder. The macro will be created without a folder.",
-      "groupNotOnScene": "No member of this group is on the current scene"
+      "groupNotOnScene": "No member of this group is on the current scene",
+      "memberRemoved": "{member} removed from {group}",
+      "memberRemoveFailed": "Could not remove {member} from {group}"
+    },
+    "systemConfig": {
+      "menuName": "System Config",
+      "menuLabel": "System Config",
+      "menuHint": "Set up which rolls the Rolls tab offers in {system}. Only used because no Flash Token Bar adapter supports this system yet.",
+      "title": "System Config",
+      "intro": "Pick what actors can roll in <strong>{system}</strong>. Tick the rolls to show in the Rolls tab; <em>Roll with</em> uses the system's own rolls (actor rolls first, then the system's API), and <em>Options from</em> lists what can be rolled (skills, attributes…).",
+      "formulaHelp": "The formula is optional: when set, it is rolled instead of the system's roll. <code>{value}</code> is the chosen option's value, and <code>@</code> paths read the actor's roll data, e.g. <code>{value}d10cs&gt;=6</code> or <code>1d20 + {value}</code>.",
+      "noMethods": "No roll methods or system API were found, so rolls use formulas.",
+      "showInRolls": "Show in the Rolls tab",
+      "labelPlaceholder": "Name shown in the Rolls tab",
+      "remove": "Remove",
+      "rollWith": "Roll with",
+      "formulaOnly": "Formula only",
+      "actorRolls": "Actor rolls",
+      "dataRolls": "Character data rolls",
+      "optionsFrom": "Options from",
+      "noOptions": "None (single roll)",
+      "formula": "Formula",
+      "formulaOptional": "Optional: replaces the system roll",
+      "formulaRequired": "Required, e.g. 1d20 + {value}",
+      "addRow": "Add roll type",
+      "detectAgain": "Detect again",
+      "detected": "{count} new suggestions added",
+      "clear": "Remove setup",
+      "clearConfirm": "Remove your roll setup for this system? Flash Token Bar's built-in setup is used again when there is one; otherwise the Rolls tab stays empty until it is set up again.",
+      "saved": "System setup saved: {count} roll types in the Rolls tab",
+      "untitled": "Roll",
+      "apiRolls": "System API",
+      "passes": "Passes: {params}",
+      "sheetRolls": "Sheet rolls",
+      "usingProfile": "Using Flash Token Bar's built-in setup for {title} (tested with version {version}). Changes you save here replace it for this world; Remove setup brings it back.",
+      "sheetRollsGroup": "Character sheet rolls",
+      "itemRolls": "Item rolls",
+      "profileRolls": "From the built-in setup",
+      "resultLabel": "Result",
+      "result": {
+        "total": "Total vs target",
+        "successes": "Counts successes",
+        "atMost": "Lower is better"
+      }
     }
   },
   "FLASH_ROLLS": {
+    "ddbCookieGuide": {
+      "title": "Finding your D&D Beyond cookie",
+      "warning": "Your CobaltSession cookie works like a password. Never share it or post screenshots of it. Logging out of D&D Beyond invalidates it. Flash Token Bar never saves it beyond this browser's local storage, and uses it on the proxy only to talk to D&D Beyond.",
+      "importer": {
+        "title": "Already using DDB Importer?",
+        "body": "Close this guide and click the \"Use DDB Importer cookie\" button under the cookie field. Flash Rolls will reuse the cookie DDB Importer already has."
+      },
+      "manual": {
+        "title": "Copy it from your browser's developer tools",
+        "body": "Do this in Chrome (or Edge, Brave, Opera), signed in to D&D Beyond. Not in the Foundry desktop app."
+      },
+      "common": {
+        "signIn": "Open <a href=\"https://www.dndbeyond.com\" target=\"_blank\" rel=\"noopener noreferrer\">dndbeyond.com</a> and make sure you're signed in.",
+        "openDevtools": "Open the developer tools: press <kbd>F12</kbd> on Windows/Linux or <kbd>Cmd</kbd>+<kbd>Option</kbd>+<kbd>I</kbd> on Mac.",
+        "paste": "Paste the value into the <strong>Cobalt Session Cookie</strong> field in Flash Rolls. It's a long text that usually starts with <code>eyJ</code>."
+      },
+      "chromium": {
+        "tab": "Click the <strong>Application</strong> tab. If you don't see it, click <strong>»</strong> to show more tabs.",
+        "tree": "In the left sidebar, under <strong>Storage</strong>, expand <strong>Cookies</strong> and click <strong>https://www.dndbeyond.com</strong>.",
+        "copy": "Click the <strong>CobaltSession</strong> row, then select and copy its value from the <strong>Cookie Value</strong> panel at the bottom (or double-click the Value cell and press <kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>C</kbd>)."
+      },
+      "tip": "Flash Rolls also accepts the value with the \"CobaltSession=\" prefix or DDB Importer's JSON format, and cleans it up for you."
+    },
     "notifications": {
       "playerOffline": "{player} is offline. Rolling locally",
       "rollRequestSent": "Roll request for {actor} sent to {player}",
@@ -481,7 +563,12 @@
       "libWrapperRecommended": "Flash Rolls 5e: libWrapper module is not required, but is recommended",
       "autoRollTimeout": "Flash Token Bar: Auto-rolling for {actor} (Midi-QoL timeout expired)",
       "ddbConnected": "Connected to D&D Beyond.",
-      "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again."
+      "ddbConnectionFailed": "Failed to connect to D&D Beyond. Check your settings and try again.",
+      "ddbAuthFailed": "D&D Beyond rejected your Cobalt cookie. It has probably expired: copy a fresh one from dndbeyond.com into the Flash Rolls D&D Beyond settings.",
+      "ddbSessionLimit": "You already have {max} active D&D Beyond Game Log connections. Close one of your other Foundry worlds, then reconnect.",
+      "ddbServerBusy": "The D&D Beyond Game Log relay is at capacity. Flash Rolls will retry in {minutes} minutes.",
+      "ddbCookieMovedToBrowser": "Flash Rolls: your D&D Beyond Cobalt cookie is now stored only in this browser. If you run this world from another browser or computer, enter the cookie there again.",
+      "ddbSyncPushSkipped": "Flash Token Bar: D&D Beyond didn't allow changes to {name} from your account, so Foundry changes to that character won't be sent this session."
     },
     "rollModePlayerChoice": "Player's Choice",
     "contextMenu": {
@@ -637,8 +724,7 @@
           "generalSettings": "General Settings",
           "interfaceSettings": "Interface",
           "groupRolls": "Group Rolls",
-          "rollRequests": "Roll Requests",
-          "integrations": "Integrations"
+          "rollRequests": "Roll Requests"
         },
         "fieldsets": {
           "rollDialog": "Roll Dialog",
@@ -650,11 +736,8 @@
           "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "dndBeyond": "D&D Beyond (Patreon features)",
           "activityChatCards": "Activity Chat Cards"
-        },
-        "connectPatreon": "Connect to Patreon",
-        "connectPatreonHint": "Open the Patreon features dialog to authenticate and unlock D&D Beyond integration."
+        }
       },
       "ddbImportOwnership": {
         "label": "Add ownership to all players",
@@ -697,7 +780,8 @@
         "ddbImporterFailed": "DDB Importer failed to import the character.",
         "ddbImporterError": "An error occurred while importing via DDB Importer.",
         "success": "Character \"{name}\" created ({tier} import, {count} items matched).",
-        "createFailed": "Failed to create character: {error}"
+        "createFailed": "Failed to create character: {error}",
+        "classAddFailed": "Couldn't add the {name} class to the imported character: {error}"
       },
       "initiateCombatOnRequest": {
         "label": "Initiate Combat when Requesting Initiative",
@@ -769,6 +853,12 @@
         "reloadPrompt": "Settings have been imported. Reload the page to apply all changes?"
       },
       "premiumFeatures": {
+        "useDdbImporterCookie": "Use DDB Importer cookie",
+        "ddbImporterCookieUsed": "Copied the Cobalt cookie from DDB Importer.",
+        "ddbImporterNoCookie": "DDB Importer doesn't have a Cobalt cookie saved for this browser.",
+        "findCookieGuide": "How to find your cookie",
+        "ddbRollOptions": "Roll Options",
+        "ddbImportOptions": "Import Options",
         "label": "Patreon Features",
         "buttonLabel": "Patreon Features",
         "title": "Patreon Features",
@@ -776,7 +866,8 @@
         "description": "Click 'Authenticate with Patreon' to get access to D&D Beyond features. Free access will be given to all Patreon members (free or not) at least until August 2026.",
         "tabs": {
           "authentication": "Member Authentication",
-          "ddbSettings": "D&D Beyond Options"
+          "ddbSettings": "D&D Beyond Options",
+          "ddbImport": "D&D Beyond Import"
         },
         "patreonAuth": "Patreon Authentication",
         "apiKey": "API Key",
@@ -800,9 +891,11 @@
         "testConnectionBtn": "Test Connection",
         "testGameLogBtn": "Test DDB Connection",
         "ddbSettings": "D&D Beyond (Patreon features)",
-        "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your cobalt cookie, campaign id and user id in the fields below.",
-        "ddbWarningImportItems": "If you did not purchase official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium before importing the character.",
-        "ddbWarningAfter": "If DDB Importer module is active, it is used for character import. If not available, Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items",
+        "ddbImporterActive": "DDB Importer module is active.",
+        "ddbImporterInactive": "DDB Importer module is not active.",
+        "ddbWarningImportItems": "Unless you purchased official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium *before* importing the character.",
+        "ddbWarningAfterImporter": "DDB Importer is active, so it is used for character import.",
+        "ddbWarningAfterCompendium": "Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items.",
         "noApiKey": "Please enter an API key first.",
         "connectionSuccess": "Connection successful! Welcome, {name}.",
         "connectionFailed": "Authentication failed. Please re-authenticate with Patreon.",
@@ -810,7 +903,7 @@
         "notPatron": "Your Patreon membership does not have access. Reason: {reason}",
         "patreonVerified": "Patreon membership verified",
         "patreonNotVerified": "Patreon membership not verified",
-        "statusConnected": "Connected to D&D Beyond",
+        "statusConnected": "Connection established with D&D Beyond",
         "statusConnecting": "Testing connection...",
         "statusDisconnected": "Disconnected",
         "statusError": "Connection failed",
@@ -872,23 +965,44 @@
         "tooltipOn": "ON",
         "tooltipOff": "OFF",
         "contextReconnect": "Reconnect to Patreon",
-        "patreonRequired": "Connect to Patreon to access special features."
+        "patreonRequired": "Connect to Patreon to access special features.",
+        "ddbSyncOptions": "Character Sync",
+        "ddbSyncIntro": "For characters linked to D&D Beyond, these are kept in step:",
+        "syncCharactersNow": "Sync characters now (D&D Beyond → Foundry)",
+        "syncCharactersDone": "Character sync finished: {synced} synced, {failed} failed.",
+        "ddbSyncFields": {
+          "hitPoints": "Hit points and temporary hit points",
+          "maxHp": "Max HP modifier and max HP override",
+          "spellSlots": "Spell slots and pact slots",
+          "hitDice": "Hit dice",
+          "featureUses": "Feature uses (Lay on Hands, Channel Divinity, free spell casts…)",
+          "equipment": "Equipment: equipped, attuned, quantity and charges",
+          "deathSaves": "Death saves",
+          "inspiration": "Heroic inspiration",
+          "exhaustion": "Exhaustion",
+          "conditions": "Conditions (Blinded, Prone, Invisible…)"
+        },
+        "ddbSyncDirections": "Choose below which direction changes travel."
       },
       "ddbCampaignId": {
-        "label": "D&D Beyond Campaign ID",
-        "hint": "ID found in your campaign URL: dndbeyond.com/campaigns/XXXXXX)."
+        "label": "D&D Beyond Campaign",
+        "hint": "Your campaigns load from your D&D Beyond account. If they can't be loaded, enter the campaign ID or paste the campaign URL (dndbeyond.com/campaigns/XXXXXX).",
+        "choose": "Choose a campaign…",
+        "dm": "DM",
+        "refresh": "Reload campaigns from D&D Beyond",
+        "placeholder": "Campaign ID or URL",
+        "loading": "Loading your D&D Beyond campaigns…",
+        "loadFailed": "Couldn't load your campaigns from D&D Beyond. You can enter the campaign ID instead.",
+        "noCampaigns": "This D&D Beyond account isn't in any campaigns yet.",
+        "savedCampaign": "Saved campaign #{id}"
       },
       "ddbUserId": {
         "label": "D&D Beyond User ID",
-        "hint": "User ID found in browser console - go to campaign page and type console.log(Cobalt.User.ID) in the developer console. This is required to capture D&D Beyond rolls"
+        "hint": "Filled in automatically from your cookie when your campaigns load. To find it manually, open your campaign page on D&D Beyond and run console.log(Cobalt.User.ID) in the browser console."
       },
       "ddbCobaltCookie": {
         "label": "Cobalt Session Cookie",
-        "hint": "Your CobaltSession cookie value from D&D Beyond (required for authentication)"
-      },
-      "proxyApiKey": {
-        "label": "Proxy API Key",
-        "hint": "API key for the Carolingian proxy service (obtained after Patreon authentication)"
+        "hint": "Your CobaltSession cookie value from D&D Beyond (required for authentication). Stored only in this browser."
       },
       "ddbCharacterMappings": {
         "label": "D&D Beyond Character Mappings",
@@ -977,6 +1091,14 @@
       "retroAdvantageButtons": {
         "label": "Retroactive advantage buttons",
         "hint": "Show buttons flanking the total of attack, check and save rolls that apply advantage or disadvantage after the roll, rolling one more d20 and keeping the highest or lowest. Only the roll's author and the GM see them."
+      },
+      "ddbSyncToDDB": {
+        "label": "Foundry → D&D Beyond: Auto-send character changes from Foundry to D&D Beyond",
+        "hint": "When checked, changes made in Foundry are sent to the linked D&D Beyond character a few seconds after they settle. Your Cobalt cookie's account must be allowed to edit the character on D&D Beyond (its owner, or the DM of its campaign). Note: an open D&D Beyond character sheet doesn't update live; refresh the page on D&D Beyond to see the changes."
+      },
+      "ddbSyncFromDDB": {
+        "label": "D&D Beyond → Foundry: auto-sync character changes from D&D Beyond",
+        "hint": "When checked, changes made on D&D Beyond are applied to the linked Foundry character within a few seconds. When unchecked, D&D Beyond changes are only applied when you click \"Sync characters now\"."
       }
     },
     "groupRoll": {
