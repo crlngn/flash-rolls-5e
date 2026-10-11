@@ -307,6 +307,20 @@ export class DnDBCharacterImporter {
   }
 
   /**
+   * Keep only ScaleValue advancements so class scale values (e.g. Lay on Hands pool) still work
+   * without running the advancement flow. dnd5e 5.x stores advancement as an object keyed by ID,
+   * while older data and some compendiums still use an array, so both shapes are handled.
+   * @param {Object<string, Object>|Array<Object>} advancement - Class advancement data
+   * @returns {Object<string, Object>|Array<Object>} Advancement data in the same shape, filtered
+   * @private
+   */
+  static _keepScaleValueAdvancement(advancement) {
+    const isScaleValue = adv => adv?.type === "ScaleValue";
+    if (Array.isArray(advancement)) return advancement.filter(isScaleValue);
+    return Object.fromEntries(Object.entries(advancement).filter(([, adv]) => isScaleValue(adv)));
+  }
+
+  /**
    * Add class items directly to actor without triggering advancement
    * Sets the class level from DDB data - features are added separately
    * @param {Actor} actor - The actor to add items to
@@ -333,9 +347,7 @@ export class DnDBCharacterImporter {
         }
 
         if (itemData.system?.advancement) {
-          itemData.system.advancement = itemData.system.advancement.filter(
-            adv => adv.type === "ScaleValue"
-          );
+          itemData.system.advancement = this._keepScaleValueAdvancement(itemData.system.advancement);
         }
 
         DnDBCharacterTransformer.applyItemState(itemData, match.ddbItem);
@@ -348,6 +360,10 @@ export class DnDBCharacterImporter {
 
         itemsToAdd.push(itemData);
       } catch (error) {
+        ui.notifications.warn(game.i18n.format("FLASH_ROLLS.settings.premiumSettings.classAddFailed", {
+          name: match.foundryName,
+          error: error.message
+        }));
         LogUtil.warn("DnDBCharacterImporter: Failed to process class item", [
           match.foundryName,
           error.message

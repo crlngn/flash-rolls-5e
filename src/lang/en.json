@@ -2,16 +2,10 @@
   "FLASH_ROLLS": {
     "ddbCookieGuide": {
       "title": "Finding your D&D Beyond cookie",
-      "warning": "Your CobaltSession cookie works like a password for your D&D Beyond account. Never share it or post screenshots of it. Flash Rolls keeps it only in this browser and sends it only to the Flash Rolls proxy to talk to D&D Beyond. Logging out of D&D Beyond invalidates it.",
-      "extension": {
-        "title": "Easiest: the Flash Rolls Cookie Helper extension",
-        "body": "Install the extension in the browser where you're signed in to D&D Beyond, click its icon, then click \"Copy cookie\" and paste it into Flash Rolls. It only reads the D&D Beyond login cookie and never sends it anywhere.",
-        "chrome": "Chrome, Edge, Brave",
-        "firefox": "Firefox"
-      },
+      "warning": "Your CobaltSession cookie works like a password. Never share it or post screenshots of it. Logging out of D&D Beyond invalidates it. Flash Token Bar never saves it beyond this browser's local storage, and uses it on the proxy only to talk to D&D Beyond.",
       "importer": {
         "title": "Already using DDB Importer?",
-        "body": "Close this guide and click \"Use DDB Importer's cookie\" under the cookie field. Flash Rolls will reuse the cookie DDB Importer already has."
+        "body": "Close this guide and click the \"Use DDB Importer cookie\" button under the cookie field. Flash Rolls will reuse the cookie DDB Importer already has."
       },
       "manual": {
         "title": "Copy it from your browser's developer tools",
@@ -263,8 +257,7 @@
           "generalSettings": "General Settings",
           "interfaceSettings": "Interface",
           "groupRolls": "Group Rolls",
-          "rollRequests": "Roll Requests",
-          "integrations": "Integrations"
+          "rollRequests": "Roll Requests"
         },
         "fieldsets": {
           "rollDialog": "Roll Dialog",
@@ -276,11 +269,8 @@
           "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "dndBeyond": "D&D Beyond (Patreon features)",
           "activityChatCards": "Activity Chat Cards"
-        },
-        "connectPatreon": "Connect to Patreon",
-        "connectPatreonHint": "Open the Patreon features dialog to authenticate and unlock D&D Beyond integration."
+        }
       },
       "ddbImportOwnership": {
         "label": "Add ownership to all players",
@@ -323,7 +313,8 @@
         "ddbImporterFailed": "DDB Importer failed to import the character.",
         "ddbImporterError": "An error occurred while importing via DDB Importer.",
         "success": "Character \"{name}\" created ({tier} import, {count} items matched).",
-        "createFailed": "Failed to create character: {error}"
+        "createFailed": "Failed to create character: {error}",
+        "classAddFailed": "Couldn't add the {name} class to the imported character: {error}"
       },
       "initiateCombatOnRequest": {
         "label": "Initiate Combat when Requesting Initiative",
@@ -395,10 +386,12 @@
         "reloadPrompt": "Settings have been imported. Reload the page to apply all changes?"
       },
       "premiumFeatures": {
-        "useDdbImporterCookie": "Use DDB Importer's cookie",
+        "useDdbImporterCookie": "Use DDB Importer cookie",
         "ddbImporterCookieUsed": "Copied the Cobalt cookie from DDB Importer.",
         "ddbImporterNoCookie": "DDB Importer doesn't have a Cobalt cookie saved for this browser.",
-        "findCookieGuide": "How do I find my cookie?",
+        "findCookieGuide": "How to find your cookie",
+        "ddbRollOptions": "Roll Options",
+        "ddbImportOptions": "Import Options",
         "label": "Patreon Features",
         "buttonLabel": "Patreon Features",
         "title": "Patreon Features",
@@ -406,7 +399,8 @@
         "description": "Click 'Authenticate with Patreon' to get access to D&D Beyond features. Free access will be given to all Patreon members (free or not) at least until August 2026.",
         "tabs": {
           "authentication": "Member Authentication",
-          "ddbSettings": "D&D Beyond Options"
+          "ddbSettings": "D&D Beyond Options",
+          "ddbImport": "D&D Beyond Import"
         },
         "patreonAuth": "Patreon Authentication",
         "apiKey": "API Key",
@@ -430,9 +424,11 @@
         "testConnectionBtn": "Test Connection",
         "testGameLogBtn": "Test DDB Connection",
         "ddbSettings": "D&D Beyond (Patreon features)",
-        "ddbWarning": "For rolls to be fully captured, characters must be in the D&D Beyond campaign and linked to a Foundry actor. Add your Cobalt cookie below, then choose your campaign.",
-        "ddbWarningImportItems": "If you did not purchase official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium before importing the character.",
-        "ddbWarningAfter": "If DDB Importer module is active, it is used for character import. If not available, Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items",
+        "ddbImporterActive": "DDB Importer module is active.",
+        "ddbImporterInactive": "DDB Importer module is not active.",
+        "ddbWarningImportItems": "Unless you purchased official Foundry D&D modules, *DDB Importer* is recommended to add items, spells and features to compendium *before* importing the character.",
+        "ddbWarningAfterImporter": "DDB Importer is active, so it is used for character import.",
+        "ddbWarningAfterCompendium": "Flash Token Bar will try to find features, items and spells present in any compendiums. This might not work for your case - either use DDB Importer or create missing items.",
         "noApiKey": "Please enter an API key first.",
         "connectionSuccess": "Connection successful! Welcome, {name}.",
         "connectionFailed": "Authentication failed. Please re-authenticate with Patreon.",
@@ -440,7 +436,7 @@
         "notPatron": "Your Patreon membership does not have access. Reason: {reason}",
         "patreonVerified": "Patreon membership verified",
         "patreonNotVerified": "Patreon membership not verified",
-        "statusConnected": "Connected to D&D Beyond",
+        "statusConnected": "Connection established with D&D Beyond",
         "statusConnecting": "Testing connection...",
         "statusDisconnected": "Disconnected",
         "statusError": "Connection failed",
@@ -506,7 +502,7 @@
       },
       "ddbCampaignId": {
         "label": "D&D Beyond Campaign",
-        "hint": "Your D&D Beyond campaigns load from your cookie. Without a cookie, enter the campaign ID or paste the campaign URL (dndbeyond.com/campaigns/XXXXXX).",
+        "hint": "Your campaigns load from your D&D Beyond account. If they can't be loaded, enter the campaign ID or paste the campaign URL (dndbeyond.com/campaigns/XXXXXX).",
         "choose": "Choose a campaign…",
         "dm": "DM",
         "refresh": "Reload campaigns from D&D Beyond",

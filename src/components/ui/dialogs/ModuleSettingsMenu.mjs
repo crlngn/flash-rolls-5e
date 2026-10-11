@@ -6,7 +6,6 @@ import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { GeneralUtil } from "../../utils/GeneralUtil.mjs";
 import { FlashAPI } from "../../core/FlashAPI.mjs";
 import { IconLayoutUtil } from "../../utils/IconLayoutUtil.mjs";
-import { PremiumFeaturesDialog } from "./PremiumFeaturesDialog.mjs";
 
 const { FormDataExtended } = foundry.applications.ux;
 
@@ -41,8 +40,7 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
       height: "auto"
     },
     actions: {
-      redefine: ModuleSettingsMenu.#onReset,
-      connectPatreon: ModuleSettingsMenu.#onConnectPatreon
+      redefine: ModuleSettingsMenu.#onReset
     },
     form: {
       handler: ModuleSettingsMenu.#onSubmit,
@@ -77,11 +75,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     rollRequests: {
       menuKey: "rollRequestsSettings",
       template: "modules/flash-rolls-5e/templates/settings-roll-requests.hbs",
-      isGMOnly: true
-    },
-    integrations: {
-      menuKey: "integrationSettings",
-      template: "modules/flash-rolls-5e/templates/settings-integrations.hbs",
       isGMOnly: true
     },
     footer: {
@@ -479,17 +472,6 @@ export class ModuleSettingsMenu extends HandlebarsApplicationMixin(ApplicationV2
     });
 
     LogUtil.log("#onReset", [ModuleSettingsMenu.#activeTab, activeTab, a, b]);
-  }
-
-  /**
-   * Open the Patreon features dialog on its member authentication tab
-   * @param {PointerEvent} event - The originating click event
-   * @param {HTMLElement} target - The button that was clicked
-   */
-  static #onConnectPatreon(event, target) {
-    event.preventDefault();
-    LogUtil.log("#onConnectPatreon", [target]);
-    new PremiumFeaturesDialog({ initialTab: "authentication" }).render(true);
   }
 
   static #getTabs() {

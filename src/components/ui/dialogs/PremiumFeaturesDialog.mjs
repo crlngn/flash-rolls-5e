@@ -33,6 +33,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     this._ddbCampaignsCookie = null;
     this._ddbCampaignsError = null;
     this._isLoadingCampaigns = false;
+    this._ddbFieldsetCollapsed = null;
     this._patronVerified = false;
     this._ddbGameLogStatus = "unknown";
     this._initialDataLoaded = false;
@@ -103,6 +104,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     authentication: {
       template: `modules/${MODULE.ID}/templates/premium-authentication.hbs`
     },
+    ddbImport: {
+      template: `modules/${MODULE.ID}/templates/premium-ddb-import.hbs`
+    },
     ddbSettings: {
       template: `modules/${MODULE.ID}/templates/premium-ddb-settings.hbs`
     },
@@ -119,6 +123,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       initial: "authentication",
       tabs: [
         { id: "authentication", icon: "", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.authentication" },
+        { id: "ddbImport", icon: "", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.ddbImport" },
         { id: "ddbSettings", icon: "", group: "primary-tabs", label: "FLASH_ROLLS.settings.premiumFeatures.tabs.ddbSettings" }
       ],
       labelPrefix: ""
@@ -126,7 +131,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   };
 
   /**
-   * Override changeTab to remember the last active tab
+   * Override changeTab to remember the last active tab. The tab buttons use the "primary-tabs"
+   * group while TABS is keyed by "primary", so the "primary" entry is kept in sync; otherwise a
+   * partial render of one tab part prepares it as inactive and the dialog body goes blank.
    * @param {string} tab - The tab id to activate
    * @param {string} group - The tab group
    * @param {object} options - Additional options
@@ -134,8 +141,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   changeTab(tab, group, options = {}) {
     super.changeTab(tab, group, options);
     if (group === "primary-tabs") {
+      this.tabGroups["primary"] = tab;
       PremiumFeaturesDialog.setLastActiveTab(tab);
-      if (tab === "ddbSettings") {
+      if (tab === "ddbImport") {
         this._autoTestDDBConnection();
       }
     }
@@ -165,7 +173,6 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     const ddbCampaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag) || "";
-    const ddbUserId = SettingsUtil.get(SETTINGS.ddbUserId.tag) || "";
     const ddbCobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const ddbNoAutoConsumeSpellSlot = SettingsUtil.get(SETTINGS.ddbNoAutoConsumeSpellSlot.tag) || false;
     const ddbImportOwnership = SettingsUtil.get(SETTINGS.ddbImportOwnership.tag) ?? true;
@@ -174,7 +181,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     const ddbStatusInfo = this._getDDBConnectionStatusInfo(this._ddbGameLogStatus);
     const patreonStatusInfo = this._getPatreonStatusInfo();
     const patronStatus = PatronSessionManager.getStatus();
-    const canTestGameLog = patronStatus.isPatron && ddbCampaignId && ddbUserId && ddbCobaltCookie;
+    const canTestGameLog = patronStatus.isPatron && ddbCampaignId && ddbCobaltCookie;
 
     const hasDDBImporter = game.modules.get("ddb-importer")?.active;
     const canShowCharacters = patronStatus.isPatron && ddbCampaignId && ddbCobaltCookie;
@@ -200,6 +207,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
         break;
       case "authentication":
       case "ddbSettings":
+      case "ddbImport":
         const mappedCount = charactersWithMapping.filter(c => c.isMapped).length;
         const unmappedCount = charactersWithMapping.length - mappedCount;
         const characterCountText = game.i18n.format("FLASH_ROLLS.settings.premiumFeatures.characterCountText", {
@@ -209,7 +217,6 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
         const patronTierName = this._getTierName(patronStatus.tier);
         Object.assign(partContext, {
           ddbCampaignId,
-          ddbUserId,
           ddbCobaltCookie,
           ddbNoAutoConsumeSpellSlot,
           ddbImportOwnership,
@@ -225,6 +232,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           ddbStatusIcon: ddbStatusInfo.icon,
           ddbStatusText: ddbStatusInfo.text,
           ddbIsConnected: this._ddbGameLogStatus === "connected",
+          ddbFieldsetCollapsed: this._ddbFieldsetCollapsed ?? this._ddbGameLogStatus === "connected",
           patronVerified: patronStatus.isPatron,
           canShowCharacters: patronStatus.isPatron && canShowCharacters,
           canTestGameLog: patronStatus.isPatron && canTestGameLog,
@@ -232,6 +240,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           campaignCharacters: charactersWithMapping,
           hasCharacters: charactersWithMapping.length > 0,
           hasDDBImporter,
+          ddbOptionFields: this._getDdbOptionFields(),
           campaignOptions: this._getCampaignOptions(ddbCampaignId),
           hasCampaignOptions: !!this._ddbCampaigns?.length,
           isLoadingCampaigns: this._isLoadingCampaigns,
@@ -358,6 +367,24 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   }
 
   /**
+   * Labels, hints and choices for the D&D Beyond roll and import options, with the saved
+   * value of each select marked as selected
+   * @returns {Object<string, {label: string, hint: string, choices?: Array<{value: string, label: string, selected: boolean}>}>}
+   */
+  _getDdbOptionFields() {
+    const SETTINGS = getSettings();
+    const keys = ["ddbRollOwnership", "ddbNoAutoConsumeSpellSlot", "ddbImportSourcePriority", "ddbImportSpellMode"];
+    return Object.fromEntries(keys.map(key => {
+      const setting = SETTINGS[key];
+      const current = String(SettingsUtil.get(setting.tag) ?? setting.default);
+      const choices = setting.choices
+        ? Object.entries(setting.choices).map(([value, label]) => ({ value, label, selected: value === current }))
+        : undefined;
+      return [key, { label: setting.label, hint: setting.hint, choices }];
+    }));
+  }
+
+  /**
    * Extract a campaign ID from a pasted value, accepting a bare ID or a campaign URL
    * such as https://www.dndbeyond.com/campaigns/5236097
    * @param {string} value - Raw field value
@@ -414,7 +441,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
     this._isLoadingCampaigns = true;
     this._ddbCampaignsError = null;
-    this.render({ parts: ["ddbSettings"] });
+    this.render({ parts: ["ddbImport"] });
 
     try {
       const response = await fetch(`${PROXY_BASE_URL}/ddb/campaigns${refresh ? "?refresh=1" : ""}`, {
@@ -450,7 +477,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       this._ddbCampaignsError = game.i18n.localize("FLASH_ROLLS.settings.ddbCampaignId.loadFailed");
     } finally {
       this._isLoadingCampaigns = false;
-      this.render({ parts: ["ddbSettings"] });
+      this.render({ parts: ["ddbImport"] });
     }
   }
 
@@ -620,9 +647,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     if (existingList) existingList.remove();
     if (existingHint) existingHint.remove();
 
-    const formGroup = fieldset.querySelector('.form-group');
-    if (formGroup) {
-      formGroup.insertAdjacentHTML('beforebegin', listHtml);
+    const insertBefore = fieldset.querySelector('.ddb-import-ownership, .ddb-warning-after');
+    if (insertBefore) {
+      insertBefore.insertAdjacentHTML('beforebegin', listHtml);
     } else {
       fieldset.insertAdjacentHTML('beforeend', listHtml);
     }
@@ -659,17 +686,14 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
     const ddbCampaignIdField = this.element.querySelector('[name="ddbCampaignId"]');
     const ddbCampaignId = ddbCampaignIdField ? PremiumFeaturesDialog.parseCampaignId(ddbCampaignIdField.value) : undefined;
-    const ddbUserId = this.element.querySelector('input[name="ddbUserId"]')?.value;
     const ddbCobaltCookieInput = this.element.querySelector('input[name="ddbCobaltCookie"]');
     const ddbCobaltCookie = ddbCobaltCookieInput ? DnDBCookieUtil.normalize(ddbCobaltCookieInput.value) : undefined;
     const ddbNoAutoConsumeSpellSlot = this.element.querySelector('input[name="ddbNoAutoConsumeSpellSlot"]')?.checked;
+    const optionSelects = ["ddbRollOwnership", "ddbImportSourcePriority", "ddbImportSpellMode"];
     const ddbImportOwnership = this.element.querySelector('input[name="ddbImportOwnership"]')?.checked;
 
     if (ddbCampaignId !== undefined) {
       await SettingsUtil.set(SETTINGS.ddbCampaignId.tag, ddbCampaignId);
-    }
-    if (ddbUserId !== undefined) {
-      await SettingsUtil.set(SETTINGS.ddbUserId.tag, ddbUserId);
     }
     if (ddbCobaltCookie !== undefined) {
       await SettingsUtil.set(SETTINGS.ddbCobaltCookie.tag, ddbCobaltCookie);
@@ -679,6 +703,12 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
     if (ddbImportOwnership !== undefined) {
       await SettingsUtil.set(SETTINGS.ddbImportOwnership.tag, ddbImportOwnership);
+    }
+    for (const key of optionSelects) {
+      const value = this.element.querySelector(`select[name="${key}"]`)?.value;
+      if (value !== undefined) {
+        await SettingsUtil.set(SETTINGS[key].tag, Number(value));
+      }
     }
 
     ui.notifications.info(game.i18n.localize("FLASH_ROLLS.notifications.settingsUpdated"));
@@ -715,13 +745,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   static #onToggleDdbSettings(event, target) {
     const fieldset = target.closest(".collapsible-fieldset");
     if (!fieldset) return;
-
-    const isCollapsed = fieldset.classList.toggle("collapsed");
-    const toggleIcon = fieldset.querySelector(".toggle-icon");
-    if (toggleIcon) {
-      toggleIcon.classList.toggle("fa-caret-down", !isCollapsed);
-      toggleIcon.classList.toggle("fa-caret-right", isCollapsed);
-    }
+    this._setDdbFieldsetCollapsed(fieldset, !fieldset.classList.contains("collapsed"));
   }
 
   /**
@@ -930,7 +954,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   }
 
   /**
-   * Automatically test DDB connection when switching to ddbSettings tab
+   * Automatically test DDB connection when switching to the D&D Beyond Import tab
    * Silent test - only updates status indicator, no notifications unless error
    * @private
    */
@@ -941,10 +965,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
     const SETTINGS = getSettings();
     const campaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag)?.trim();
-    const userId = SettingsUtil.get(SETTINGS.ddbUserId.tag)?.trim();
     const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
 
-    if (!campaignId || !userId || !cobaltCookie) return;
+    if (!campaignId || !cobaltCookie) return;
 
     this._ddbGameLogStatus = "testing";
     this._updateDDBStatusIndicator();
@@ -956,7 +979,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           "Content-Type": "application/json",
           "Authorization": `Bearer ${sessionToken}`
         },
-        body: JSON.stringify({ cobaltCookie, userId, gameId: campaignId })
+        body: JSON.stringify({ cobaltCookie, gameId: campaignId })
       });
 
       const data = await response.json();
@@ -992,10 +1015,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     const campaignId = PremiumFeaturesDialog.parseCampaignId(this.element.querySelector('[name="ddbCampaignId"]')?.value);
-    const userId = this.element.querySelector('input[name="ddbUserId"]')?.value?.trim();
     const cobaltCookie = DnDBCookieUtil.normalize(this.element.querySelector('input[name="ddbCobaltCookie"]')?.value);
 
-    if (!campaignId || !userId || !cobaltCookie) {
+    if (!campaignId || !cobaltCookie) {
       ui.notifications.warn(game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.missingDDBCredentials"));
       return;
     }
@@ -1010,7 +1032,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           "Content-Type": "application/json",
           "Authorization": `Bearer ${sessionToken}`
         },
-        body: JSON.stringify({ cobaltCookie, userId, gameId: campaignId })
+        body: JSON.stringify({ cobaltCookie, gameId: campaignId })
       });
 
       const data = await response.json();
@@ -1021,7 +1043,6 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
         this._collapseDdbSettingsFieldset();
         const SETTINGS = getSettings();
         await SettingsUtil.set(SETTINGS.ddbCampaignId.tag, campaignId);
-        await SettingsUtil.set(SETTINGS.ddbUserId.tag, userId);
         await SettingsUtil.set(SETTINGS.ddbCobaltCookie.tag, cobaltCookie);
         if (!DnDBeyondIntegration.isConnected()) {
           DnDBeyondIntegration.connect();
@@ -1370,12 +1391,12 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       await this._verifyPatreonStatus();
       this._updatePatreonStatusIndicator();
       if (this._patronVerified) {
-        this.render({ parts: ["ddbSettings"] });
+        this.render({ parts: ["ddbSettings", "ddbImport"] });
         await this._fetchCampaigns();
         await this._fetchCampaignCharacters();
 
         const activeTab = this.tabGroups["primary"];
-        if (activeTab === "ddbSettings") {
+        if (activeTab === "ddbImport") {
           this._autoTestDDBConnection();
         }
       }
@@ -1394,7 +1415,6 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     });
 
     const campaignIdInput = this.element.querySelector('[name="ddbCampaignId"]');
-    const userIdInput = this.element.querySelector('input[name="ddbUserId"]');
     const cobaltCookieInput = this.element.querySelector('input[name="ddbCobaltCookie"]');
 
     const debouncedRefresh = this._debounce(async () => {
@@ -1402,24 +1422,23 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
 
       const SETTINGS = getSettings();
       const campaignId = PremiumFeaturesDialog.parseCampaignId(campaignIdInput?.value);
-      const userId = userIdInput?.value?.trim();
       const cobaltCookie = DnDBCookieUtil.normalize(cobaltCookieInput?.value);
 
       if (campaignId) await SettingsUtil.set(SETTINGS.ddbCampaignId.tag, campaignId);
-      if (userId) await SettingsUtil.set(SETTINGS.ddbUserId.tag, userId);
       if (cobaltCookie) await SettingsUtil.set(SETTINGS.ddbCobaltCookie.tag, cobaltCookie);
 
       await this._fetchCampaigns();
       await this._fetchCampaignCharacters();
     }, 1000);
 
-    [campaignIdInput, userIdInput, cobaltCookieInput].forEach(input => {
+    [campaignIdInput, cobaltCookieInput].forEach(input => {
       if (input) {
         input.addEventListener("input", debouncedRefresh);
       }
     });
 
     this._attachCharacterClickListeners();
+    this._attachCollapsedFieldsetListener();
 
     this._loadInitialData();
   }
@@ -1477,13 +1496,37 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
   _collapseDdbSettingsFieldset() {
     const fieldset = this.element?.querySelector(".collapsible-fieldset");
     if (!fieldset || fieldset.classList.contains("collapsed")) return;
+    this._setDdbFieldsetCollapsed(fieldset, true);
+  }
 
-    fieldset.classList.add("collapsed");
+  /**
+   * Collapse or expand the D&D Beyond connection fieldset and update its caret icon.
+   * The state is remembered so partial re-renders (e.g. reloading campaigns) keep it.
+   * @param {HTMLFieldSetElement} fieldset - The collapsible fieldset
+   * @param {boolean} collapsed - Whether the fieldset should be collapsed
+   */
+  _setDdbFieldsetCollapsed(fieldset, collapsed) {
+    this._ddbFieldsetCollapsed = collapsed;
+    fieldset.classList.toggle("collapsed", collapsed);
     const toggleIcon = fieldset.querySelector(".toggle-icon");
     if (toggleIcon) {
-      toggleIcon.classList.remove("fa-caret-down");
-      toggleIcon.classList.add("fa-caret-right");
+      toggleIcon.classList.toggle("fa-caret-down", !collapsed);
+      toggleIcon.classList.toggle("fa-caret-right", collapsed);
     }
+  }
+
+  /**
+   * Expand the collapsed D&D Beyond connection fieldset when it is clicked anywhere.
+   * Clicks on the legend are left to its own toggle action.
+   */
+  _attachCollapsedFieldsetListener() {
+    const fieldset = this.element?.querySelector(".collapsible-fieldset");
+    if (!fieldset) return;
+    fieldset.addEventListener("click", event => {
+      if (!fieldset.classList.contains("collapsed")) return;
+      if (event.target.closest(".collapsible-legend")) return;
+      this._setDdbFieldsetCollapsed(fieldset, false);
+    });
   }
 
   /**

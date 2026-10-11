@@ -39,7 +39,15 @@ const DDB_TO_FOUNDRY_TYPE = {
  * Equipment-related Foundry types that should match flexibly
  * When searching for equipment, also check consumable/tool and vice versa
  */
-const EQUIPMENT_TYPE_VARIANTS = ["equipment", "consumable", "tool", "loot"];
+const EQUIPMENT_TYPE_VARIANTS = ["equipment", "consumable", "tool", "loot", "container"];
+
+/**
+ * Fields indexed for matching. Whole objects (system.source, system.type) are requested instead of
+ * sub-fields because the server builds its index projection field by field: if a pack already
+ * indexes "system.source", asking for "system.source.book" makes the server set a property on the
+ * number 1 and the whole index request fails.
+ */
+const MATCH_INDEX_FIELDS = ["name", "type", "flags.ddbimporter.definitionId", "system.source", "system.type", "system.identifier", "system.classIdentifier", "system.requirements"];
 
 /**
  * Handles compendium searching and matching for DDB character import
@@ -78,9 +86,7 @@ export class DnDBCompendiumMatcher {
       if (pack.documentName !== "Item" || !pack.visible) continue;
 
       try {
-        const index = await pack.getIndex({
-          fields: ["name", "type", "flags.ddbimporter.definitionId", "system.source.book", "system.source.rules", "system.type.value", "system.identifier", "system.classIdentifier", "system.requirements"]
-        });
+        const index = await pack.getIndex({ fields: this._getIndexFields(pack) });
 
         this._indices.set(pack.collection, {
           pack,
@@ -97,6 +103,19 @@ export class DnDBCompendiumMatcher {
       `${this._indices.size} packs`,
       `${elapsed.toFixed(0)}ms`
     ]);
+  }
+
+  /**
+   * Index fields to request for a pack, leaving out any field whose parent path is already
+   * indexed by the pack, which would make the server's index projection fail
+   * @param {CompendiumCollection} pack - Compendium to index
+   * @returns {string[]} Field paths to request
+   * @private
+   */
+  static _getIndexFields(pack) {
+    const existing = Array.from(pack.indexFields ?? []);
+    const all = [...existing, ...MATCH_INDEX_FIELDS];
+    return MATCH_INDEX_FIELDS.filter(field => !all.some(other => other !== field && field.startsWith(`${other}.`)));
   }
 
   /**
@@ -117,7 +136,8 @@ export class DnDBCompendiumMatcher {
     if (!name) return "";
     return name
       .toLowerCase()
-      .replace(/[,()'"]/g, " ")
+      .replace(/^\d+\s*:\s*/, "")
+      .replace(/[,()'"\u2018\u2019\u201C\u201D]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
   }
@@ -268,6 +288,17 @@ export class DnDBCompendiumMatcher {
             }
           }
         }
+      }
+    }
+
+    if (matches.length === 0 && ddbItem.type !== "Race") {
+      const fallbackNames = [...(ddbItem._searchVariants ?? []), ...this._getFallbackNames(name, foundryType)];
+      for (const fallbackName of fallbackNames) {
+        const fallbackMatches = this._findAllByName(fallbackName, foundryType, false, className, raceName);
+        for (const fallbackMatch of fallbackMatches) {
+          if (!matches.some(m => m.uuid === fallbackMatch.uuid)) matches.push(fallbackMatch);
+        }
+        if (matches.length > 0) break;
       }
     }
 
@@ -680,6 +711,52 @@ export class DnDBCompendiumMatcher {
   }
 
   /**
+   * Looser names to try when the exact D&D Beyond name has no match: without a trailing
+   * parenthetical ("Magic Initiate (Druid)", "Rations (1 day)") and, for equipment, without the
+   * variant after the comma ("Rope, Hempen (50 feet)" -> "Rope")
+   * @param {string} name - D&D Beyond item name
+   * @param {string|null} foundryType - Mapped Foundry item type
+   * @returns {string[]} Names to try, most specific first
+   * @private
+   */
+  static _getFallbackNames(name, foundryType) {
+    const names = [];
+    const withoutParens = name.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    if (withoutParens && withoutParens !== name) names.push(withoutParens);
+
+    const isEquipment = foundryType === "weapon" || EQUIPMENT_TYPE_VARIANTS.includes(foundryType);
+    if (isEquipment && withoutParens.includes(",")) {
+      names.push(withoutParens.split(",")[0].trim());
+    }
+    return names;
+  }
+
+  /**
+   * Compendium names for a "<Trait> Spells" racial trait, which D&D Beyond lists separately from
+   * the lineage itself. The PHB grants those spells through the chosen variant, named
+   * "<Trait>, <Variant>", so the variant comes from the character's race options
+   * (e.g. "Elven Lineage Spells" + "Wood Elf Lineage" -> "Elven Lineage, Wood Elf",
+   * "Fiendish Legacy Spells" + "Infernal Legacy" -> "Fiendish Legacy, Infernal").
+   * @param {string} traitName - Racial trait name
+   * @param {Object} ddbCharacter - Full DDB character data
+   * @returns {string[]} Variant names to search for
+   * @private
+   */
+  static _getTraitSpellVariants(traitName, ddbCharacter) {
+    const match = traitName.match(/^(.+?)\s+Spells$/i);
+    if (!match) return [];
+    const baseTrait = match[1];
+    const optionNames = (ddbCharacter.options?.race ?? [])
+      .map(option => option.definition?.name)
+      .filter(Boolean);
+
+    return optionNames
+      .map(optionName => optionName.replace(/\s+(Lineage|Legacy|Ancestry)$/i, "").trim())
+      .filter(variant => variant && !variant.includes(" - "))
+      .map(variant => `${baseTrait}, ${variant}`);
+  }
+
+  /**
    * Get type variants to search for (handles race/species and equipment/consumable/tool flexibility)
    * @param {string|null} type - Foundry item type
    * @returns {Array<string>} Array of types to match
@@ -877,12 +954,14 @@ export class DnDBCompendiumMatcher {
           const traitName = trait.definition.name;
           if (this._isSystemMechanicFeature(traitName)) continue;
 
+          const traitSpellVariants = this._getTraitSpellVariants(traitName, ddbCharacter);
           items.push({
             definition: trait.definition,
             id: trait.definition.id,
             name: traitName,
             type: "Racial Trait",
-            _raceName: baseRaceName
+            _raceName: baseRaceName,
+            ...(traitSpellVariants.length ? { _searchVariants: traitSpellVariants } : {})
           });
         }
       }
@@ -1125,7 +1204,9 @@ export class DnDBCompendiumMatcher {
   ]);
 
   static SYSTEM_MECHANIC_PATTERNS = [
-    /^Core .+ Traits$/
+    /^Core .+ Traits$/,
+    /^.+ Options$/,
+    /^[A-Z][a-z]+ Subclass$/
   ];
 
   /**

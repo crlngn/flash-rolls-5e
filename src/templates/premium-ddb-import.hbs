@@ -1,0 +1,209 @@
+<section class="tab form-content {{tab.cssClass}}" data-group="primary-tabs" data-tab="{{tab.id}}">
+  <h4> <span class="toggle-hint">{{localize 'FLASH_ROLLS.ui.dialogs.toggleHints'}}</span></h4>
+
+  <fieldset class="collapsible-fieldset {{#if ddbFieldsetCollapsed}}collapsed{{/if}}">
+    <legend class="collapsible-legend" data-action="toggleDdbSettings">
+      {{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSettings"}}
+      <i class="fas fa-caret-{{#if ddbFieldsetCollapsed}}right{{else}}down{{/if}} toggle-icon"></i>
+    </legend>
+
+    {{#if ddbCobaltCookie}}
+    <div class="form-group connection-status ddb-status">
+      <div class="status-indicator {{ddbStatusClass}}">
+        <i class="fas {{ddbStatusIcon}}"></i>
+        <span>{{ddbStatusText}}</span>
+      </div>
+    </div>
+    {{/if}}
+
+    <div class="collapsible-content">
+      <div class="form-group">
+        <label>
+          {{localize "FLASH_ROLLS.settings.ddbCobaltCookie.label"}}
+          <span class="ddb-cookie-helpers">
+            <a data-action="showCookieGuide">
+              {{localize "FLASH_ROLLS.settings.premiumFeatures.findCookieGuide"}}
+            </a>
+          </span>
+        </label>
+        <div class="form-fields">
+          <input type="password" name="ddbCobaltCookie" value="{{ddbCobaltCookie}}"
+                placeholder="CobaltSession cookie value" autocomplete="off" />
+        </div>
+        <p class="hint">{{localize "FLASH_ROLLS.settings.ddbCobaltCookie.hint"}}</p>
+      </div>
+      {{#if (or ddbCobaltCookie hasDDBImporter)}}
+      <div class="form-group buttons-row ddb-cookie-actions">
+        {{#if ddbCobaltCookie}}
+        <button type="button" data-action="testGameLog" class="test-btn">
+          <i class="fas fa-plug"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.testGameLogBtn"}}
+        </button>
+        {{/if}}
+        {{#if hasDDBImporter}}
+        <button type="button" class="use-ddb-importer-btn" data-action="useDdbImporterCookie">
+          <i class="fas fa-file-import"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.useDdbImporterCookie"}}
+        </button>
+        {{/if}}
+      </div>
+      {{/if}}
+
+      {{#if ddbCobaltCookie}}
+      <div class="form-group">
+        <label>{{localize "FLASH_ROLLS.settings.ddbCampaignId.label"}}</label>
+        <div class="form-fields">
+          {{#if hasCampaignOptions}}
+          <select name="ddbCampaignId">
+            {{#unless ddbCampaignId}}
+            <option value="" selected disabled>{{localize "FLASH_ROLLS.settings.ddbCampaignId.choose"}}</option>
+            {{/unless}}
+            {{#each campaignOptions}}
+            <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}{{#if dmUsername}} ({{localize "FLASH_ROLLS.settings.ddbCampaignId.dm"}}: {{dmUsername}}){{/if}}</option>
+            {{/each}}
+          </select>
+          <button type="button" class="campaigns-refresh-btn" data-action="refreshCampaigns"
+                  data-tooltip="{{localize 'FLASH_ROLLS.settings.ddbCampaignId.refresh'}}">
+            <i class="fas fa-sync-alt {{#if isLoadingCampaigns}}fa-spin{{/if}}"></i>
+          </button>
+          {{else}}
+          <input type="text" name="ddbCampaignId" value="{{ddbCampaignId}}"
+                placeholder="{{localize 'FLASH_ROLLS.settings.ddbCampaignId.placeholder'}}" />
+          {{/if}}
+        </div>
+        {{#if isLoadingCampaigns}}
+        <p class="hint on campaigns-status"><i class="fas fa-spinner fa-spin"></i> {{localize "FLASH_ROLLS.settings.ddbCampaignId.loading"}}</p>
+        {{else if campaignsError}}
+        <p class="hint on campaigns-status">{{campaignsError}}</p>
+        {{/if}}
+        <p class="hint">{{localize "FLASH_ROLLS.settings.ddbCampaignId.hint"}}</p>
+      </div>
+      {{/if}}
+    </div>
+  </fieldset>
+
+  <fieldset class="campaign-characters">
+    <legend>
+      {{localize "FLASH_ROLLS.settings.premiumFeatures.campaignCharacters"}}
+      <button type="button" data-action="refreshCharacters" class="refresh-btn" data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.refreshCharacters'}}">
+        <i class="fas fa-sync-alt {{#if isLoadingCharacters}}fa-spin{{/if}}"></i>
+      </button>
+    </legend>
+
+    <p class="hint on"><strong>{{#if hasDDBImporter}}{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbImporterActive"}}{{else}}{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbImporterInactive"}}{{/if}}</strong> {{localize "FLASH_ROLLS.settings.premiumFeatures.ddbWarningImportItems"}}</p>
+    
+    <div class="bulk-operation-overlay hidden">
+      <div class="overlay-content">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span class="overlay-message"></span>
+      </div>
+    </div>
+
+    {{#if isLoadingCharacters}}
+    <div class="loading-characters">
+      <i class="fas fa-spinner fa-spin"></i>
+      {{localize "FLASH_ROLLS.settings.premiumFeatures.loadingCharacters"}}
+    </div>
+    {{else if hasCharacters}}
+
+    <div class="character-list-header">
+      <span class="character-count">{{characterCount}}</span>
+      <div class="bulk-actions">
+        <button type="button" data-action="importAll" class="import-all-btn"
+                {{#unless hasDDBImporter}}disabled{{/unless}}
+                {{#unless hasUnmappedCharacters}}disabled{{/unless}}
+                data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.importAllTooltip'}}">
+          <i class="fas fa-download"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.importAll"}}
+        </button>
+        <button type="button" data-action="syncAll" class="sync-all-btn"
+                {{#unless hasDDBImporter}}disabled{{/unless}}
+                {{#unless hasMappedCharacters}}disabled{{/unless}}
+                data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.syncAllTooltip'}}">
+          <i class="fas fa-sync"></i>
+          {{localize "FLASH_ROLLS.settings.premiumFeatures.syncAll"}}
+        </button>
+      </div>
+    </div>
+    <ul class="character-list">
+      {{#each campaignCharacters}}
+      <li class="character-item {{#if isMapped}}mapped{{else}}unmapped{{/if}}">
+        <div class="character-avatar">
+          {{#if avatarUrl}}
+          <img src="{{avatarUrl}}" alt="{{name}}" />
+          {{else}}
+          <i class="fas fa-user"></i>
+          {{/if}}
+        </div>
+        <div class="character-info">
+          <span class="character-name">{{name}}</span>
+          {{#if isMapped}}
+          <span class="mapping-status mapped" data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.mappedTo'}} {{mappedActorName}}">
+            <i class="fas fa-circle-check"></i>
+            #{{id}}
+          </span>
+          {{else}}
+          <span class="mapping-status unmapped" data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.notMapped'}}">
+            <i class="fas fa-circle-question"></i>
+            {{localize "FLASH_ROLLS.settings.premiumFeatures.notMapped"}}
+          </span>
+          {{/if}}
+        </div>
+        <div class="character-actions">
+          {{#if isMapped}}
+          <button type="button" data-action="unlinkCharacter" data-character-id="{{id}}" data-character-name="{{name}}"
+                  class="unlink-btn" data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.unlinkCharacter'}}">
+            <i class="fas fa-link-slash"></i>
+          </button>
+          {{else}}
+          <button type="button" data-action="mapCharacter" data-character-id="{{id}}" data-character-name="{{name}}"
+                  class="map-btn" data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.mapCharacter'}}">
+            <i class="fas fa-link"></i>
+          </button>
+          {{/if}}
+
+          {{#if isMapped}}
+          <button type="button" data-action="syncCharacter" data-character-id="{{id}}" data-actor-id="{{mappedActorId}}"
+          {{#if ../hasDDBImporter}} 
+          data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.syncCharacter'}}"
+          {{else}}
+          disabled data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.ddbImporterRequired'}}"
+          {{/if}}
+          class="sync-btn">
+            <i class="fas fa-sync"></i>
+          </button>
+          {{else}}
+          <button type="button" data-action="importCharacter" data-character-id="{{id}}" data-character-name="{{name}}"
+          {{#if ../hasDDBImporter}}
+          data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.importCharacter'}}"
+          {{else}}
+          data-tooltip="{{localize 'FLASH_ROLLS.settings.premiumFeatures.importCharacterCompendium'}}"
+          {{/if}}
+          class="import-btn">
+            <i class="fas fa-download"></i>
+          </button>
+          {{/if}}
+        </div>
+      </li>
+      {{/each}}
+    </ul>
+    {{#unless hasDDBImporter}}
+    <p class="hint ddb-importer-hint">
+      <i class="fas fa-info-circle"></i>
+      {{localize "FLASH_ROLLS.settings.premiumFeatures.ddbImporterHint"}}
+    </p>
+    {{/unless}}
+    {{else}}
+    <p class="no-characters">{{localize "FLASH_ROLLS.settings.premiumFeatures.noCharacters"}}</p>
+    {{/if}}
+
+    <div class="form-group ddb-import-ownership">
+      <label for="ddbImportOwnership">{{localize "FLASH_ROLLS.settings.ddbImportOwnership.label"}}</label>
+      <input type="checkbox" name="ddbImportOwnership" id="ddbImportOwnership" {{#if ddbImportOwnership}}checked{{/if}} />
+      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbImportOwnership.hint"}}</p>
+    </div>
+
+    <p class="hint on ddb-warning-after">{{#if hasDDBImporter}}{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbWarningAfterImporter"}}{{else}}{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbWarningAfterCompendium"}}{{/if}}</p>
+
+  </fieldset>
+</section>

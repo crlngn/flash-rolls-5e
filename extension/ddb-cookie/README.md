@@ -42,4 +42,4 @@ Until the store listings are published, install it manually.
 - [ ] Bump `version` in `manifest.json`, then run `node extension/ddb-cookie/build.mjs`.
 - [ ] **Chrome Web Store**: upload `build/chrome.zip`. Justify `cookies` and the `*.dndbeyond.com` host permission ("reads the user's own D&D Beyond login cookie on request so they can paste it into a Foundry VTT module"). Single purpose: copy the D&D Beyond login cookie. Data use: no data collected or sold.
 - [ ] **Firefox Add-ons**: upload `build/firefox.zip`. The Firefox build declares `data_collection_permissions: none`, since the cookie is only sent to D&D Beyond itself; adjust if a reviewer disagrees.
-- [ ] Update `COOKIE_EXTENSION_LINKS` in `src/components/ui/dialogs/DnDBCookieGuideDialog.mjs` with the store URLs.
+- [ ] Add the extension back to the cookie guide (`src/templates/ddb-cookie-guide.hbs`) as the first option, linking to the store listings.

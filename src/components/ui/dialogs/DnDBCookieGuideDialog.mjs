@@ -3,15 +3,6 @@ import { GeneralUtil } from "../../utils/GeneralUtil.mjs";
 import { DnDBCookieUtil } from "../../integrations/dnd-beyond/DnDBCookieUtil.mjs";
 
 /**
- * Where users get the Flash Rolls Cookie Helper extension. Points at the source folder until
- * the store listings are published; swap in the Chrome Web Store and Firefox Add-ons URLs then.
- */
-export const COOKIE_EXTENSION_LINKS = {
-  chrome: "https://github.com/crlngn/flash-rolls-5e/tree/main/extension/ddb-cookie#install",
-  firefox: "https://github.com/crlngn/flash-rolls-5e/tree/main/extension/ddb-cookie#install"
-};
-
-/**
  * Step-by-step guide for finding the D&D Beyond CobaltSession cookie in Chrome-based browsers
  */
 export class DnDBCookieGuideDialog {
@@ -22,7 +13,6 @@ export class DnDBCookieGuideDialog {
    */
   static async show() {
     const content = await GeneralUtil.renderTemplate(`modules/${MODULE_ID}/templates/ddb-cookie-guide.hbs`, {
-      extensionLinks: COOKIE_EXTENSION_LINKS,
       hasDDBImporterCookie: !!DnDBCookieUtil.getFromDDBImporter()
     });
 

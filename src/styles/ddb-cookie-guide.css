@@ -1,23 +1,28 @@
 /* D&D Beyond cookie helpers and guide */
 #flash5e-premium-features-dialog {
+  label:has(.ddb-cookie-helpers) {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
   .ddb-cookie-helpers {
+    order: 1;
+    flex-basis: 100%;
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 0.25rem 1rem;
-    margin: -0.25rem 0 0.5rem;
-    font-size: var(--font-size-12);
+    margin-top: 0;
+    font-size: 0.85em;
 
     a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
       cursor: pointer;
+      color: var(--color-text-hyperlink);
       text-decoration: underline;
       text-underline-offset: 2px;
 
       &:hover {
-        color: var(--color-warm-2);
+        color: var(--color-text-hyperlink-hover);
       }
     }
   }
@@ -36,6 +41,14 @@
       width: var(--input-height, 2rem);
       padding: 0;
     }
+  }
+
+  .collapsible-fieldset.collapsed {
+    cursor: pointer;
+  }
+
+  .ddb-cookie-actions {
+    margin-top: 0;
   }
 
   .campaigns-status {
@@ -64,7 +77,6 @@
   .guide-warning {
     margin: 0;
     padding: 0.75rem 1rem;
-    border-left: 3px solid var(--guide-accent);
     border-radius: 4px;
     background: color-mix(in srgb, var(--guide-accent) 10%, transparent);
     font-size: var(--font-size-13);
@@ -98,22 +110,6 @@
     color: #fff;
     font-size: var(--font-size-12);
     font-weight: 700;
-  }
-
-  .extension-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-
-    a {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 1rem;
-      border: 1px solid var(--color-border, #7a7971);
-      border-radius: 4px;
-      text-decoration: none;
-    }
   }
 
   .browser-steps {

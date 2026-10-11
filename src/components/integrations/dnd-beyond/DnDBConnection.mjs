@@ -37,16 +37,14 @@ export class DnDBConnection {
   static getConfig() {
     const SETTINGS = getSettings();
     const campaignId = SettingsUtil.get(SETTINGS.ddbCampaignId.tag)?.trim() || "";
-    const userId = SettingsUtil.get(SETTINGS.ddbUserId.tag)?.trim() || "";
     const cobaltCookie = DnDBCookieUtil.normalize(SettingsUtil.get(SETTINGS.ddbCobaltCookie.tag));
     const sessionToken = PatronSessionManager.getSessionToken();
 
     return {
       campaignId,
-      userId,
       cobaltCookie,
       sessionToken,
-      isValid: !!(sessionToken && campaignId && userId && cobaltCookie)
+      isValid: !!(sessionToken && campaignId && cobaltCookie)
     };
   }
 
@@ -82,7 +80,6 @@ export class DnDBConnection {
         headers,
         body: JSON.stringify({
           gameId: config.campaignId,
-          userId: config.userId,
           cobaltCookie: config.cobaltCookie
         })
       });

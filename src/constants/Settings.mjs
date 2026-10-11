@@ -173,29 +173,6 @@ export const getSettings = () => {
       requiresReload: false
     },
 
-    integrationSettings: {
-      tag: "flash5e-integration-settings",
-      label: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.label"),
-      title: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.title"),
-      hint: game.i18n.localize("FLASH_ROLLS.settings.moduleSettingsMenu.hint"),
-      propType: Object,
-      fields: [
-        'ddbRollOwnership',
-        'ddbNoAutoConsumeSpellSlot',
-        'ddbImportSourcePriority',
-        'ddbImportSpellMode'
-      ],
-      default: {
-        ddbRollOwnership: 0,
-        ddbNoAutoConsumeSpellSlot: false,
-        ddbImportSourcePriority: 0,
-        ddbImportSpellMode: 0
-      },
-      scope: SETTING_SCOPE.world,
-      config: false,
-      requiresReload: false
-    },
-
     showGroupDCToPlayers: {
       tag: "show-group-dc-to-players",
       label: game.i18n.localize("FLASH_ROLLS.settings.showGroupDCToPlayers.label"),
