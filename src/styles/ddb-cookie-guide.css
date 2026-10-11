@@ -51,6 +51,18 @@
     margin-top: 0;
   }
 
+  ul.ddb-sync-fields {
+    columns: 2;
+    column-gap: 1.5rem;
+    margin: 0.25rem 0 0.75rem;
+    padding-left: 1.2rem;
+
+    li {
+      break-inside: avoid;
+      margin-bottom: 0.2rem;
+    }
+  }
+
   .campaigns-status {
     font-size: var(--font-size-11);
   }

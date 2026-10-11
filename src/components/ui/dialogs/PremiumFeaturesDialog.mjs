@@ -244,6 +244,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           hasDDBImporter,
           ddbOptionFields: this._getDdbOptionFields(),
           ddbSyncToDDB: SettingsUtil.get(SETTINGS.ddbSyncToDDB.tag) === true,
+          ddbSyncFromDDB: SettingsUtil.get(SETTINGS.ddbSyncFromDDB.tag) !== false,
           campaignOptions: this._getCampaignOptions(ddbCampaignId),
           hasCampaignOptions: !!this._ddbCampaigns?.length,
           isLoadingCampaigns: this._isLoadingCampaigns,
@@ -694,6 +695,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     const ddbNoAutoConsumeSpellSlot = this.element.querySelector('input[name="ddbNoAutoConsumeSpellSlot"]')?.checked;
     const optionSelects = ["ddbRollOwnership", "ddbImportSourcePriority", "ddbImportSpellMode"];
     const ddbSyncToDDB = this.element.querySelector('input[name="ddbSyncToDDB"]')?.checked;
+    const ddbSyncFromDDB = this.element.querySelector('input[name="ddbSyncFromDDB"]')?.checked;
     const ddbImportOwnership = this.element.querySelector('input[name="ddbImportOwnership"]')?.checked;
 
     if (ddbCampaignId !== undefined) {
@@ -710,6 +712,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
     if (ddbSyncToDDB !== undefined) {
       await SettingsUtil.set(SETTINGS.ddbSyncToDDB.tag, ddbSyncToDDB);
+    }
+    if (ddbSyncFromDDB !== undefined) {
+      await SettingsUtil.set(SETTINGS.ddbSyncFromDDB.tag, ddbSyncFromDDB);
     }
     for (const key of optionSelects) {
       const value = this.element.querySelector(`select[name="${key}"]`)?.value;

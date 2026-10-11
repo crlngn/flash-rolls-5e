@@ -927,6 +927,16 @@ export const getSettings = () => {
       config: false
     },
 
+    ddbSyncFromDDB: {
+      tag: "ddb-sync-from-ddb",
+      label: game.i18n.localize("FLASH_ROLLS.settings.ddbSyncFromDDB.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.ddbSyncFromDDB.hint"),
+      propType: Boolean,
+      default: true,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
     ddbSyncToDDB: {
       tag: "ddb-sync-to-ddb",
       label: game.i18n.localize("FLASH_ROLLS.settings.ddbSyncToDDB.label"),

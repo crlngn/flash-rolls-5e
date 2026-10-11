@@ -4,6 +4,7 @@ import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../../utils/SettingsUtil.mjs";
 import { DnDBSyncState, MAX_HP_FIELDS } from "./DnDBSyncState.mjs";
 import { DnDBSyncItems } from "./DnDBSyncItems.mjs";
+import { DnDBSyncConditions, DDB_CONDITION_STATUSES } from "./DnDBSyncConditions.mjs";
 import { DnDBSyncQueue } from "./DnDBSyncQueue.mjs";
 import { DnDBSyncApi } from "./DnDBSyncApi.mjs";
 
@@ -34,6 +35,7 @@ export class DnDBSyncService {
   static _pushedAt = new Map();
   static _pushBlocked = new Set();
   static _unsupportedGroups = new Set();
+  static _pendingRests = new Map();
   static _seenEventTypes = new Set();
   static _hookIds = [];
 
@@ -48,6 +50,9 @@ export class DnDBSyncService {
     this._hookIds.push(["updateActor", Hooks.on("updateActor", this._onUpdateActor.bind(this))]);
     this._hookIds.push(["updateItem", Hooks.on("updateItem", this._onUpdateItem.bind(this))]);
     this._hookIds.push(["updateCombat", Hooks.on("updateCombat", this._onUpdateCombat.bind(this))]);
+    this._hookIds.push(["createActiveEffect", Hooks.on("createActiveEffect", this._onEffectChange.bind(this))]);
+    this._hookIds.push(["deleteActiveEffect", Hooks.on("deleteActiveEffect", this._onEffectChange.bind(this))]);
+    this._hookIds.push(["dnd5e.restCompleted", Hooks.on("dnd5e.restCompleted", this._onRestCompleted.bind(this))]);
     window.addEventListener("beforeunload", this._onBeforeUnload);
 
     this._pollTimer = setInterval(() => this._pollTick(), POLL_TICK_MS);
@@ -78,6 +83,16 @@ export class DnDBSyncService {
   static isPushEnabled() {
     const SETTINGS = getSettings();
     return SettingsUtil.get(SETTINGS.ddbSyncToDDB.tag) === true;
+  }
+
+  /**
+   * Whether D&D Beyond changes are applied to Foundry automatically (on by default). When off,
+   * they are only applied by "Sync characters now".
+   * @returns {boolean}
+   */
+  static isPullEnabled() {
+    const SETTINGS = getSettings();
+    return SettingsUtil.get(SETTINGS.ddbSyncFromDDB.tag) !== false;
   }
 
   /**
@@ -163,6 +178,7 @@ export class DnDBSyncService {
    * @param {Object} rollData - Game log roll event
    */
   static onDDBRoll(rollData) {
+    if (!this.isPullEnabled()) return;
     if (rollData?.entityType && rollData.entityType !== "character") return;
     if (!rollData?.entityId || !this._actorFor(rollData.entityId)) return;
     this.schedulePull(rollData.entityId, PULL_AFTER_ROLL_MS);
@@ -181,7 +197,7 @@ export class DnDBSyncService {
       LogUtil.log("DnDBSyncService: Game log event type", [eventType, event]);
     }
     const characterId = event.entityType === "character" ? event.entityId : (event.data?.characterId ?? null);
-    if (characterId && this._actorFor(characterId)) {
+    if (characterId && this.isPullEnabled() && this._actorFor(characterId)) {
       this.schedulePull(characterId, PULL_AFTER_EVENT_MS);
     }
   }
@@ -259,11 +275,20 @@ export class DnDBSyncService {
    * @param {Object} ddbData - Character data from D&D Beyond
    * @param {Object} [options]
    * @param {boolean} [options.reset=false] - Ignore the stored snapshot so D&D Beyond values win
+   * @param {boolean} [options.apply=true] - When false, only record D&D Beyond's current values as
+   * the snapshot without changing Foundry (used before a push while D&D Beyond -> Foundry is off)
    * @returns {Promise<void>}
    */
-  static async _reconcile(actor, ddbData, { reset = false } = {}) {
+  static async _reconcile(actor, ddbData, { reset = false, apply = true } = {}) {
     const snapshot = reset ? null : this._getStored(actor).state;
     const ddbState = DnDBSyncState.fromDDB(ddbData);
+    if (!apply) {
+      const links = DnDBSyncItems.link(ddbData, actor.items);
+      await actor.update({
+        [`flags.${MODULE_ID}.${FLAG_KEY}`]: { state: ddbState, meta: { ...DnDBSyncState.ddbMeta(ddbData), links }, syncedAt: Date.now() }
+      }, this._fromDDBOptions());
+      return;
+    }
     const links = DnDBSyncItems.link(ddbData, actor.items);
     const meta = { ...DnDBSyncState.ddbMeta(ddbData), links };
     const { pull, push, agreed } = DnDBSyncState.compare({
@@ -289,6 +314,9 @@ export class DnDBSyncService {
     }
     if (itemUpdates.length) {
       await actor.updateEmbeddedDocuments("Item", itemUpdates, this._fromDDBOptions());
+    }
+    for (const { id, active } of DnDBSyncConditions.toStatusUpdates(otherPull)) {
+      await actor.toggleStatusEffect(id, { active });
     }
 
     const applied = DnDBSyncState.flatten(DnDBSyncState.fromActor(actor, links));
@@ -316,7 +344,7 @@ export class DnDBSyncService {
    * in the current combat are checked more often.
    */
   static _pollTick() {
-    if (!this._isSyncClient()) return;
+    if (!this._isSyncClient() || !this.isPullEnabled()) return;
     const now = Date.now();
     let candidate = null;
     for (const [characterId, actorId] of Object.entries(this.linkedCharacters())) {
@@ -369,6 +397,32 @@ export class DnDBSyncService {
   }
 
   /**
+   * Queue a push when a condition status effect is added to or removed from a synced actor.
+   * Status effects are toggled by D&D Beyond pulls too; those changes already match the snapshot,
+   * so the queued push finds nothing to send.
+   * @param {ActiveEffect} effect
+   */
+  static _onEffectChange(effect) {
+    const actor = effect.parent;
+    if (!actor || actor.documentName !== "Actor" || !this._canQueuePush(actor)) return;
+    const syncedStatuses = Object.values(DDB_CONDITION_STATUSES);
+    if (![...(effect.statuses ?? [])].some(status => syncedStatuses.includes(status))) return;
+    this._queue.touch(actor.id);
+  }
+
+  /**
+   * Send a rest taken in Foundry to D&D Beyond, so D&D Beyond applies its own rest rules. The
+   * rest is sent first in the next push, followed by the resulting field changes.
+   * @param {Actor} actor
+   * @param {{type: string}} result - dnd5e rest result ("short" or "long")
+   */
+  static _onRestCompleted(actor, result) {
+    if (!["short", "long"].includes(result?.type) || !this._canQueuePush(actor)) return;
+    this._pendingRests.set(actor.id, result.type);
+    this._queue.touch(actor.id);
+  }
+
+  /**
    * Send pending changes at turn and round boundaries
    * @param {Combat} combat
    * @param {Object} changes
@@ -409,13 +463,18 @@ export class DnDBSyncService {
     const characterId = this._characterIdFor(actorId);
     if (!actor || !characterId || !this._canQueuePush(actor)) return;
 
+    if (!this.isPullEnabled()) {
+      const result = await DnDBSyncApi.getCharacter(characterId, { fresh: true });
+      if (!result.ok || !result.data) {
+        setTimeout(() => this._queue?.touch(actorId), (result.retryAfter ?? RETRY_AFTER_ERROR_MS / 1000) * 1000);
+        return;
+      }
+      await this._reconcile(actor, result.data, { apply: false });
+    }
+
     const { state: snapshot, meta } = this._getStored(actor);
     if (!snapshot) {
       this.schedulePull(characterId);
-      return;
-    }
-    if (!this._ownsCharacter(meta)) {
-      this._blockPush(actor, "not_owner");
       return;
     }
 
@@ -424,15 +483,25 @@ export class DnDBSyncService {
     const snap = DnDBSyncState.flatten(snapshot);
     const push = Object.fromEntries(Object.entries(current).filter(([field, value]) =>
       field in snap && value !== snap[field] && !this._unsupportedGroups.has(this._groupForField(field))));
-    const groups = DnDBSyncState.toDDBGroups(push, actorState, meta);
+    const pactLevel = meta.pactLevel ?? (Number(actor.system.spells?.pact?.level) || null);
+    const fieldGroups = DnDBSyncState.toDDBGroups(push, actorState, { ...meta, pactLevel });
+    const restType = this._pendingRests.get(actorId);
+    const groups = restType
+      ? { rest: this._restGroup(restType, actorState, meta), ...fieldGroups }
+      : fieldGroups;
     if (!Object.keys(groups).length) return;
+    const totalHp = Number(actor.system.attributes?.hp?.max) || 0;
+    if (groups.exhaustion) groups.exhaustion.totalHp = totalHp;
+    if (groups.conditions) groups.conditions.totalHp = totalHp;
 
     LogUtil.log("DnDBSyncService: Sending Foundry changes to D&D Beyond", [actor.name, groups]);
     const result = await DnDBSyncApi.updateCharacter(characterId, groups);
 
     for (const group of result.data?.skipped ?? []) this._unsupportedGroups.add(group);
+    if (restType && (result.data?.applied ?? []).includes("rest")) this._pendingRests.delete(actorId);
+    if (restType && (result.data?.skipped ?? []).includes("rest")) this._pendingRests.delete(actorId);
 
-    if (result.ok || result.data?.skipped?.length) {
+    if (result.ok || result.data?.skipped?.length || result.data?.deferred?.length) {
       const applied = result.data?.applied ?? Object.keys(groups);
       const sentFields = Object.keys(push).filter(field => applied.includes(this._groupForField(field)));
       const pushedAt = this._pushedAt.get(actorId) ?? {};
@@ -459,12 +528,30 @@ export class DnDBSyncService {
   }
 
   /**
+   * D&D Beyond rest write group. A short rest carries the hit dice used per D&D Beyond class.
+   * @param {"short"|"long"} type
+   * @param {Object} actorState - Current Foundry state
+   * @param {Object} meta - Stored D&D Beyond metadata (class ids)
+   * @returns {{type: string, classHitDiceUsed?: Object<string, number>}}
+   */
+  static _restGroup(type, actorState, meta) {
+    if (type !== "short") return { type };
+    const classHitDiceUsed = {};
+    for (const [key, used] of Object.entries(actorState.hitDice ?? {})) {
+      const classId = meta.classIds?.[key];
+      if (classId) classHitDiceUsed[classId] = used;
+    }
+    return { type, classHitDiceUsed };
+  }
+
+  /**
    * Write group a flattened field belongs to (see DnDBSyncState.toDDBGroups)
    * @param {string} field
    * @returns {string}
    */
   static _groupForField(field) {
     if (field.startsWith("uses.")) return "featureUses";
+    if (field.startsWith("cond.")) return "conditions";
     if (field.startsWith("inv.")) {
       return { equipped: "itemEquipped", attuned: "itemAttuned", quantity: "itemQuantity", charges: "itemCharges" }[field.split(".")[2]] ?? field;
     }
@@ -479,22 +566,11 @@ export class DnDBSyncService {
   }
 
   /**
-   * Whether the cookie's D&D Beyond account owns the character. D&D Beyond only lets the owner
-   * edit a character, so other characters are not pushed. Unknown on either side means "try".
-   * @param {Object} meta - Stored D&D Beyond metadata
-   * @returns {boolean}
-   */
-  static _ownsCharacter(meta) {
-    const SETTINGS = getSettings();
-    const cookieUserId = String(SettingsUtil.get(SETTINGS.ddbUserId.tag) ?? "");
-    if (!meta?.ownerUserId || !cookieUserId) return true;
-    return meta.ownerUserId === cookieUserId;
-  }
-
-  /**
-   * Stop pushing an actor for this session and tell the GM once
+   * Stop pushing an actor for this session and tell the GM once. Used when D&D Beyond refuses
+   * the account's changes to that character (D&D Beyond decides who may edit; a campaign's DM
+   * can edit its characters).
    * @param {Actor} actor
-   * @param {"not_owner"|"forbidden"} reason
+   * @param {"forbidden"} reason
    */
   static _blockPush(actor, reason) {
     if (this._pushBlocked.has(actor.id)) return;

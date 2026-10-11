@@ -3,7 +3,7 @@
  * Which Foundry item each D&D Beyond entry corresponds to.
  * @property {Object<string, string>} uses - Foundry item id keyed by feature key ("f<componentId>")
  * @property {Object<string, string>} inventory - Foundry item id keyed by D&D Beyond inventory id
- * @property {Object<string, {componentId: number, componentTypeId: number, actionId: (number|string|null)}>} features
+ * @property {Object<string, {componentId: number, componentTypeId: number, entityTypeId: (number|null), actionId: (number|string|null), spellId: (number|null)}>} features
  * D&D Beyond ids for each feature key, needed to write uses back
  */
 
@@ -40,7 +40,7 @@ export class DnDBSyncItems {
    * Magic Initiate spell), which D&D Beyond tracks on the spell entry. Each entry lists the names
    * it may have in Foundry, granting feature first, then the spell.
    * @param {Object} ddb - Character data
-   * @returns {Array<{key: string, name: string, names: string[], used: number, componentId: number, componentTypeId: number, actionId: (number|string|null), spellId: (number|null)}>}
+   * @returns {Array<{key: string, name: string, names: string[], used: number, componentId: number, componentTypeId: number, entityTypeId: (number|null), actionId: (number|string|null), spellId: (number|null)}>}
    */
   static ddbFeatureUses(ddb) {
     const definitionNames = new Map();
@@ -65,7 +65,7 @@ export class DnDBSyncItems {
         const used = Number(action.limitedUse.numberUsed) || 0;
         const existing = byKey.get(key);
         if (!existing || used > existing.used) {
-          byKey.set(key, { key, name, names: [name], used, componentId: action.componentId, componentTypeId: action.componentTypeId, actionId: action.id ?? null, spellId: null });
+          byKey.set(key, { key, name, names: [name], used, componentId: action.componentId, componentTypeId: action.componentTypeId, entityTypeId: action.entityTypeId ?? null, actionId: action.id ?? null, spellId: null });
         }
       }
     }
@@ -78,7 +78,7 @@ export class DnDBSyncItems {
         const names = [definitionNames.get(spell.componentId), spell.definition?.name].filter(Boolean);
         if (!names.length) continue;
         const key = `s${spell.id}`;
-        byKey.set(key, { key, name: names[0], names, used: Number(limitedUse.numberUsed) || 0, componentId: spell.componentId, componentTypeId: spell.componentTypeId, actionId: null, spellId: spell.id });
+        byKey.set(key, { key, name: names[0], names, used: Number(limitedUse.numberUsed) || 0, componentId: spell.componentId, componentTypeId: spell.componentTypeId, entityTypeId: spell.entityTypeId ?? null, actionId: null, spellId: spell.id });
       }
     }
     return [...byKey.values()];
@@ -118,7 +118,7 @@ export class DnDBSyncItems {
       if (match) {
         linkedFeatureItemIds.add(match.id);
         links.uses[feature.key] = match.id;
-        links.features[feature.key] = { componentId: feature.componentId, componentTypeId: feature.componentTypeId, actionId: feature.actionId, spellId: feature.spellId };
+        links.features[feature.key] = { componentId: feature.componentId, componentTypeId: feature.componentTypeId, entityTypeId: feature.entityTypeId, actionId: feature.actionId, spellId: feature.spellId };
       }
     }
 

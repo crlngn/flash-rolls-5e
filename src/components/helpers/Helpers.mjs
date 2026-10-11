@@ -325,7 +325,22 @@ export function updateSidebarClass(isExpanded) {
 }
 
 /**
- * Build roll types array for a selected request type
+ * Tool keys that any of the selected actors has on its sheet
+ * @param {Set<string>|Array<string>} selectedActors - Selected actor, token or token document IDs
+ * @returns {Set<string>}
+ */
+function getSelectedActorToolKeys(selectedActors) {
+  const keys = new Set();
+  for (const uniqueId of selectedActors ?? []) {
+    const actor = getActorData(uniqueId);
+    for (const key of Object.keys(actor?.system?.tools ?? {})) keys.add(key);
+  }
+  return keys;
+}
+
+/**
+ * Build roll types array for a selected request type. Tools whose item cannot be found (so no
+ * name is available) are left out, unless a selected actor has that tool.
  * @param {string} selectedRequestType - The type of roll request
  * @param {Set} selectedActors - Set of selected actor IDs
  * @returns {Array} Array of roll type objects with id, name, and rollable properties
@@ -343,16 +358,20 @@ export function buildRollTypes(selectedRequestType, selectedActors) {
   }
   
   const configData = CONFIG.DND5E[selectedOption.subList];
+  const isTools = selectedOption.subList === 'tools';
+  const selectedToolKeys = isTools ? getSelectedActorToolKeys(selectedActors) : null;
   
   if (configData) {
     for (const [key, data] of Object.entries(configData)) {
       let label = data.label || data.name || key;
       
-      if (selectedOption.subList === 'tools' && CONFIG.DND5E.enrichmentLookup?.tools?.[key]) {
-        const toolData = CONFIG.DND5E.enrichmentLookup.tools[key];
-        if (toolData?.id) {
-          const toolItem = dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true });
-          label = toolItem?.name || label;
+      if (isTools) {
+        const toolData = CONFIG.DND5E.enrichmentLookup?.tools?.[key] ?? data;
+        const toolItem = toolData?.id ? dnd5e.documents.Trait.getBaseItem(toolData.id, { indexOnly: true }) : null;
+        label = toolItem?.name || data.label || data.name || null;
+        if (!label) {
+          if (!selectedToolKeys.has(key)) continue;
+          label = key;
         }
       }
       

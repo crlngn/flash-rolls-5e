@@ -15,9 +15,11 @@
  * @property {Object<string, number>} hitDice - Hit dice used, keyed by class identifier
  * @property {Object<string, number>} [uses] - Feature uses spent, keyed by feature key (see DnDBSyncItems)
  * @property {Object<string, import("./DnDBSyncItems.mjs").DnDBSyncInventoryState>} [inventory] - Inventory state keyed by D&D Beyond inventory id
+ * @property {Object<string, boolean>} [conditions] - Conditions keyed by Foundry status id
  */
 
 import { DnDBSyncItems } from "./DnDBSyncItems.mjs";
+import { DnDBSyncConditions } from "./DnDBSyncConditions.mjs";
 
 /**
  * Field keys compared during sync. Nested maps (slots, hitDice) are compared per entry using
@@ -82,7 +84,8 @@ export class DnDBSyncState {
       exhaustion: Number(exhaustion?.level) || 0,
       hitDice,
       uses: items.uses,
-      inventory: items.inventory
+      inventory: items.inventory,
+      conditions: DnDBSyncConditions.fromDDB(ddb)
     };
   }
 
@@ -126,7 +129,8 @@ export class DnDBSyncState {
       exhaustion: Number(system.attributes?.exhaustion) || 0,
       hitDice,
       uses: linked.uses,
-      inventory: linked.inventory
+      inventory: linked.inventory,
+      conditions: DnDBSyncConditions.fromActor(actor)
     };
   }
 
@@ -151,6 +155,7 @@ export class DnDBSyncState {
     for (const [level, used] of Object.entries(state?.slots ?? {})) flat[`slots.${level}`] = used;
     for (const [cls, used] of Object.entries(state?.hitDice ?? {})) flat[`hitDice.${cls}`] = used;
     for (const [key, used] of Object.entries(state?.uses ?? {})) flat[`uses.${key}`] = used;
+    for (const [status, active] of Object.entries(state?.conditions ?? {})) flat[`cond.${status}`] = active;
     for (const [entryId, entry] of Object.entries(state?.inventory ?? {})) {
       for (const [prop, value] of Object.entries(entry ?? {})) flat[`inv.${entryId}.${prop}`] = value;
     }
@@ -163,11 +168,12 @@ export class DnDBSyncState {
    * @returns {DnDBSyncSnapshot}
    */
   static unflatten(flat) {
-    const state = { slots: {}, hitDice: {}, uses: {}, inventory: {} };
+    const state = { slots: {}, hitDice: {}, uses: {}, inventory: {}, conditions: {} };
     for (const [key, value] of Object.entries(flat)) {
       if (key.startsWith("slots.")) state.slots[key.slice(6)] = value;
       else if (key.startsWith("hitDice.")) state.hitDice[key.slice(8)] = value;
       else if (key.startsWith("uses.")) state.uses[key.slice(5)] = value;
+      else if (key.startsWith("cond.")) state.conditions[key.slice(5)] = value;
       else if (key.startsWith("inv.")) {
         const [, entryId, prop] = key.split(".");
         state.inventory[entryId] ??= {};
@@ -323,6 +329,8 @@ export class DnDBSyncState {
       .map(key => ({ classId: ddbMeta.classIds[key], hitDiceUsed: actorState.hitDice[key] }));
     if (hitDice.length) groups.hitDice = { classes: hitDice };
     Object.assign(groups, DnDBSyncItems.toDDBGroups(push, ddbMeta.links));
+    const conditions = DnDBSyncConditions.toDDBGroup(push);
+    if (conditions) groups.conditions = conditions;
 
     return groups;
   }
