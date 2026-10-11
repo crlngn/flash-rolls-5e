@@ -101,7 +101,8 @@
       "ddbAuthFailed": "D&D Beyond rejected your Cobalt cookie. It has probably expired: copy a fresh one from dndbeyond.com into the Flash Rolls D&D Beyond settings.",
       "ddbSessionLimit": "You already have {max} active D&D Beyond Game Log connections. Close one of your other Foundry worlds, then reconnect.",
       "ddbServerBusy": "The D&D Beyond Game Log relay is at capacity. Flash Rolls will retry in {minutes} minutes.",
-      "ddbCookieMovedToBrowser": "Flash Rolls: your D&D Beyond Cobalt cookie is now stored only in this browser. If you run this world from another browser or computer, enter the cookie there again."
+      "ddbCookieMovedToBrowser": "Flash Rolls: your D&D Beyond Cobalt cookie is now stored only in this browser. If you run this world from another browser or computer, enter the cookie there again.",
+      "ddbSyncPushSkipped": "Flash Token Bar: changes to {name} won't be sent to D&D Beyond, because the account of your Cobalt cookie doesn't own that character."
     },
     "rollModePlayerChoice": "Player's Choice",
     "contextMenu": {
@@ -498,7 +499,11 @@
         "tooltipOn": "ON",
         "tooltipOff": "OFF",
         "contextReconnect": "Reconnect to Patreon",
-        "patreonRequired": "Connect to Patreon to access special features."
+        "patreonRequired": "Connect to Patreon to access special features.",
+        "ddbSyncOptions": "Character Sync",
+        "ddbSyncIntro": "Linked characters are kept up to date from D&D Beyond automatically: hit points, temporary hit points, spell and pact slots, hit dice, death saves, inspiration and exhaustion.",
+        "syncCharactersNow": "Sync characters now",
+        "syncCharactersDone": "Character sync finished: {synced} synced, {failed} failed."
       },
       "ddbCampaignId": {
         "label": "D&D Beyond Campaign",
@@ -607,6 +612,10 @@
       "retroAdvantageButtons": {
         "label": "Retroactive advantage buttons",
         "hint": "Show buttons flanking the total of attack, check and save rolls that apply advantage or disadvantage after the roll, rolling one more d20 and keeping the highest or lowest. Only the roll's author and the GM see them."
+      },
+      "ddbSyncToDDB": {
+        "label": "Send Foundry changes to D&D Beyond",
+        "hint": "When checked, changes made in Foundry to hit points, temporary hit points, spell and pact slots, hit dice, death saves, inspiration and exhaustion are sent to D&D Beyond, a few seconds after they settle. D&D Beyond only allows the account that owns a character to edit it, so only characters owned by the account of your Cobalt cookie are updated."
       }
     },
     "groupRoll": {

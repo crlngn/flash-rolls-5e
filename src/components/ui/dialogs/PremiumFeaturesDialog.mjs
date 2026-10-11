@@ -7,6 +7,7 @@ import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 import { DnDBCharacterImporter } from "../../integrations/dnd-beyond/DnDBCharacterImporter.mjs";
 import { DnDBCookieUtil } from "../../integrations/dnd-beyond/DnDBCookieUtil.mjs";
 import { DnDBCookieGuideDialog } from "./DnDBCookieGuideDialog.mjs";
+import { DnDBSyncService } from "../../integrations/dnd-beyond/sync/DnDBSyncService.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -80,6 +81,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
       testGameLog: PremiumFeaturesDialog.#onTestGameLog,
       refreshCharacters: PremiumFeaturesDialog.#onRefreshCharacters,
       refreshCampaigns: PremiumFeaturesDialog.#onRefreshCampaigns,
+      syncCharactersNow: PremiumFeaturesDialog.#onSyncCharactersNow,
       mapCharacter: PremiumFeaturesDialog.#onMapCharacter,
       unlinkCharacter: PremiumFeaturesDialog.#onUnlinkCharacter,
       importCharacter: PremiumFeaturesDialog.#onImportCharacter,
@@ -241,6 +243,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
           hasCharacters: charactersWithMapping.length > 0,
           hasDDBImporter,
           ddbOptionFields: this._getDdbOptionFields(),
+          ddbSyncToDDB: SettingsUtil.get(SETTINGS.ddbSyncToDDB.tag) === true,
           campaignOptions: this._getCampaignOptions(ddbCampaignId),
           hasCampaignOptions: !!this._ddbCampaigns?.length,
           isLoadingCampaigns: this._isLoadingCampaigns,
@@ -690,6 +693,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     const ddbCobaltCookie = ddbCobaltCookieInput ? DnDBCookieUtil.normalize(ddbCobaltCookieInput.value) : undefined;
     const ddbNoAutoConsumeSpellSlot = this.element.querySelector('input[name="ddbNoAutoConsumeSpellSlot"]')?.checked;
     const optionSelects = ["ddbRollOwnership", "ddbImportSourcePriority", "ddbImportSpellMode"];
+    const ddbSyncToDDB = this.element.querySelector('input[name="ddbSyncToDDB"]')?.checked;
     const ddbImportOwnership = this.element.querySelector('input[name="ddbImportOwnership"]')?.checked;
 
     if (ddbCampaignId !== undefined) {
@@ -703,6 +707,9 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
     if (ddbImportOwnership !== undefined) {
       await SettingsUtil.set(SETTINGS.ddbImportOwnership.tag, ddbImportOwnership);
+    }
+    if (ddbSyncToDDB !== undefined) {
+      await SettingsUtil.set(SETTINGS.ddbSyncToDDB.tag, ddbSyncToDDB);
     }
     for (const key of optionSelects) {
       const value = this.element.querySelector(`select[name="${key}"]`)?.value;
@@ -1058,6 +1065,23 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
     }
 
     this._updateDDBStatusIndicator();
+  }
+
+  /**
+   * Pull every mapped character from D&D Beyond now and report the result
+   * @param {PointerEvent} event
+   * @param {HTMLElement} target - The clicked button
+   */
+  static async #onSyncCharactersNow(event, target) {
+    target.disabled = true;
+    target.querySelector("i")?.classList.add("fa-spin");
+    try {
+      const { synced, failed } = await DnDBSyncService.syncAllNow();
+      ui.notifications.info(game.i18n.format("FLASH_ROLLS.settings.premiumFeatures.syncCharactersDone", { synced, failed }));
+    } finally {
+      target.disabled = false;
+      target.querySelector("i")?.classList.remove("fa-spin");
+    }
   }
 
   /**

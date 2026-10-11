@@ -57,4 +57,22 @@
       <p class="hint">{{{ddbOptionFields.ddbNoAutoConsumeSpellSlot.hint}}}</p>
     </div>
   </fieldset>
+
+  <fieldset class="ddb-options">
+    <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncOptions"}}</legend>
+    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncIntro"}}</p>
+
+    <div class="form-group">
+      <label for="ddbSyncToDDB">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.label"}}</label>
+      <input type="checkbox" name="ddbSyncToDDB" id="ddbSyncToDDB" {{#if ddbSyncToDDB}}checked{{/if}} />
+      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.hint"}}</p>
+    </div>
+
+    <div class="form-group buttons-row">
+      <button type="button" data-action="syncCharactersNow">
+        <i class="fas fa-arrows-rotate"></i>
+        {{localize "FLASH_ROLLS.settings.premiumFeatures.syncCharactersNow"}}
+      </button>
+    </div>
+  </fieldset>
 </section>

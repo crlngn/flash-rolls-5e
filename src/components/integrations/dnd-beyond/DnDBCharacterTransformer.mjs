@@ -219,11 +219,22 @@ export class DnDBCharacterTransformer {
   }
 
   /**
-   * Apply DDB item state to a Foundry item data object
+   * Apply DDB item state to a Foundry item data object, and record which D&D Beyond entry the
+   * item came from (inventory id for equipment, definition id for features) so character sync
+   * can link them without relying on names
    * @param {Object} itemData - Foundry item data (will be modified)
    * @param {Object} ddbItem - DDB item data
    */
   static applyItemState(itemData, ddbItem) {
+    const isInventoryEntry = ddbItem.equipped !== undefined && ddbItem.definition && ddbItem.id != null;
+    const ddbLink = isInventoryEntry
+      ? { ddbInventoryId: ddbItem.id }
+      : (ddbItem.definition?.id != null ? { ddbDefinitionId: ddbItem.definition.id } : {});
+    if (Object.keys(ddbLink).length) {
+      itemData.flags ??= {};
+      itemData.flags["flash-rolls-5e"] = { ...(itemData.flags["flash-rolls-5e"] ?? {}), ...ddbLink };
+    }
+
     if (itemData.system.equipped !== undefined && ddbItem.equipped !== undefined) {
       itemData.system.equipped = ddbItem.equipped;
     }

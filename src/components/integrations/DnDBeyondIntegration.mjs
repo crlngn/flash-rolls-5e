@@ -9,6 +9,7 @@ import { DnDBRollParser } from "./dnd-beyond/DnDBRollParser.mjs";
 import { DnDBRollExecutor } from "./dnd-beyond/DnDBRollExecutor.mjs";
 import { DnDBIntegration } from "./dnd-beyond/DnDBIntegration.mjs";
 import { DnDBSecretsMigration } from "./dnd-beyond/DnDBSecretsMigration.mjs";
+import { DnDBSyncService } from "./dnd-beyond/sync/DnDBSyncService.mjs";
 import { PatronSessionManager } from "../managers/PatronSessionManager.mjs";
 
 const SOCKET_HANDLERS = {
@@ -50,8 +51,17 @@ export class DnDBeyondIntegration {
 
     LogUtil.log("DnDBeyondIntegration: Initializing with config", [config]);
 
-    DnDBConnection.setRollEventHandler((data) => this._onRollEvent(data));
+    this._registerEventHandlers();
+    DnDBSyncService.initialize();
     await DnDBConnection.connect();
+  }
+
+  /**
+   * Route game log events: rolls to roll handling (and sync), other events to character sync
+   */
+  static _registerEventHandlers() {
+    DnDBConnection.setRollEventHandler((data) => this._onRollEvent(data));
+    DnDBConnection.setGameLogEventHandler((data) => DnDBSyncService.onGameLogEvent(data));
   }
 
   /**
@@ -105,6 +115,7 @@ export class DnDBeyondIntegration {
     LogUtil.log("Visibility:", [`messageScope=${rollData.messageScope}`, `messageTarget=${rollData.messageTarget}`, `userId=${rollData.userId}`]);
     LogUtil.log("======================");
 
+    DnDBSyncService.onDDBRoll(rollData);
     await this._processRollEvent(rollData);
   }
 
@@ -269,7 +280,8 @@ export class DnDBeyondIntegration {
    * Connect to the proxy server
    */
   static async connect() {
-    DnDBConnection.setRollEventHandler((data) => this._onRollEvent(data));
+    this._registerEventHandlers();
+    DnDBSyncService.initialize();
     await DnDBConnection.connect();
   }
 
@@ -284,7 +296,8 @@ export class DnDBeyondIntegration {
    * Manually trigger a reconnection
    */
   static async reconnect() {
-    DnDBConnection.setRollEventHandler((data) => this._onRollEvent(data));
+    this._registerEventHandlers();
+    DnDBSyncService.initialize();
     await DnDBConnection.reconnect();
   }
 

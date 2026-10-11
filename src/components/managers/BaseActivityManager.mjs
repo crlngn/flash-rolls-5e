@@ -239,7 +239,9 @@ export class BaseActivityManager {
 
   /**
    * Handle post-use activity hook on GM side
-   * Triggers damage rolls for save activities and stores activity configuration for caching
+   * Triggers damage rolls for save activities and stores activity configuration for caching.
+   * D&D Beyond rolls of damage-only activities (DAMAGE type, e.g. Divine Smite) ran without
+   * subsequent actions, so their pending D&D Beyond damage is rolled here
    */
   static onPostUseActivityGM(activity, config, results) {
     const SETTINGS = getSettings();
@@ -256,6 +258,12 @@ export class BaseActivityManager {
       "rollInterceptionEnabled:", rollInterceptionEnabled,
       "actor:", actor?.name
     ]);
+
+    if (actor && isDnDBRoll && activity.type === ACTIVITY_TYPES.DAMAGE && activity.damage?.parts?.length > 0 && !this.isMidiActive) {
+      this._recordTargetsOnUsageCard(results);
+      this._handleDnDBSaveDamageRoll(activity, config, results);
+      return;
+    }
 
     if (!requestsEnabled || !rollInterceptionEnabled || !actor) {
       LogUtil.log("BaseActivityManager.onPostUseActivityGM - Requests or interception disabled, handling as local roll", [
@@ -419,7 +427,9 @@ export class BaseActivityManager {
 
   /**
    * Handle post-use activity hook on player side
-   * Configures Midi-QOL options and triggers save damage if needed
+   * Configures Midi-QOL options and triggers save damage if needed. For D&D Beyond rolls of
+   * damage-only activities (SAVE or DAMAGE type), the usage ran without subsequent actions, so the
+   * pending D&D Beyond damage is rolled here
    */
   static onPostUseActivityPlayer(activity, config, results) {
     const isDnDBRoll = config.create?._isDnDBRoll === true;
@@ -434,6 +444,11 @@ export class BaseActivityManager {
 
     if (this.isMidiActive) {
       MidiActivityManager.onPostUseActivityPlayer(activity, config, results);
+      return;
+    }
+
+    if (isDnDBRoll && activity.type === ACTIVITY_TYPES.DAMAGE && activity.damage?.parts?.length > 0) {
+      this._handleDnDBSaveDamageRoll(activity, config, results);
       return;
     }
 
@@ -456,7 +471,7 @@ export class BaseActivityManager {
   }
 
   /**
-   * Handle damage roll for DnDB save spells
+   * Handle damage roll for DnDB save and damage-only spells
    * Calls rollDamage with create:false, injects DnDB dice values, and posts message with proper targets
    * linked to the usage card so the system folds it into that card
    * Note: This method is async but called from a sync hook - it handles its own promise chain

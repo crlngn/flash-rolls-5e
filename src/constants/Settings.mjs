@@ -925,6 +925,16 @@ export const getSettings = () => {
       default: 0,
       scope: SETTING_SCOPE.world,
       config: false
+    },
+
+    ddbSyncToDDB: {
+      tag: "ddb-sync-to-ddb",
+      label: game.i18n.localize("FLASH_ROLLS.settings.ddbSyncToDDB.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.ddbSyncToDDB.hint"),
+      propType: Boolean,
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
     }
   };
 };

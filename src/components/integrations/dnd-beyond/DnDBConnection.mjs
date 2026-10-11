@@ -21,6 +21,8 @@ export class DnDBConnection {
   static _reconnectDelay = 5000;
   static _reconnectTimer = null;
   static _onRollEvent = null;
+  static _onGameLogEvent = null;
+  static _recentRollIds = new Set();
 
   /**
    * Initialize the connection with a callback for roll events
@@ -28,6 +30,14 @@ export class DnDBConnection {
    */
   static setRollEventHandler(onRollEvent) {
     this._onRollEvent = onRollEvent;
+  }
+
+  /**
+   * Set a callback for game log events other than dice rolls
+   * @param {Function} onGameLogEvent - Receives the parsed game log event
+   */
+  static setGameLogEventHandler(onGameLogEvent) {
+    this._onGameLogEvent = onGameLogEvent;
   }
 
   /**
@@ -217,6 +227,10 @@ export class DnDBConnection {
         return;
       }
       if (data.eventType === "dice/roll/fulfilled") {
+        if (this._isDuplicateRoll(data)) {
+          LogUtil.log("DnDBConnection: Ignoring duplicate roll event", [data.data?.rollId ?? data.id]);
+          return;
+        }
         LogUtil.log("DnDBConnection: Roll received", [
           `messageScope=${data.messageScope}`,
           `messageTarget=${data.messageTarget}`,
@@ -226,10 +240,30 @@ export class DnDBConnection {
         if (this._onRollEvent) {
           this._onRollEvent(data);
         }
+      } else if (data.eventType && this._onGameLogEvent) {
+        this._onGameLogEvent(data);
       }
     } catch (error) {
       LogUtil.error("DnDBConnection: Error parsing event", [error, raw]);
     }
+  }
+
+  /**
+   * Whether a roll was already received. D&D Beyond can deliver the same roll more than once
+   * (for example a copy addressed to the user and one to the campaign when the GM is also the
+   * roller); every copy shares the roll id. Remembers the last 200 ids.
+   * @param {Object} data - Parsed roll event
+   * @returns {boolean}
+   */
+  static _isDuplicateRoll(data) {
+    const rollId = data.data?.rollId ?? data.id;
+    if (!rollId) return false;
+    if (this._recentRollIds.has(rollId)) return true;
+    this._recentRollIds.add(rollId);
+    if (this._recentRollIds.size > 200) {
+      this._recentRollIds.delete(this._recentRollIds.values().next().value);
+    }
+    return false;
   }
 
   /**
