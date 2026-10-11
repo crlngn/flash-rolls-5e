@@ -859,6 +859,7 @@
         "findCookieGuide": "How to find your cookie",
         "ddbRollOptions": "Roll Options",
         "ddbImportOptions": "Import Options",
+        "ddbImportOptionsNote": "These settings only matter for those not using DDB Importer module",
         "label": "Patreon Features",
         "buttonLabel": "Patreon Features",
         "title": "Patreon Features",
@@ -967,20 +968,20 @@
         "contextReconnect": "Reconnect to Patreon",
         "patreonRequired": "Connect to Patreon to access special features.",
         "ddbSyncOptions": "Character Sync",
-        "ddbSyncIntro": "For characters linked to D&D Beyond, these are kept in step:",
+        "ddbSyncIntro": "For characters linked to D&D Beyond, the settings above listen to these properties:",
         "syncCharactersNow": "Sync characters now (D&D Beyond → Foundry)",
         "syncCharactersDone": "Character sync finished: {synced} synced, {failed} failed.",
         "ddbSyncFields": {
-          "hitPoints": "Hit points and temporary hit points",
-          "maxHp": "Max HP modifier and max HP override",
+          "hitPoints": "HP and temp. HP",
+          "maxHp": "Max HP modifier override",
           "spellSlots": "Spell slots and pact slots",
           "hitDice": "Hit dice",
-          "featureUses": "Feature uses (Lay on Hands, Channel Divinity, free spell casts…)",
+          "featureUses": "Feature uses (Lay on Hands, Wild Shape, etc…)",
           "equipment": "Equipment: equipped, attuned, quantity and charges",
           "deathSaves": "Death saves",
           "inspiration": "Heroic inspiration",
           "exhaustion": "Exhaustion",
-          "conditions": "Conditions (Blinded, Prone, Invisible…)"
+          "conditions": "Conditions (Prone, Invisible, etc.)"
         },
         "ddbSyncDirections": "Choose below which direction changes travel."
       },
@@ -1093,11 +1094,11 @@
         "hint": "Show buttons flanking the total of attack, check and save rolls that apply advantage or disadvantage after the roll, rolling one more d20 and keeping the highest or lowest. Only the roll's author and the GM see them."
       },
       "ddbSyncToDDB": {
-        "label": "Foundry → D&D Beyond: Auto-send character changes from Foundry to D&D Beyond",
+        "label": "Send back character updates: Foundry → D&D Beyond",
         "hint": "When checked, changes made in Foundry are sent to the linked D&D Beyond character a few seconds after they settle. Your Cobalt cookie's account must be allowed to edit the character on D&D Beyond (its owner, or the DM of its campaign). Note: an open D&D Beyond character sheet doesn't update live; refresh the page on D&D Beyond to see the changes."
       },
       "ddbSyncFromDDB": {
-        "label": "D&D Beyond → Foundry: auto-sync character changes from D&D Beyond",
+        "label": "Auto-sync character changes: D&D Beyond → Foundry",
         "hint": "When checked, changes made on D&D Beyond are applied to the linked Foundry character within a few seconds. When unchecked, D&D Beyond changes are only applied when you click \"Sync characters now\"."
       }
     },

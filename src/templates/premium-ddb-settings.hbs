@@ -2,7 +2,70 @@
   <h4> <span class="toggle-hint">{{localize 'FLASH_ROLLS.ui.dialogs.toggleHints'}}</span></h4>
 
   <fieldset class="ddb-options">
+    <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbRollOptions"}}</legend>
+
+    {{#with ddbOptionFields.ddbRollOwnership}}
+    <div class="form-group">
+      <label for="ddbRollOwnership">{{label}}</label>
+      <div class="form-fields">
+        <select name="ddbRollOwnership" id="ddbRollOwnership">
+          {{#each choices}}
+          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+          {{/each}}
+        </select>
+      </div>
+      <p class="hint">{{{hint}}}</p>
+    </div>
+    {{/with}}
+
+    <div class="form-group">
+      <label for="ddbNoAutoConsumeSpellSlot">{{ddbOptionFields.ddbNoAutoConsumeSpellSlot.label}}</label>
+      <input type="checkbox" name="ddbNoAutoConsumeSpellSlot" id="ddbNoAutoConsumeSpellSlot" {{#if ddbNoAutoConsumeSpellSlot}}checked{{/if}} />
+      <p class="hint">{{{ddbOptionFields.ddbNoAutoConsumeSpellSlot.hint}}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset class="ddb-options">
+    <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncOptions"}}</legend>
+    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncDirections"}}</p>
+
+    <div class="form-group">
+      <label for="ddbSyncFromDDB">{{localize "FLASH_ROLLS.settings.ddbSyncFromDDB.label"}}</label>
+      <input type="checkbox" name="ddbSyncFromDDB" id="ddbSyncFromDDB" {{#if ddbSyncFromDDB}}checked{{/if}} />
+      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbSyncFromDDB.hint"}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="ddbSyncToDDB">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.label"}}</label>
+      <input type="checkbox" name="ddbSyncToDDB" id="ddbSyncToDDB" {{#if ddbSyncToDDB}}checked{{/if}} />
+      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.hint"}}</p>
+    </div>
+
+    <div class="form-group buttons-row">
+      <button type="button" data-action="syncCharactersNow">
+        <i class="fas fa-arrows-rotate"></i>
+        {{localize "FLASH_ROLLS.settings.premiumFeatures.syncCharactersNow"}}
+      </button>
+    </div>
+
+    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncIntro"}}</p>
+    <ul class="hint on ddb-sync-fields">
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.hitPoints"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.maxHp"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.spellSlots"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.hitDice"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.featureUses"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.equipment"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.deathSaves"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.inspiration"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.exhaustion"}}</li>
+      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.conditions"}}</li>
+    </ul>
+  </fieldset>
+
+  <fieldset class="ddb-options">
     <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbImportOptions"}}</legend>
+    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbImportOptionsNote"}}</p>
 
     {{#with ddbOptionFields.ddbImportSourcePriority}}
     <div class="form-group">
@@ -32,66 +95,5 @@
     </div>
     {{/with}}
 
-  </fieldset>
-
-  <fieldset class="ddb-options">
-    <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbRollOptions"}}</legend>
-
-    {{#with ddbOptionFields.ddbRollOwnership}}
-    <div class="form-group">
-      <label for="ddbRollOwnership">{{label}}</label>
-      <div class="form-fields">
-        <select name="ddbRollOwnership" id="ddbRollOwnership">
-          {{#each choices}}
-          <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
-          {{/each}}
-        </select>
-      </div>
-      <p class="hint">{{{hint}}}</p>
-    </div>
-    {{/with}}
-
-    <div class="form-group">
-      <label for="ddbNoAutoConsumeSpellSlot">{{ddbOptionFields.ddbNoAutoConsumeSpellSlot.label}}</label>
-      <input type="checkbox" name="ddbNoAutoConsumeSpellSlot" id="ddbNoAutoConsumeSpellSlot" {{#if ddbNoAutoConsumeSpellSlot}}checked{{/if}} />
-      <p class="hint">{{{ddbOptionFields.ddbNoAutoConsumeSpellSlot.hint}}}</p>
-    </div>
-  </fieldset>
-
-  <fieldset class="ddb-options">
-    <legend>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncOptions"}}</legend>
-    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncIntro"}}</p>
-    <ul class="hint on ddb-sync-fields">
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.hitPoints"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.maxHp"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.spellSlots"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.hitDice"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.featureUses"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.equipment"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.deathSaves"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.inspiration"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.exhaustion"}}</li>
-      <li>{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncFields.conditions"}}</li>
-    </ul>
-    <p class="hint on">{{localize "FLASH_ROLLS.settings.premiumFeatures.ddbSyncDirections"}}</p>
-
-    <div class="form-group">
-      <label for="ddbSyncFromDDB">{{localize "FLASH_ROLLS.settings.ddbSyncFromDDB.label"}}</label>
-      <input type="checkbox" name="ddbSyncFromDDB" id="ddbSyncFromDDB" {{#if ddbSyncFromDDB}}checked{{/if}} />
-      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbSyncFromDDB.hint"}}</p>
-    </div>
-
-    <div class="form-group">
-      <label for="ddbSyncToDDB">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.label"}}</label>
-      <input type="checkbox" name="ddbSyncToDDB" id="ddbSyncToDDB" {{#if ddbSyncToDDB}}checked{{/if}} />
-      <p class="hint">{{localize "FLASH_ROLLS.settings.ddbSyncToDDB.hint"}}</p>
-    </div>
-
-    <div class="form-group buttons-row">
-      <button type="button" data-action="syncCharactersNow">
-        <i class="fas fa-arrows-rotate"></i>
-        {{localize "FLASH_ROLLS.settings.premiumFeatures.syncCharactersNow"}}
-      </button>
-    </div>
   </fieldset>
 </section>
