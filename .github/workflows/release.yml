@@ -93,9 +93,14 @@ jobs:
               repo: context.repo.repo,
               release_id: context.payload.release.id
             });
-            const releaseData = {
-              body: release.data.body || "No release notes provided"
-            };
+            // Discord rejects messages over 2000 characters; leave room for the header and links around the notes
+            const maxBody = 1500;
+            let body = release.data.body || "No release notes provided";
+            if (body.length > maxBody) {
+              const cut = body.lastIndexOf("\n", maxBody);
+              body = body.slice(0, cut > 0 ? cut : maxBody).trimEnd() + "\n\n…full notes at the release link below.";
+            }
+            const releaseData = { body };
             return JSON.stringify(releaseData);
           result-encoding: string
 
