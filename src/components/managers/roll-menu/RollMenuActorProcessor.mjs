@@ -162,7 +162,7 @@ export class RollMenuActorProcessor {
       requestTypes,
       rollTypes,
       statusEffects,
-      showNames: true,
+      showNames: !!SettingsUtil.get(SETTINGS.showActorNames.tag),
       actorsLocked: menu.isLocked,
       optionsExpanded: menu.optionsExpanded,
       isGM: game.user.isGM,

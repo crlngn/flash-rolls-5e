@@ -221,7 +221,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       }
 
       menu.classList.toggle('auto-hide-icons', !!SettingsUtil.get(SETTINGS.autoHideActionIcons.tag));
+      menu.classList.toggle('hide-actor-names', !SettingsUtil.get(SETTINGS.showActorNames.tag));
       this._attachHoverState(menu);
+      this._attachTooltipReset(menu);
     }
     
     RollMenuDragManager.applyCustomPosition(this, this.customPosition);
@@ -477,6 +479,18 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         menu.classList.add('is-hovered');
       }
     });
+  }
+
+  /**
+   * Hide the tooltip shown for an element of the menu, and cancel one waiting for its delay, as soon
+   * as anything in the menu is pressed
+   * @param {HTMLElement} menu - The menu element
+   * @returns {void}
+   */
+  _attachTooltipReset(menu) {
+    if (this._tooltipResetElement === menu) return;
+    this._tooltipResetElement = menu;
+    menu.addEventListener('pointerdown', () => game.tooltip?.deactivate(), true);
   }
 
   /**

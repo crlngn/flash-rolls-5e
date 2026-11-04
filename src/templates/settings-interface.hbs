@@ -38,6 +38,12 @@
     </div>
 
     <div class="form-group">
+      <label for="showActorNames">{{fields.showActorNames.label}}</label>
+      <input type="checkbox" name="showActorNames" id="showActorNames" {{#if showActorNames}}checked{{/if}} />
+      <p class="hint">{{fields.showActorNames.hint}}</p>
+    </div>
+
+    <div class="form-group">
       <label>{{fields.actorStatsToShow.label}}</label>
       <p class="hint">{{fields.actorStatsToShow.hint}}</p>
       <fieldset class="actor-stats-checkboxes">

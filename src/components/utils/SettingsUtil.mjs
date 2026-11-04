@@ -231,6 +231,7 @@ export class SettingsUtil {
         break;
       case SETTINGS.autoHideActionIcons.tag:
       case SETTINGS.actorImageSource.tag:
+      case SETTINGS.showActorNames.tag:
       case SETTINGS.showHiddenOptionsAsMenu.tag:
         RollRequestsMenu.refreshIfOpen();
         break;

@@ -10,7 +10,7 @@ export class RollMenuActorUtil {
   /**
    * Get formatted stats for an actor
    * @param {Actor} actor - The actor to get stats for
-   * @returns {Array<{abbrev: string, icon: string, value: number}>} Array of stat objects, each with a Font Awesome icon shown in place of the abbreviation
+   * @returns {Array<{abbrev: string, label: string, icon: string, value: number}>} Array of stat objects, each with a Font Awesome icon shown in place of the abbreviation and the stat's full name for its tooltip
    */
   static getActorStats(actor) {
     const SETTINGS = getSettings();
@@ -21,6 +21,7 @@ export class RollMenuActorUtil {
     if (statsToShow.hp && system.attributes?.hp) {
       stats.push({
         abbrev: 'HP',
+        label: game.i18n.localize('FLASH_ROLLS.settings.actorStatsToShow.hp'),
         icon: 'fa-heart',
         value: system.attributes.hp.value
       });
@@ -29,6 +30,7 @@ export class RollMenuActorUtil {
     if (statsToShow.ac && system.attributes?.ac) {
       stats.push({
         abbrev: 'AC',
+        label: game.i18n.localize('FLASH_ROLLS.settings.actorStatsToShow.ac'),
         icon: 'fa-shield-halved',
         value: system.attributes.ac.value
       });
@@ -39,6 +41,7 @@ export class RollMenuActorUtil {
       if (spellDC) {
         stats.push({
           abbrev: 'DC',
+          label: game.i18n.localize('FLASH_ROLLS.settings.actorStatsToShow.dc'),
           icon: 'fa-wand-magic-sparkles',
           value: spellDC
         });
@@ -48,6 +51,7 @@ export class RollMenuActorUtil {
     if (statsToShow.prc && system.skills?.prc?.passive) {
       stats.push({
         abbrev: 'PRC',
+        label: game.i18n.localize('FLASH_ROLLS.settings.actorStatsToShow.prc'),
         icon: 'fa-eye',
         value: system.skills.prc.passive
       });

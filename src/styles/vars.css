@@ -40,11 +40,17 @@
   --fr5e-height-compact: 8.25rem;
   --fr5e-height-regular: 13.5rem;
   --fr5e-actors-height-compact: 5rem;
-  --fr5e-actors-height-regular: 10.5rem;
+  --fr5e-actors-height-regular: 10.8rem;
   --fr5e-actions-height: 1.8rem;
   --fr5e-max-width-horizontal: clamp(400px, 40vw, 800px);
   
   /* Actor Item Dimensions */
   --fr5e-actor-img-size: 3.5rem;
   --fr5e-actor-img-size-compact: 3.75rem;
+}
+
+/* Horizontal Layout Dimensions Without Actor Names (non-compact) */
+#flash-rolls-menu[data-layout="horizontal"].hide-actor-names:not(.compact) {
+  --fr5e-height-regular: 12rem;
+  --fr5e-actors-height-regular: 9.3rem;
 }

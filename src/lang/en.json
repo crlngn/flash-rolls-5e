@@ -587,6 +587,10 @@
           "actor": "Actor portrait"
         }
       },
+      "showActorNames": {
+        "label": "Show Actor Names",
+        "hint": "Show each actor's and group's name above its stats on the token bar. Without names the horizontal bar is shorter."
+      },
       "maxIconsPerRow": {
         "label": "Max Action Icons Visible",
         "hint": "Maximum number of actor action icons to show at once. When more icons are enabled, the rest are shown in a text menu or through navigation arrows. Set to 0 to show only the text menu."

@@ -79,6 +79,7 @@ export const getSettings = () => {
         'actorStatsToShow',
         'menuLayout',
         'actorImageSource',
+        'showActorNames',
         'menuIconsLayout',
         'maxIconsPerRow',
         'showHiddenOptionsAsMenu',
@@ -95,6 +96,7 @@ export const getSettings = () => {
         actorStatsToShow: { hp: true, ac: true, dc: true, prc: true },
         menuLayout: "vertical",
         actorImageSource: "token",
+        showActorNames: false,
         menuIconsLayout: iconsMenuDefault,
         maxIconsPerRow: 5,
         showHiddenOptionsAsMenu: true,
@@ -557,6 +559,17 @@ export const getSettings = () => {
         "actor": game.i18n.localize("FLASH_ROLLS.settings.actorImageSource.choices.actor")
       },
       default: "token",
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    showActorNames: {
+      tag: "show-actor-names",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showActorNames.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showActorNames.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
       scope: SETTING_SCOPE.world,
       config: false
     },
