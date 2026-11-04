@@ -5,27 +5,23 @@
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 1.5rem;
   margin: 0;
   padding: 0.75rem;
 }
 
 .standard-form.flash5e .form-group fieldset.actor-stats-checkboxes .stat-checkbox,
 .standard-form.crlngn.flash5e .form-group fieldset.actor-stats-checkboxes .stat-checkbox {
-  --stat-width: calc((100% - 0.5rem)/2);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.25rem;
-  width: var(--stat-width);
-  flex: 0 0 var(--stat-width);
-  min-width: var(--stat-width);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  font-size: 0.9em;
-
+  gap: 0.4rem;
+  flex: 0 0 auto;
   cursor: pointer;
+}
+
+.standard-form.flash5e fieldset.actor-stats-checkboxes .stat-checkbox .stat-icon {
+  font-size: var(--font-size-16, 1rem);
 }
 
 .standard-form.flash5e fieldset.actor-stats-checkboxes .stat-checkbox input[type="checkbox"] {

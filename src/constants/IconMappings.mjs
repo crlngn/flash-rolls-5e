@@ -30,7 +30,7 @@ export const MODULE_ACTION_ICONS = {
   },
   "skip-dialogs": {
     id: "skip-dialogs",
-    icon: "fa-square-question",
+    icon: "fa-window-restore",
     labelKey: "FLASH_ROLLS.ui.inputs.skipRollDialog",
     tooltipKey: "FLASH_ROLLS.ui.inputs.skipRollDialog",
     element: "flash5e-skip-dialogs",
@@ -230,7 +230,7 @@ export function getDefaultIconLayout() {
     moduleActions: [
       { id: "lock-menu", icon: "fa-lock-keyhole", enabled: true, order: 0 },
       { id: "toggle-requests", icon: "fa-bolt", enabled: true, order: 1 },
-      { id: "skip-dialogs", icon: "fa-square-question", enabled: true, order: 2 },
+      { id: "skip-dialogs", icon: "fa-window-restore", enabled: true, order: 2 },
       { id: "group-rolls", icon: "fa-users-rectangle", enabled: true, order: 3 },
       { id: "show-options", icon: "fa-bars-sort", enabled: true, order: 4 },
       { id: "open-settings", icon: "fa-cog", enabled: true, order: 5 },

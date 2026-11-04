@@ -12,6 +12,7 @@ export class IconLayoutUtil {
    * Merge saved icon layout with default layout
    * Preserves user's order and enabled state for existing icons
    * Adds new icons from default layout that aren't in saved layout
+   * Takes each icon's Font Awesome class from the default layout, so a changed icon reaches saved layouts
    * @param {Object} savedLayout - The saved layout from settings
    * @param {Object} defaultLayout - The default layout
    * @returns {Object} Merged layout
@@ -45,8 +46,10 @@ export class IconLayoutUtil {
 
       mergedIcons.sort((a, b) => a.order - b.order);
 
+      const defaultIconById = new Map(defaultIcons.map(icon => [icon.id, icon.icon]));
       mergedLayout[iconType] = mergedIcons.map((icon, index) => ({
         ...icon,
+        icon: defaultIconById.get(icon.id) ?? icon.icon,
         order: index
       }));
     }

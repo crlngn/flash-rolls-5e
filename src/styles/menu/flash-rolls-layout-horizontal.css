@@ -162,7 +162,7 @@
 #flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li .actor {
   justify-content: center;
   align-items: center;
-  width: 6rem;
+  width: 5rem;
   display: flex;
   flex-direction: row;
   gap: 5px;
