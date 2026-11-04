@@ -54,6 +54,12 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    */
   static #REFRESH_DEBOUNCE_DELAY = 250;
 
+  /** @type {number} Milliseconds an unlocked menu stays open after the pointer leaves it */
+  static #AUTO_HIDE_DELAY = 2000;
+
+  /** @type {string} Elements that keep an unlocked menu open while they are on screen */
+  static #AUTO_HIDE_BLOCKERS = '.icon-context-menu, .actor-filter-tooltip, .roll-configuration, .flash5e-dialog, .application.dialog, #flash-rolls-settings';
+
   constructor(options = {}) {
     LogUtil.log('RollRequestsMenu.constructor', [options]);
     super(options);
@@ -458,10 +464,12 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     menu.addEventListener('mouseenter', () => {
       this._isHovering = true;
       menu.classList.add('is-hovered');
+      this.cancelAutoHide();
     });
     menu.addEventListener('mouseleave', () => {
       this._isHovering = false;
       menu.classList.remove('is-hovered');
+      this.scheduleAutoHide();
     });
     requestAnimationFrame(() => {
       if (menu.matches(':hover') && !this._isHovering) {
@@ -469,6 +477,35 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         menu.classList.add('is-hovered');
       }
     });
+  }
+
+  /**
+   * Start the countdown that closes an unlocked menu once the pointer has left it. While one of the
+   * menu's popups or a dialog is open the countdown starts over instead of closing the menu
+   * @returns {void}
+   */
+  scheduleAutoHide() {
+    this.cancelAutoHide();
+    if (this.isLocked || !this.rendered) return;
+    this._autoHideTimer = setTimeout(() => {
+      this._autoHideTimer = null;
+      if (this.isLocked || !this.rendered || this._isHovering) return;
+      if (document.querySelector(RollRequestsMenu.#AUTO_HIDE_BLOCKERS)) {
+        this.scheduleAutoHide();
+        return;
+      }
+      this.close();
+    }, RollRequestsMenu.#AUTO_HIDE_DELAY);
+  }
+
+  /**
+   * Stop a pending auto-hide countdown
+   * @returns {void}
+   */
+  cancelAutoHide() {
+    if (!this._autoHideTimer) return;
+    clearTimeout(this._autoHideTimer);
+    this._autoHideTimer = null;
   }
 
   /**
@@ -1290,6 +1327,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     await super._onClose(options);
     
+    this.cancelAutoHide();
     this.selectedActors.clear();
     this.selectedRequestType = null;
     document.removeEventListener('click', this._onClickOutside, true);

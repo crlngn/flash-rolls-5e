@@ -702,7 +702,7 @@ export class FlashAPI {
 
   /**
    * Toggle the menu lock state
-   * When locked, the menu won't close when clicking outside
+   * When unlocked, the menu closes a moment after the pointer leaves it
    */
   static async toggleLockMenu() {
     const currentLockState = game.user.getFlag(MODULE.ID, 'menuLocked') ?? false;
@@ -713,6 +713,8 @@ export class FlashAPI {
     const menu = RollRequestsMenu.getInstance();
     if (menu && menu.rendered) {
       menu.isLocked = newLockState;
+      if (newLockState) menu.cancelAutoHide();
+      else if (!menu._isHovering) menu.scheduleAutoHide();
       const lockIcon = menu.element?.querySelector('#flash5e-actors-lock');
       if (lockIcon) {
         lockIcon.classList.remove('fa-lock-keyhole', 'fa-lock-keyhole-open');

@@ -43,19 +43,23 @@
       <fieldset class="actor-stats-checkboxes">
         <div class="stat-checkbox">
           <input type="checkbox" name="actorStatsToShow.hp" {{#if actorStatsToShow.hp}}checked{{/if}} />
-          <i class="stat-icon fa-solid fa-heart" data-tooltip="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.hp'}}" aria-label="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.hp'}}"></i>
+          <i class="stat-icon fa-solid fa-heart" inert></i>
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.hp"}}</span>
         </div>
         <div class="stat-checkbox">
           <input type="checkbox" name="actorStatsToShow.ac" {{#if actorStatsToShow.ac}}checked{{/if}} />
-          <i class="stat-icon fa-solid fa-shield-halved" data-tooltip="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.ac'}}" aria-label="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.ac'}}"></i>
+          <i class="stat-icon fa-solid fa-shield-halved" inert></i>
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.ac"}}</span>
         </div>
         <div class="stat-checkbox">
           <input type="checkbox" name="actorStatsToShow.dc" {{#if actorStatsToShow.dc}}checked{{/if}} />
-          <i class="stat-icon fa-solid fa-wand-magic-sparkles" data-tooltip="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.dc'}}" aria-label="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.dc'}}"></i>
+          <i class="stat-icon fa-solid fa-wand-magic-sparkles" inert></i>
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.dc"}}</span>
         </div>
         <div class="stat-checkbox">
           <input type="checkbox" name="actorStatsToShow.prc" {{#if actorStatsToShow.prc}}checked{{/if}} />
-          <i class="stat-icon fa-solid fa-eye" data-tooltip="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.prc'}}" aria-label="{{localize 'FLASH_ROLLS.settings.actorStatsToShow.prc'}}"></i>
+          <i class="stat-icon fa-solid fa-eye" inert></i>
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.prc"}}</span>
         </div>
       </fieldset>
     </div>

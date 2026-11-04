@@ -1020,10 +1020,10 @@
       "actorStatsToShow": {
         "label": "Actor Stats to Show",
         "hint": "Choose which stats are displayed for actors in the token bar menu",
-        "hp": "HP (Hit Points)",
-        "ac": "AC (Armor Class)",
-        "dc": "DC (Spell DC)",
-        "prc": "PRC (Perception)"
+        "hp": "Hit Points",
+        "ac": "Armor Class",
+        "dc": "Spell DC",
+        "prc": "Perception"
       },
       "menuLayout": {
         "label": "Menu Layout",

@@ -129,6 +129,8 @@ export class RollMenuStateManager {
     menu.isLocked = !menu.isLocked;
 
     await game.user.setFlag(MODULE.ID, 'menuLocked', menu.isLocked);
+    if (menu.isLocked) menu.cancelAutoHide();
+    else if (!menu._isHovering) menu.scheduleAutoHide();
 
     const lockIcon = event.currentTarget || menu.element?.querySelector('#flash5e-actors-lock');
     if (lockIcon) {
