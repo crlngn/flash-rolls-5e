@@ -10,7 +10,7 @@ export class RollMenuActorUtil {
   /**
    * Get formatted stats for an actor
    * @param {Actor} actor - The actor to get stats for
-   * @returns {Array<{abbrev: string, value: number}>} Array of stat objects
+   * @returns {Array<{abbrev: string, icon: string, value: number}>} Array of stat objects, each with a Font Awesome icon shown in place of the abbreviation
    */
   static getActorStats(actor) {
     const SETTINGS = getSettings();
@@ -21,6 +21,7 @@ export class RollMenuActorUtil {
     if (statsToShow.hp && system.attributes?.hp) {
       stats.push({
         abbrev: 'HP',
+        icon: 'fa-heart',
         value: system.attributes.hp.value
       });
     }
@@ -28,6 +29,7 @@ export class RollMenuActorUtil {
     if (statsToShow.ac && system.attributes?.ac) {
       stats.push({
         abbrev: 'AC',
+        icon: 'fa-shield-halved',
         value: system.attributes.ac.value
       });
     }
@@ -37,6 +39,7 @@ export class RollMenuActorUtil {
       if (spellDC) {
         stats.push({
           abbrev: 'DC',
+          icon: 'fa-wand-magic-sparkles',
           value: spellDC
         });
       }
@@ -45,6 +48,7 @@ export class RollMenuActorUtil {
     if (statsToShow.prc && system.skills?.prc?.passive) {
       stats.push({
         abbrev: 'PRC',
+        icon: 'fa-eye',
         value: system.skills.prc.passive
       });
     }
