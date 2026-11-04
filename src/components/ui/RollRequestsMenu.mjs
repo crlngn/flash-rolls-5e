@@ -10,6 +10,7 @@ import { RollHelpers } from '../helpers/RollHelpers.mjs';
 import { ensureCombatForInitiative, filterActorsForInitiative } from '../helpers/RollValidationHelpers.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../core/FlashAPI.mjs';
+import { PlayerAccess } from '../core/PlayerAccess.mjs';
 import { ModuleHelpers } from '../helpers/ModuleHelpers.mjs';
 import { ChatMessageManager } from '../managers/ChatMessageManager.mjs';
 import { RollMenuActorUtil } from '../utils/RollMenuActorUtil.mjs';
@@ -24,7 +25,7 @@ import { RollMenuExecutor } from '../managers/roll-menu/RollMenuExecutor.mjs';
 import { RollMenuStateManager } from '../managers/roll-menu/RollMenuStateManager.mjs';
 import { StatusEffectActions } from "@ftb-core/conditions/StatusEffectActions.mjs";
 import { ModuleSettingsMenu } from '../ui/dialogs/ModuleSettingsMenu.mjs';
-import { PremiumFeaturesDialog } from '../ui/dialogs/PremiumFeaturesDialog.mjs';
+import { openPremiumFeaturesDialog } from '../ui/dialogs/PremiumFeaturesLoader.mjs';
 import { IconLayoutUtil } from '../utils/IconLayoutUtil.mjs';
 import { PatronSessionManager } from '../managers/PatronSessionManager.mjs';
     
@@ -103,7 +104,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
   static PARTS = {
     main: {
-      template: `modules/${MODULE.ID}/templates/requests-menu.hbs`
+      template: `modules/${MODULE.ID}/templates/requests-menu.hbs`,
+      templates: [`modules/${MODULE.ID}/templates/partials/actor-row.hbs`]
     }
   };  
   
@@ -114,11 +116,22 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     // Add layout information to context
     const SETTINGS = getSettings();
     preparedContext.menuLayout = SettingsUtil.get(SETTINGS.menuLayout.tag);
-    preparedContext.maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 5;
+    const maxIconsPerRow = Math.max(0, Number(SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) ?? 5));
+    const useOverflowMenu = SettingsUtil.get(SETTINGS.showHiddenOptionsAsMenu.tag) !== false;
+    preparedContext.maxIconsPerRow = useOverflowMenu ? maxIconsPerRow : Math.max(1, maxIconsPerRow);
 
     // Add icon data for dynamic rendering
-    preparedContext.enabledModuleIcons = IconLayoutUtil.getEnabledIcons('moduleActions');
-    preparedContext.enabledActorIcons = IconLayoutUtil.getEnabledIcons('actorActions');
+    preparedContext.enabledModuleIcons = IconLayoutUtil.getEnabledIcons('moduleActions')
+      .filter(icon => PlayerAccess.isIconAllowed(icon.id, 'moduleActions'));
+    const enabledActorIcons = IconLayoutUtil.getEnabledIcons('actorActions')
+      .filter(icon => PlayerAccess.isIconAllowed(icon.id, 'actorActions'));
+    const hasHiddenActorIcons = enabledActorIcons.length > preparedContext.maxIconsPerRow;
+    preparedContext.actorIconsOverflowMenu = useOverflowMenu && hasHiddenActorIcons;
+    preparedContext.actorIconsScroll = !useOverflowMenu && hasHiddenActorIcons;
+    preparedContext.enabledActorIcons = enabledActorIcons.map((icon, index) => ({
+      ...icon,
+      overflow: preparedContext.actorIconsOverflowMenu && index >= preparedContext.maxIconsPerRow
+    }));
     preparedContext.iconConfigs = IconLayoutUtil.getIconConfigurations();
 
     this._lastPreparedContext = preparedContext;
@@ -200,6 +213,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
       } else {
         menu.classList.remove('position-locked');
       }
+
+      menu.classList.toggle('auto-hide-icons', !!SettingsUtil.get(SETTINGS.autoHideActionIcons.tag));
+      this._attachHoverState(menu);
     }
     
     RollMenuDragManager.applyCustomPosition(this, this.customPosition);
@@ -359,9 +375,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     let actorElement = this.element.querySelector(`.actor.drag-wrapper[data-id="${uniqueId}"]`);
     if (!actorElement) return;
 
-    const isGroupMember = actorElement.closest('.group-members');
-    if (isGroupMember) {
-      const groupElement = actorElement.closest('.actor.actor-group');
+    const memberList = actorElement.closest('.group-members');
+    if (memberList && !memberList.classList.contains('expanded')) {
+      const groupElement = memberList.closest('li.group-row')?.querySelector('.actor.actor-group');
       if (groupElement) {
         actorElement = groupElement;
       }
@@ -425,7 +441,40 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Handle clicks outside the menu
+   * Track whether the pointer is over the menu with an `is-hovered` class, so auto-hidden action
+   * icons stay visible through re-renders. Transitions are suppressed for a moment after a render
+   * while hovered, so the icons do not animate in again
+   * @param {HTMLElement} menu - The menu element
+   * @returns {void}
+   */
+  _attachHoverState(menu) {
+    menu.classList.toggle('is-hovered', !!this._isHovering);
+    if (this._isHovering) {
+      menu.classList.add('no-transition');
+      setTimeout(() => menu.classList.remove('no-transition'), 50);
+    }
+    if (this._hoverListenersElement === menu) return;
+    this._hoverListenersElement = menu;
+    menu.addEventListener('mouseenter', () => {
+      this._isHovering = true;
+      menu.classList.add('is-hovered');
+    });
+    menu.addEventListener('mouseleave', () => {
+      this._isHovering = false;
+      menu.classList.remove('is-hovered');
+    });
+    requestAnimationFrame(() => {
+      if (menu.matches(':hover') && !this._isHovering) {
+        this._isHovering = true;
+        menu.classList.add('is-hovered');
+      }
+    });
+  }
+
+  /**
+   * Close the menu on clicks elsewhere, unless locked. Clicks inside dialogs, roll configuration
+   * windows, the module's own apps and the toggle buttons keep it open
+   * @param {MouseEvent} event - The click event
    */
   _onClickOutside = (event) => {
     const menu = this.element;
@@ -443,9 +492,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
 
     if (event.target.closest('.flash-rolls-menu')) return;
     if (menu.contains(event.target)) return;
-    if (event.target.closest('#flash-rolls-icon')) return;
-    // if (event.target.closest('.dialog, .app, .notification, .application')) return;
-    // if (event.target.closest('.actor-tab')) return;
+    if (event.target.closest('#flash-rolls-icon, [data-control="flashRolls"]')) return;
+    if (event.target.closest('.dialog, .application.dialog, .roll-configuration, .flash5e-dialog, .flash5e, #flash-rolls-settings, .icon-context-menu')) return;
     this.close();
   }
 
@@ -514,7 +562,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   async _onOpenPatreonFeatures(event) {
     event.preventDefault();
     event.stopPropagation();
-    new PremiumFeaturesDialog().render(true);
+    openPremiumFeaturesDialog();
   }
 
   /**
@@ -533,7 +581,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
         name: game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.contextReconnect"),
         icon: '<i class="fab fa-patreon"></i>',
         callback: () => {
-          new PremiumFeaturesDialog().render(true);
+          openPremiumFeaturesDialog();
         }
       });
     }
@@ -564,6 +612,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {DragEvent} event - The drag over event
    */
   _onDragOver(event) {
+    if (!game.user.isGM) return;
     ActorDropUtil.handleDragOver(event, this);
   }
 
@@ -572,6 +621,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @param {DragEvent} event - The drop event
    */
   async _onDrop(event) {
+    if (!game.user.isGM) return;
     await ActorDropUtil.handleDrop(event, this);
   }
 
@@ -610,7 +660,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     this.selectedActors.clear();
 
     for (const token of controlledTokens) {
-      if (token.actor) {
+      if (token.actor && PlayerAccess.canActOn(token.actor)) {
         const uniqueId = token.id;
         this.selectedActors.add(uniqueId);
       }
@@ -652,22 +702,26 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
   }
 
   /**
-   * Handle submenu tab click (rolls vs status effects)
+   * Switch between the Rolls and Status submenus by toggling classes, without re-rendering the menu.
+   * The search filter is re-applied to the newly shown list
+   * @param {MouseEvent} event - Click on a submenu tab
+   * @returns {void}
    */
-  async _onSubmenuTabClick(event) {
+  _onSubmenuTabClick(event) {
     const tab = event.currentTarget.dataset.tab;
     LogUtil.log('_onSubmenuTabClick', [tab]);
-    
+
     if (tab === this.selectedSubmenu) return;
-    
+
     this.selectedSubmenu = tab;
-    await this.render();
-    
-    // Re-apply hover-visible class after render since mouse is still over the menu
-    const accordion = this.element.querySelector('.request-types-accordion');
-    if (accordion && this.selectedActors.size > 0) {
-      accordion.classList.add('hover-visible');
-    }
+    this.element.querySelectorAll('.submenu-tabs li[data-tab]').forEach(tabElement => {
+      tabElement.classList.toggle('active', tabElement.dataset.tab === tab);
+    });
+    this.element.querySelector('.request-types')?.classList.toggle('active', tab === 'request-types');
+    this.element.querySelector('.status-effects')?.classList.toggle('active', tab === 'status-effects');
+
+    const searchInput = this.element.querySelector('.search-input');
+    if (searchInput?.value) this._onSearchInput({ target: searchInput });
   }
 
   /**
@@ -679,7 +733,18 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     
     const statusEffectId = event.currentTarget.dataset.id;
     LogUtil.log('_onStatusEffectClick', [statusEffectId]);
+
+    if (event.target.closest('.btn-macro')) {
+      if (!game.user.isGM) return;
+      await FlashAPI.createStatusEffectMacro(statusEffectId, Array.from(this.selectedActors));
+      return;
+    }
     
+    if (PlayerAccess.isPlayerMode()) {
+      const ownedIds = [...this.selectedActors].filter(uniqueId => PlayerAccess.canActOn(getActorData(uniqueId)));
+      await StatusEffectActions.toggleOnUniqueIds(statusEffectId, ownedIds);
+      return;
+    }
     await StatusEffectActions.toggleOnSelected(statusEffectId, this);
   }
 
@@ -812,6 +877,9 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     }
 
 
+    const actionableMembers = members.filter(member => PlayerAccess.canActOn(member.actor));
+    members.length = 0;
+    members.push(...actionableMembers);
     if (members.length === 0) return;
 
     // Check if all members are currently selected
@@ -1292,7 +1360,8 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
    * @static
    */
   static toggle() {
-    
+    if (!PlayerAccess.canUseBar()) return;
+
     // Clean up orphaned menu, if present
     const existingMenus = document.querySelectorAll('#flash-rolls-menu');
     existingMenus.forEach(menu => {
@@ -1378,7 +1447,7 @@ export default class RollRequestsMenu extends HandlebarsApplicationMixin(Applica
     const SETTINGS = getSettings();
     const showOnLoad = SettingsUtil.get(SETTINGS.showMenuOnLoad.tag);
     
-    if (showOnLoad && game.user.isGM) {
+    if (showOnLoad && PlayerAccess.canUseBar()) {
       const existingMenus = document.querySelectorAll('#flash-rolls-menu');
       existingMenus.forEach(menu => {
         menu.remove();

@@ -5,6 +5,7 @@ import { SettingsUtil } from '../../utils/SettingsUtil.mjs';
 import { delay, NotificationManager } from '../../helpers/Helpers.mjs';
 import { RollHandlers } from '../../handlers/RollHandlers.mjs';
 import { RollHelpers } from '../../helpers/RollHelpers.mjs';
+import { RollPacer } from '@ftb-core/rolls/RollPacer.mjs';
 
 /**
  * Utility class for executing GM rolls and local roll handling
@@ -21,9 +22,29 @@ export class RollMenuExecutor {
   static async handleGMRolls(actors, requestType, rollKey, rollProcessConfig) {
     LogUtil.log('RollMenuExecutor.handleGMRolls', [actors, requestType, rollKey, rollProcessConfig]);
     
-    for (const actor of actors) {
-      await this.initiateRoll(actor, requestType, rollKey, rollProcessConfig);
-      await delay(100);
+    await this.runPaced(actors, actor => this.initiateRoll(actor, requestType, rollKey, rollProcessConfig));
+  }
+
+  /**
+   * Run one roll per item, one after another. Between rolls the pacer waits for the Dice So Nice
+   * animation of the previous roll, or for the Delay Between Rolls setting when nothing is animated.
+   * With pacing set to 0, rolls keep the short fixed gap they always had
+   * @template T
+   * @param {T[]} items - Actors or actor entries to roll for
+   * @param {(item: T) => Promise<void>} rollFn - Rolls for one item
+   * @returns {Promise<void>}
+   */
+  static async runPaced(items, rollFn) {
+    RollPacer.begin();
+    try {
+      for (const [index, item] of items.entries()) {
+        await rollFn(item);
+        if (index >= items.length - 1) continue;
+        if (RollPacer.enabled) await RollPacer.settle();
+        else await delay(100);
+      }
+    } finally {
+      RollPacer.end();
     }
   }
 
@@ -37,19 +58,16 @@ export class RollMenuExecutor {
   static async handleGMRollsWithTokens(actorEntries, requestType, rollKey, rollProcessConfig) {
     LogUtil.log('RollMenuExecutor.handleGMRollsWithTokens', [actorEntries, requestType, rollKey, rollProcessConfig]);
     
-    for (const entry of actorEntries) {
-      if (entry.tokenId) {
-        const token = canvas.tokens?.get(entry.tokenId) || game.scenes.active?.tokens.get(entry.tokenId);
-        if (token) {
-          await this.initiateRollForToken(entry.actor, token, requestType, rollKey, rollProcessConfig);
-        } else {
-          await this.initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
-        }
+    await this.runPaced(actorEntries, async entry => {
+      const token = entry.tokenId
+        ? canvas.tokens?.get(entry.tokenId) || game.scenes.active?.tokens.get(entry.tokenId)
+        : null;
+      if (token) {
+        await this.initiateRollForToken(entry.actor, token, requestType, rollKey, rollProcessConfig);
       } else {
         await this.initiateRoll(entry.actor, requestType, rollKey, rollProcessConfig);
       }
-      await delay(100);
-    }
+    });
   }
 
   /**

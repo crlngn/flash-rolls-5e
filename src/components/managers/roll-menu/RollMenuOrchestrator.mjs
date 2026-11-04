@@ -15,6 +15,7 @@ import { SystemCompat } from '../../utils/SystemCompat.mjs';
 import { CompactCardsUtil } from '../../utils/CompactCardsUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
 import { HooksManager } from '../../core/HooksManager.mjs';
+import { PlayerAccess } from '../../core/PlayerAccess.mjs';
 
 /**
  * Utility class for orchestrating roll requests and execution
@@ -309,6 +310,10 @@ export class RollMenuOrchestrator {
     const rollOption = MODULE.ROLL_REQUEST_OPTIONS[requestType];
     const rollMethodName = (rollOption?.name || requestType)?.toLowerCase();
 
+    if (PlayerAccess.isPlayerMode()) {
+      return this.triggerPlayerRoll(rollMethodName, rollKey, actorsData, menu, config);
+    }
+
     const originalRollKey = rollKey;
     rollKey = await this.handleSpecialRollTypes(rollMethodName, rollKey, selectedUniqueIds, actorsData, actors, menu, config);
     if (rollKey === null && originalRollKey !== null) {
@@ -335,6 +340,46 @@ export class RollMenuOrchestrator {
         await game.combat.startCombat();
       }
     }
+
+    if (!menu?.isLocked && typeof menu?.close === 'function') {
+      setTimeout(() => menu.close(), 500);
+    }
+  }
+
+  /**
+   * Roll from the token bar as a player: every selected actor the player owns rolls on this client
+   * through the system roll dialog, one after another. Nothing is requested from other users and no
+   * group roll card is created; GM-side preparation such as creating combat is left out
+   * @param {string} rollMethodName - The roll method name, one of ROLL_TYPES
+   * @param {string|null} rollKey - The roll key, e.g. 'acr' for Acrobatics, or a custom formula
+   * @param {Array<{actor: Actor, uniqueId: string, tokenId: string|null}>} actorsData - Selected actors
+   * @param {RollRequestsMenu} menu - Menu instance
+   * @param {Object} [config={}] - Optional configuration, of which only rollMode is used
+   * @returns {Promise<void>}
+   */
+  static async triggerPlayerRoll(rollMethodName, rollKey, actorsData, menu, config = {}) {
+    let entries = actorsData.filter(entry => PlayerAccess.canActOn(entry.actor));
+    const rollConfig = { skipRollDialog: false, fastForward: false };
+    if (config.rollMode) rollConfig.rollMode = config.rollMode;
+
+    if (rollMethodName === ROLL_TYPES.CUSTOM && !rollKey) {
+      const customResult = await RollMenuConfig.handleCustomRoll({ rollMode: config.rollMode });
+      if (!customResult) return;
+      rollKey = customResult.formula;
+      if (customResult.rollMode) rollConfig.rollMode = customResult.rollMode;
+    } else if (rollMethodName === ROLL_TYPES.DEATH_SAVE) {
+      const eligible = await filterActorsForDeathSaves(entries.map(entry => entry.actor));
+      entries = entries.filter(entry => eligible.includes(entry.actor));
+    } else if (rollMethodName === ROLL_TYPES.HIT_DIE) {
+      entries = entries.filter(entry => entry.actor.type === 'character');
+    }
+
+    if (!entries.length) {
+      NotificationManager.notify('warn', game.i18n.localize("FLASH_ROLLS.notifications.noActorsSelected"));
+      return;
+    }
+
+    await RollMenuExecutor.handleGMRollsWithTokens(entries, rollMethodName, rollKey, rollConfig);
 
     if (!menu?.isLocked && typeof menu?.close === 'function') {
       setTimeout(() => menu.close(), 500);

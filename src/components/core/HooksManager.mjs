@@ -30,7 +30,6 @@ import { TooltipUtil } from "@ftb-core/utils/TooltipUtil.mjs";
 import { UpdateNewsUtil } from "../utils/UpdateNewsUtil.mjs";
 import { MidiActivityManager } from "../managers/MidiActivityManager.mjs";
 import { LibWrapperUtil } from "@ftb-core/utils/LibWrapperUtil.mjs";
-import { MonksActiveTilesIntegration } from "../integrations/MonksActiveTilesIntegration.mjs";
 import { DnDBeyondIntegration } from "../integrations/DnDBeyondIntegration.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
 import { PatronSessionManager } from "../managers/PatronSessionManager.mjs";
@@ -234,7 +233,32 @@ export class HooksManager {
     }
     CompactCardsUtil.init();
     this._registerHook(HOOKS_CORE.RENDER_ROLL_RESOLVER, this._onRenderRollResolver.bind(this));
-    MonksActiveTilesIntegration.initialize();
+    this._initMonksActiveTiles();
+  }
+
+  /**
+   * Load the Monk's Active Tiles integration only when that module is active. The integration is
+   * a separate chunk, so its tile actions are registered once both the chunk has loaded and Monk's
+   * Active Tiles has called setupTileActions, whichever happens last
+   * @returns {void}
+   */
+  static _initMonksActiveTiles() {
+    if (!game.modules.get('monks-active-tiles')?.active) return;
+    let tileApp = null;
+    let integration = null;
+    const register = () => {
+      if (tileApp && integration) integration.registerTileActions(tileApp);
+    };
+    Hooks.once("setupTileActions", app => {
+      tileApp = app;
+      register();
+    });
+    import("../integrations/MonksActiveTilesIntegration.mjs")
+      .then(({ MonksActiveTilesIntegration }) => {
+        integration = MonksActiveTilesIntegration;
+        register();
+      })
+      .catch(error => LogUtil.error("Failed to load the Monk's Active Tiles integration", [error]));
   }
   
   /**
@@ -283,7 +307,6 @@ export class HooksManager {
 
     if (game.user.isGM) {
       RollInterceptor.initialize();
-      RollRequestsMenu.showOnLoadIfEnabled();
       GroupTokenTracker.initialize();
       // Initialize user connections for dice config
       game.users.forEach(user => {
@@ -292,6 +315,7 @@ export class HooksManager {
     } else {
       DiceConfigUtil.getDiceConfig();
     }
+    RollRequestsMenu.showOnLoadIfEnabled();
     updateSidebarClass(isSidebarExpanded());
     await MovementFlagMigration.run();
     TokenMovementLock.initializeCombatMovementRestrictions();
@@ -415,11 +439,42 @@ export class HooksManager {
     // Activity hooks - Player side (delegated to BaseActivityManager)
     this._registerHook(HOOKS_DND5E.PRE_USE_ACTIVITY, BaseActivityManager.onPreUseActivityPlayer.bind(BaseActivityManager));
     this._registerHook(HOOKS_DND5E.POST_USE_ACTIVITY, BaseActivityManager.onPostUseActivityPlayer.bind(BaseActivityManager));
+
+    this._registerPlayerMenuHooks();
   }
 
+  /**
+   * Hooks that keep the token bar current for players who have it (Show Bar to Players). They only
+   * refresh the bar or re-sync its position; the GM-side bookkeeping these hooks also do for the GM
+   * (group token associations, movement locks) stays GM-only
+   * @returns {void}
+   */
+  static _registerPlayerMenuHooks() {
+    const refresh = () => RollRequestsMenu.refreshIfOpen();
+    this._registerHook(HOOKS_CORE.UPDATE_SETTING, this._onSettingUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_SCENE, this._onSceneUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_ACTOR, this._onActorUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_TOKEN, this._onTokenUpdate.bind(this));
+    this._registerHook(HOOKS_CORE.CREATE_TOKEN, refresh);
+    this._registerHook(HOOKS_CORE.DELETE_TOKEN, refresh);
+    this._registerHook(HOOKS_CORE.CREATE_ACTOR, refresh);
+    this._registerHook(HOOKS_CORE.DELETE_ACTOR, refresh);
+    this._registerHook(HOOKS_CORE.CREATE_ACTIVE_EFFECT, this._onActiveEffectChange.bind(this));
+    this._registerHook(HOOKS_CORE.DELETE_ACTIVE_EFFECT, this._onActiveEffectChange.bind(this));
+    this._registerHook(HOOKS_CORE.UPDATE_ACTIVE_EFFECT, this._onActiveEffectChange.bind(this));
+    this._registerHook(HOOKS_CORE.RENDER_CHAT_INPUT, this._onRenderChatInput.bind(this));
+    Hooks.on('crlngn-ui.elementVisibilityChanged', this._onCrlngnElementVisibilityChanged.bind(this));
+  }
+
+  /**
+   * Sidebar tab change or collapse: update the sidebar class and re-sync a bottom-docked menu with
+   * the hotbar offset, since a tab change does not always re-render the chat input
+   * @param {*} tab - The sidebar tab or collapse state passed by the hook
+   */
   static _onSidebarUpdate(tab) {
     LogUtil.log("_onSidebarUpdate", [tab]);
     updateSidebarClass(isSidebarExpanded());
+    this._onRenderChatInput();
   }
 
   /**

@@ -8,6 +8,7 @@ import { GeneralUtil } from "./GeneralUtil.mjs";
 import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";
 import { CompactCardsUtil } from "./CompactCardsUtil.mjs";
 import { SidebarController } from "../managers/SidebarController.mjs";
+import { PlayerAccess } from "../core/PlayerAccess.mjs";
 
 /**
  * Utility class for managing module settings
@@ -225,6 +226,14 @@ export class SettingsUtil {
       case SETTINGS.maxIconsPerRow.tag:
         SettingsUtil.applyMaxIconsPerRow(newValue);
         break;
+      case SETTINGS.playerAccess.tag:
+        SettingsUtil.applyPlayerAccess();
+        break;
+      case SETTINGS.autoHideActionIcons.tag:
+      case SETTINGS.actorImageSource.tag:
+      case SETTINGS.showHiddenOptionsAsMenu.tag:
+        RollRequestsMenu.refreshIfOpen();
+        break;
       case SETTINGS.actorStatsToShow.tag:
         SettingsUtil.applyActorStatsToShow(newValue);
         break;
@@ -250,6 +259,46 @@ export class SettingsUtil {
 
   static applyRollInterceptionEnabled(newValue){
     SettingsUtil.checkMidiQol();
+  }
+
+  /**
+   * Whether the roll list opens on hover for the current user. The GM uses the world setting;
+   * a player with the bar keeps their own choice in a user flag, falling back to the world value
+   * @returns {boolean}
+   */
+  static getShowOptionsListOnHover(){
+    const SETTINGS = getSettings();
+    const worldValue = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag) ?? SETTINGS.showOptionsListOnHover.default;
+    if (game.user.isGM) return !!worldValue;
+    return !!(game.user.getFlag(MODULE_ID, 'showOptionsListOnHover') ?? worldValue);
+  }
+
+  /**
+   * Store whether the roll list opens on hover: the world setting for the GM, a user flag for players
+   * @param {boolean} value - The new value
+   * @returns {Promise<void>}
+   */
+  static async setShowOptionsListOnHover(value){
+    const SETTINGS = getSettings();
+    if (game.user.isGM) {
+      await SettingsUtil.set(SETTINGS.showOptionsListOnHover.tag, value);
+    } else {
+      await game.user.setFlag(MODULE_ID, 'showOptionsListOnHover', value);
+    }
+  }
+
+  /**
+   * Show or remove the toggle button for players when Show Bar to Players changes, and close the
+   * bar on clients that lost access
+   * @returns {void}
+   */
+  static applyPlayerAccess(){
+    SidebarController.repositionFlashRollsIcon();
+    if (PlayerAccess.canUseBar()) {
+      RollRequestsMenu.refreshIfOpen();
+    } else {
+      RollRequestsMenu.getInstance()?.close();
+    }
   }
 
   /**
@@ -296,14 +345,14 @@ export class SettingsUtil {
 
   static initializeMaxIconsPerRow(){
     const SETTINGS = getSettings();
-    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 5;
+    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) ?? 5;
     GeneralUtil.addCSSVars('--fr5e-menu-icons-limit', maxIconsPerRow);
     LogUtil.log('initializeMaxIconsPerRow', [maxIconsPerRow]);
   }
 
   static applyMaxIconsPerRow(newValue){
     const SETTINGS = getSettings();
-    let maxIconsPerRow = newValue || SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 5;
+    let maxIconsPerRow = newValue ?? SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) ?? 5;
 
     const IconLayoutUtil = game.modules.get(MODULE_ID)?.api?.IconLayoutUtil;
     if (IconLayoutUtil) {
@@ -313,7 +362,7 @@ export class SettingsUtil {
       }
     }
 
-    if (maxIconsPerRow < 1) maxIconsPerRow = 1;
+    if (maxIconsPerRow < 0) maxIconsPerRow = 0;
 
     LogUtil.log('applyMaxIconsPerRow', [maxIconsPerRow, newValue]);
 

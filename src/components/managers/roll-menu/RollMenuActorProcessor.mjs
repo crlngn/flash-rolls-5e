@@ -8,6 +8,7 @@ import { ActorStatusFlags } from "@ftb-core/actors/ActorStatusFlags.mjs";
 import { StatusEffectCatalog } from "@ftb-core/conditions/StatusEffectCatalog.mjs";
 import { RollMenuStateManager } from './RollMenuStateManager.mjs';
 import { TokenMovementLock } from '@ftb-core/tokens/TokenMovementLock.mjs';
+import { PlayerAccess } from '../../core/PlayerAccess.mjs';
 
 /**
  * Utility class for processing actors for the Roll Requests Menu
@@ -22,6 +23,8 @@ export class RollMenuActorProcessor {
    */
   static async prepareActorContext(menu, baseContext) {
     const SETTINGS = getSettings();
+    const playerMode = PlayerAccess.isPlayerMode();
+    if (playerMode && menu.currentTab === 'npc') menu.currentTab = 'pc';
     const actors = game.actors.contents;
     const pcActors = [];
     const npcActors = [];
@@ -97,6 +100,12 @@ export class RollMenuActorProcessor {
       groupActors.push(...filteredGroupActors);
     }
 
+    if (playerMode) {
+      const visibleGroups = this.filterGroupsForPlayer(groupActors);
+      groupActors.length = 0;
+      groupActors.push(...visibleGroups);
+    }
+
     groupActors.sort((a, b) => {
       const aActor = game.actors.get(a.id);
       const bActor = game.actors.get(b.id);
@@ -118,27 +127,17 @@ export class RollMenuActorProcessor {
     const skipRollDialog = SettingsUtil.get(SETTINGS.skipRollDialog.tag);
     const groupRollsMsgEnabled = SettingsUtil.get(SETTINGS.groupRollsMsgEnabled.tag);
     const showOnlyPCsWithToken = SettingsUtil.get(SETTINGS.showOnlyPCsWithToken.tag);
-    const showOptionsListOnHover = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag) ?? SETTINGS.showOptionsListOnHover.default;
+    const showOptionsListOnHover = SettingsUtil.getShowOptionsListOnHover();
     LogUtil.log('Template context showOptionsListOnHover:', [showOptionsListOnHover, typeof showOptionsListOnHover, 'tag:', SETTINGS.showOptionsListOnHover.tag]);
     
     const currentActors = menu.currentTab === 'pc' ? pcActors : 
                           menu.currentTab === 'npc' ? npcActors : 
                           groupActors;
-    let selectAllOn = false;
-    if (currentActors.length > 0) {
-      if (menu.currentTab === 'group') {
-        const allMembers = [];
-        currentActors.forEach(groupActor => {
-          if (groupActor.isGroup && groupActor.members) {
-            allMembers.push(...groupActor.members);
-          }
-        });
-        selectAllOn = allMembers.length > 0 && 
-          allMembers.every(member => menu.selectedActors.has(member.uniqueId));
-      } else {
-        selectAllOn = currentActors.every(actor => menu.selectedActors.has(actor.uniqueId));
-      }
-    }
+    const selectableRows = RollMenuStateManager.getSelectableRows(menu, menu.currentTab === 'group'
+      ? { groups: currentActors }
+      : { actors: currentActors });
+    const selectAllOn = selectableRows.length > 0 &&
+      selectableRows.every(row => menu.selectedActors.has(row.uniqueId));
     
     const requestTypes = this.buildRequestTypes(menu);
     const rollTypes = buildRollTypes(menu.selectedRequestType, menu.selectedActors);
@@ -147,7 +146,7 @@ export class RollMenuActorProcessor {
     return {
       ...baseContext,
       actors: menu.currentTab === 'group' ? [] : currentActors,
-      groups: menu.currentTab === 'group' ? currentActors : [],
+      groups: menu.currentTab === 'group' ? currentActors.map(group => this.withMemberCount(group)) : [],
       currentTab: menu.currentTab,
       isPCTab: menu.currentTab === 'pc',
       isNPCTab: menu.currentTab === 'npc',
@@ -167,6 +166,7 @@ export class RollMenuActorProcessor {
       actorsLocked: menu.isLocked,
       optionsExpanded: menu.optionsExpanded,
       isGM: game.user.isGM,
+      playerMode,
       isCompact: SettingsUtil.get(SETTINGS.compactMode.tag)
     };
   }
@@ -311,6 +311,49 @@ export class RollMenuActorProcessor {
   }
 
   /**
+   * Players only see the player characters of each group, and no group without any
+   * @param {Object[]} groups - Group data built by processGroupActor
+   * @returns {Object[]} Groups with player-character members only
+   */
+  static filterGroupsForPlayer(groups) {
+    return groups
+      .map(group => {
+        const members = (group.members ?? []).filter(member => {
+          const actor = game.actors.get(member.id);
+          return !!actor && this.isPlayerOwnedActor(actor);
+        });
+        return { ...group, members, memberImages: members.slice(0, 4).map(member => member.img) };
+      })
+      .filter(group => group.members.length > 0);
+  }
+
+  /**
+   * Add the localized member count shown on a group header
+   * @param {Object} group - Group data built by processGroupActor
+   * @returns {Object} The same group data with memberCountLabel set
+   */
+  static withMemberCount(group) {
+    const count = group.members?.length ?? 0;
+    const key = count === 1 ? 'FLASH_ROLLS.ui.groups.memberCountOne' : 'FLASH_ROLLS.ui.groups.memberCount';
+    group.memberCountLabel = game.i18n.format(key, { count });
+    return group;
+  }
+
+  /**
+   * Image shown on a row: the token image when the Portrait Source setting asks for it and the row
+   * is a placed token, otherwise the actor portrait
+   * @param {Actor} actor - The actor
+   * @param {TokenDocument|null} token - The token document, if any
+   * @returns {string} Image path
+   */
+  static getRowImage(actor, token) {
+    const SETTINGS = getSettings();
+    const source = SettingsUtil.get(SETTINGS.actorImageSource.tag) || 'token';
+    if (source === 'token' && token?.texture?.src) return token.texture.src;
+    return actor.img;
+  }
+
+  /**
    * Create actor data object for template rendering
    * @param {Actor} actor - The actor
    * @param {TokenDocument|null} token - The token document, if any
@@ -326,7 +369,7 @@ export class RollMenuActorProcessor {
       id: actor.id,
       uuid: actor.uuid,
       name: token ? token.name : actor.name,
-      img: actor.img,
+      img: this.getRowImage(actor, token),
       selected: menu.selectedActors.has(token?.id || actor.id),
       crlngnStats: RollMenuActorUtil.getActorStats(actorForStats),
       hpPercent: hpData.hpPercent,
@@ -334,7 +377,8 @@ export class RollMenuActorProcessor {
       tokenId: token?.id || null,
       isToken: !!token,
       uniqueId: token?.id || actor.id,
-      movementRestricted: token ? TokenMovementLock.isMovementRestricted(token) : false
+      movementRestricted: token ? TokenMovementLock.isMovementRestricted(token) : false,
+      actionable: PlayerAccess.canActOn(actorForStats)
     };
   }
 
@@ -546,7 +590,7 @@ export class RollMenuActorProcessor {
       const groupData = this.createActorData(actor, null, menu);
       groupData.members = memberDataList;
       groupData.isGroup = true;
-      groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? false;
+      groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? true;
       groupData.memberImages = memberDataList.slice(0, 4).map(m => m.img);
       groupData.selected = false;
       groupEntries.push(groupData);
@@ -563,7 +607,7 @@ export class RollMenuActorProcessor {
         const groupData = this.createActorData(actor, tokenDoc, menu);
         groupData.members = members;
         groupData.isGroup = true;
-        groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? false;
+        groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? true;
         groupData.memberImages = members.slice(0, 4).map(m => m.img);
         
         const selectedMembers = members.filter(member => menu.selectedActors.has(member.uniqueId));
@@ -581,7 +625,7 @@ export class RollMenuActorProcessor {
       const groupData = this.createActorData(actor, null, menu);
       groupData.members = members;
       groupData.isGroup = true;
-      groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? false;
+      groupData.isExpanded = menu.groupExpansionStates?.[actor.id] ?? true;
       groupData.memberImages = members.slice(0, 4).map(m => m.img);
       
       const selectedMembers = members.filter(member => menu.selectedActors.has(member.uniqueId));

@@ -8,6 +8,7 @@ import { DnDBCharacterImporter } from "../../integrations/dnd-beyond/DnDBCharact
 import { DnDBCookieUtil } from "../../integrations/dnd-beyond/DnDBCookieUtil.mjs";
 import { DnDBCookieGuideDialog } from "./DnDBCookieGuideDialog.mjs";
 import { DnDBSyncService } from "../../integrations/dnd-beyond/sync/DnDBSyncService.mjs";
+import { getOpenPremiumFeaturesDialog, PREMIUM_FEATURES_DIALOG_ID } from "./PremiumFeaturesLoader.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -61,7 +62,7 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
    * Default application configuration
    */
   static DEFAULT_OPTIONS = {
-    id: "flash5e-premium-features-dialog",
+    id: PREMIUM_FEATURES_DIALOG_ID,
     tag: "div",
     window: {
       icon: "fas fa-gem",
@@ -1603,6 +1604,6 @@ export class PremiumFeaturesDialog extends HandlebarsApplicationMixin(Applicatio
    * @returns {PremiumFeaturesDialog|null}
    */
   static getInstance() {
-    return Object.values(ui.windows).find(w => w instanceof PremiumFeaturesDialog) || null;
+    return getOpenPremiumFeaturesDialog();
   }
 }

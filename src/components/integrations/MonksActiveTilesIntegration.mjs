@@ -14,26 +14,21 @@ export class MonksActiveTilesIntegration {
   static _pendingGroupRolls = new Map();
 
   /**
-   * Registers tile group and single unified roll request action
+   * Register the Flash Token Bar 5e tile group and its tile actions with Monk's Active Tiles
+   * @param {Object} app - The MonksActiveTiles class passed by its setupTileActions hook
+   * @returns {void}
    */
-  static initialize() {
-    if (!game.modules.get('monks-active-tiles')?.active) {
-      LogUtil.log('MonksActiveTilesIntegration: Monk\'s Active Tiles not active, skipping integration');
-      return;
-    }
+  static registerTileActions(app) {
+    LogUtil.log('MonksActiveTilesIntegration: Registering Flash Rolls 5e tile actions');
 
-    Hooks.on("setupTileActions", (app) => {
-      LogUtil.log('MonksActiveTilesIntegration: Registering Flash Rolls 5e tile actions');
-
-      app.registerTileGroup(MODULE_ID, 'Flash Token Bar 5e');
-      this._registerRequestRollAction(app);
-      this._registerHealAllAction(app);
-      this._registerKillAllAction(app);
-      // this._registerOpenSheetsAction(app);
-      this._registerToggleMovementAction(app);
-      this._registerTeleportTokensAction(app);
-      this._registerTransformActorsAction(app);
-    });
+    app.registerTileGroup(MODULE_ID, 'Flash Token Bar 5e');
+    this._registerRequestRollAction(app);
+    this._registerHealAllAction(app);
+    this._registerKillAllAction(app);
+    // this._registerOpenSheetsAction(app);
+    this._registerToggleMovementAction(app);
+    this._registerTeleportTokensAction(app);
+    this._registerTransformActorsAction(app);
   }
 
   /**

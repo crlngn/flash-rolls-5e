@@ -4,6 +4,7 @@ import { getSettings } from '../../../constants/Settings.mjs';
 import { MODULE } from '../../../constants/General.mjs';
 import { SidebarController } from '../SidebarController.mjs';
 import { updateCanvasTokenSelection, getActorData } from '../../helpers/Helpers.mjs';
+import { PlayerAccess } from '../../core/PlayerAccess.mjs';
 
 /**
  * Handles UI state management in the Roll Requests Menu
@@ -58,6 +59,7 @@ export class RollMenuStateManager {
     currentActors.forEach(actorData => {
       if (actorData.isGroup && actorData.members) {
         actorData.members.forEach(member => {
+          if (member.actionable === false) return;
           const memberUniqueId = member.uniqueId;
           if (selectAll) {
             menu.selectedActors.add(memberUniqueId);
@@ -76,6 +78,7 @@ export class RollMenuStateManager {
           }
         });
       } else {
+        if (actorData.actionable === false) return;
         const uniqueId = actorData.uniqueId;
         if (selectAll) {
           menu.selectedActors.add(uniqueId);
@@ -104,7 +107,7 @@ export class RollMenuStateManager {
     
     menu.render();
     this.updateRequestTypesVisibility(menu);
-    const showOptionsListOnHover = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
+    const showOptionsListOnHover = SettingsUtil.getShowOptionsListOnHover();
     
     const accordion = menu.element.querySelector('.request-types-accordion');
     if (accordion) {
@@ -154,7 +157,9 @@ export class RollMenuStateManager {
     event.preventDefault();
     event.stopPropagation();
 
-    const button = event.currentTarget;
+    const button = event.currentTarget?.offsetParent
+      ? event.currentTarget
+      : (menu.element.querySelector('.actor-actions-more-btn') ?? event.currentTarget);
     const existing = menu.element.querySelector('.actor-filter-tooltip');
 
     if (existing) {
@@ -227,6 +232,7 @@ export class RollMenuStateManager {
    */
   static toggleActorSelection(uniqueId, actorId, tokenId, menu) {
     const SETTINGS = getSettings();
+    if (!menu.selectedActors.has(uniqueId) && !PlayerAccess.canActOn(getActorData(uniqueId))) return;
     menu._ignoreTokenControl = true;
     
     if (menu.selectedActors.has(uniqueId)) {
@@ -252,7 +258,7 @@ export class RollMenuStateManager {
     this.updateActorSelectionUI(uniqueId, menu);
     this.updateSelectAllState(menu);
     this.updateRequestTypesVisibilityNoRender(menu);
-    const showOptionsListOnHover = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
+    const showOptionsListOnHover = SettingsUtil.getShowOptionsListOnHover();
     
     const accordion = menu.element.querySelector('.request-types-accordion');
     if (accordion) {
@@ -327,32 +333,28 @@ export class RollMenuStateManager {
    */
   static updateSelectAllState(menu) {
     const selectAllCheckbox = menu.element.querySelector('#flash5e-actors-all');
-    let selectedCount = 0;
-    let totalCount = 0;
-    
-    if (menu.currentTab === 'group') {
-      const context = menu._lastPreparedContext || {};
-      const currentActors = context.groups || [];
-      const allMembers = [];
-      currentActors.forEach(groupActor => {
-        if (groupActor.isGroup && groupActor.members) {
-          allMembers.push(...groupActor.members);
-        }
-      });
-      totalCount = allMembers.length;
-      selectedCount = allMembers.filter(member => 
-        menu.selectedActors.has(member.uniqueId)
-      ).length;
-    } else {
-      const currentActors = menu.currentTab === 'pc' ? 'pc' : 'npc';
-      const checkboxes = menu.element.querySelectorAll(`.${currentActors}-actors .actor-item input[type="checkbox"]`);
-      totalCount = checkboxes.length;
-      selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-    }
+    const rows = this.getSelectableRows(menu, menu._lastPreparedContext || {});
+    const totalCount = rows.length;
+    const selectedCount = rows.filter(row => menu.selectedActors.has(row.uniqueId)).length;
 
     if(!selectAllCheckbox) return;
     selectAllCheckbox.checked = selectedCount > 0 && selectedCount === totalCount;
     selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < totalCount;
+  }
+
+  /**
+   * Rows of the current tab the user may select: actor rows, or the members of every listed group
+   * on the Groups tab. Rows a player does not own are left out, so Select All reads as checked once
+   * everything the user can select is selected
+   * @param {RollRequestsMenu} menu - Menu instance
+   * @param {{actors?: Object[], groups?: Object[]}} lists - The actor and group rows of the menu context
+   * @returns {Object[]}
+   */
+  static getSelectableRows(menu, { actors = [], groups = [] } = {}) {
+    const rows = menu.currentTab === 'group'
+      ? groups.flatMap(group => (group.isGroup && group.members) ? group.members : [])
+      : actors;
+    return rows.filter(row => row.actionable !== false);
   }
 
   /**
@@ -411,7 +413,7 @@ export class RollMenuStateManager {
    * @param {Object} filters - Filter criteria
    * @param {boolean} filters.inCombat - Show only actors in combat
    * @param {boolean} filters.visible - Show only visible actors
-   * @param {boolean} filters.removeDead - Remove dead actors from the list
+   * @param {boolean} filters.removeDead - Remove dead NPCs from the list; player-owned actors stay listed
    * @param {TokenDocument} [token] - Optional token document for token-specific checks
    * @returns {boolean} True if actor meets all active filter criteria
    */
@@ -431,14 +433,25 @@ export class RollMenuStateManager {
       }
     }
 
-    if (filters.removeDead) {
-      const hasDead = actor.appliedEffects.some(effect =>
-        effect.statuses?.has('dead') ||
-        effect.flags?.core?.statusId === 'dead'
-      );
-      if (hasDead) return false;
+    if (filters.removeDead && !actor.hasPlayerOwner && RollMenuStateManager.isActorDead(actor)) {
+      return false;
     }
 
     return true;
+  }
+
+  /**
+   * Whether an actor counts as dead: the dead status is applied or its hit points are at 0
+   * @param {Actor} actor - The actor to check
+   * @returns {boolean} True if the actor is dead
+   */
+  static isActorDead(actor) {
+    const hasDeadStatus = actor.appliedEffects?.some(effect =>
+      effect.statuses?.has('dead') ||
+      effect.flags?.core?.statusId === 'dead'
+    );
+    if (hasDeadStatus) return true;
+    const hp = actor.system?.attributes?.hp;
+    return !!hp && Number(hp.max) > 0 && Number(hp.value) <= 0;
   }
 }

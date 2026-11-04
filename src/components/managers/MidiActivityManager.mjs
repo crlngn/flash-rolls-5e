@@ -1,6 +1,7 @@
 import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { ROLL_TYPES, MODULE_ID, ACTIVITY_TYPES } from '../../constants/General.mjs';
 import { ModuleHelpers } from '../helpers/ModuleHelpers.mjs';
+import { BaseActivityManager } from './BaseActivityManager.mjs';
 import { GeneralUtil } from '../utils/GeneralUtil.mjs';
 import { getConsumptionConfig, getCreateConfig, getConcentrationConfig, isPlayerOwned, NotificationManager } from '../helpers/Helpers.mjs';
 import { getSettings } from '../../constants/Settings.mjs';
@@ -245,14 +246,12 @@ export class MidiActivityManager {
         return;
       }
       LogUtil.log("MidiActivityManager.triggerMissingRolls - CHECK activity, sending check request to player");
-      const { BaseActivityManager } = await import('./BaseActivityManager.mjs');
       await BaseActivityManager.sendCheckRollRequest(activity, config);
       return;
     }
 
     if (activity.type === ACTIVITY_TYPES.UTILITY) {
       LogUtil.log("MidiActivityManager.triggerMissingRolls - UTILITY activity, sending use-activity request to player");
-      const { BaseActivityManager } = await import('./BaseActivityManager.mjs');
       await BaseActivityManager.sendActivityUseRequest(activity, config);
       return;
     }

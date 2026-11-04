@@ -9,6 +9,10 @@ import { TokenPlacement } from '@ftb-core/tokens/TokenPlacement.mjs';
 import { TokenTeleport } from '@ftb-core/tokens/TokenTeleport.mjs';
 import { TokenVisionPreview } from '@ftb-core/tokens/TokenVisionPreview.mjs';
 import { IconContextMenu } from '../../ui/IconContextMenu.mjs';
+import { ActorActionsOverflowMenu } from '../../ui/ActorActionsOverflowMenu.mjs';
+import { GroupMembership5e } from '../GroupMembership5e.mjs';
+import { PlayerAccess } from '../../core/PlayerAccess.mjs';
+import { TransformationManager } from '../TransformationManager.mjs';
 import { GeneralUtil } from '../../utils/GeneralUtil.mjs';
 import { FlashAPI } from '../../core/FlashAPI.mjs';
 
@@ -16,6 +20,12 @@ import { FlashAPI } from '../../core/FlashAPI.mjs';
  * Handles Roll Requests Menu event listeners
  */
 export class RollMenuEventManager {
+  /** @type {number} Actor cards visible at once in the horizontal layout before the list scrolls */
+  static MAX_VISIBLE_ACTORS_HORIZONTAL = 6;
+
+  /** @type {WeakSet<HTMLElement>} Menu elements that already carry the group member context menu */
+  static #memberMenuElements = new WeakSet();
+
 
   /**
    * Reference to the active menu instance
@@ -46,6 +56,7 @@ export class RollMenuEventManager {
     this.attachDragHandlers(menu, html);
     this.attachTabHandlers(menu, html);
     this.attachActorHandlers(menu, html);
+    this.attachGroupMemberContextMenu(menu);
     this.attachActionIconHandlers(menu, html);
     this.attachIconContextMenuHandlers(menu, html);
     this.attachCompactTooltipHandlers(menu, html);
@@ -131,6 +142,10 @@ export class RollMenuEventManager {
       this.createGroupFromSelected(menu);
     });
 
+    html.querySelector('.group-create')?.addEventListener('click', () => {
+      this.createGroupFromSelected(menu);
+    });
+
     html.querySelector('#flash5e-lock-movement')?.addEventListener('click', () => {
       this.toggleMovementForSelected(menu);
     });
@@ -158,6 +173,13 @@ export class RollMenuEventManager {
       });
     });
 
+    ActorActionsOverflowMenu.close();
+    html.querySelector('.actor-actions-more-btn')?.addEventListener('click', (event) => {
+      ActorActionsOverflowMenu.toggle(event, menu);
+    });
+
+    this.limitVisibleActors(html);
+
     const scrollContainer = html.querySelector('.actor-actions-scrollable');
     if (scrollContainer) {
       this.updateActorActionsContainerHeight(html);
@@ -168,6 +190,28 @@ export class RollMenuEventManager {
         this.saveActorActionsScrollPosition(scrollContainer);
       });
     }
+  }
+
+  /**
+   * In the horizontal layout, cap the actor list at MAX_VISIBLE_ACTORS_HORIZONTAL cards; the rest
+   * scroll. The width is measured from the rendered cards, so it holds for compact mode and for
+   * group headers and members alike
+   * @param {HTMLElement} html - The menu HTML element
+   * @returns {void}
+   */
+  static limitVisibleActors(html) {
+    const list = html.querySelector('.main-content ul.actors > li.actor-list');
+    if (!list) return;
+    list.style.maxWidth = '';
+    if (html.dataset.layout !== 'horizontal') return;
+
+    const cards = [...list.querySelectorAll('.actor.drag-wrapper')].filter(card => card.offsetParent !== null);
+    const max = this.MAX_VISIBLE_ACTORS_HORIZONTAL;
+    if (cards.length <= max) return;
+
+    const left = cards[0].getBoundingClientRect().left;
+    const right = cards[max - 1].getBoundingClientRect().right;
+    list.style.maxWidth = `${Math.ceil(right - left) + 4}px`;
   }
 
   /**
@@ -218,7 +262,7 @@ export class RollMenuEventManager {
 
     const SETTINGS = getSettings();
     const menuLayout = SettingsUtil.get(SETTINGS.menuLayout.tag) || 'vertical';
-    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 5;
+    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 1;
 
     if (menuLayout === 'horizontal') {
       const itemWidth = firstItem.offsetWidth;
@@ -248,7 +292,7 @@ export class RollMenuEventManager {
 
     const SETTINGS = getSettings();
     const menuLayout = SettingsUtil.get(SETTINGS.menuLayout.tag) || 'vertical';
-    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 5;
+    const maxIconsPerRow = SettingsUtil.get(SETTINGS.maxIconsPerRow.tag) || 1;
     const itemsToScroll = Math.max(1, maxIconsPerRow - 1);
 
     if (menuLayout === 'horizontal') {
@@ -332,6 +376,7 @@ export class RollMenuEventManager {
    * Attach context menu handlers to all icon elements
    */
   static attachIconContextMenuHandlers(menu, html) {
+    if (!game.user.isGM) return;
     const moduleIcons = html.querySelectorAll('[data-icon-id][data-icon-type="moduleActions"]');
     const actorIcons = html.querySelectorAll('[data-icon-id][data-icon-type="actorActions"]');
 
@@ -353,29 +398,74 @@ export class RollMenuEventManager {
   }
 
   /**
+   * Canvas token of an actor row: its own token, or the first token of its actor on the scene
+   * @param {HTMLElement|null} wrapper - The row's `.actor.drag-wrapper` element
+   * @returns {Token|null}
+   */
+  static getRowToken(wrapper) {
+    if (!wrapper || !canvas.tokens) return null;
+    const { tokenId, actorId } = wrapper.dataset;
+    const token = tokenId ? canvas.tokens.get(tokenId) : null;
+    return token ?? canvas.tokens.placeables.find(t => t.actor?.id === actorId) ?? null;
+  }
+
+  /**
+   * Pan the canvas to an actor row's token
+   * @param {HTMLElement} wrapper - The row's `.actor.drag-wrapper` element
+   * @returns {void}
+   */
+  static panToRowToken(wrapper) {
+    const token = this.getRowToken(wrapper);
+    if (token) canvas.animatePan({ x: token.x, y: token.y, duration: 250 });
+  }
+
+  /**
+   * Context menu on group member portraits: pan to the token and, for the GM, remove the member
+   * from its D&D 5e group or encounter. Bound once per menu element, since the menu matches member
+   * portraits when it opens and so survives re-renders
+   * @param {RollRequestsMenu} menu - The menu instance
+   * @returns {void}
+   */
+  static attachGroupMemberContextMenu(menu) {
+    const element = menu.element;
+    if (!element || this.#memberMenuElements.has(element)) return;
+    this.#memberMenuElements.add(element);
+    const wrapperOf = target => target.closest('.actor.drag-wrapper');
+    new foundry.applications.ux.ContextMenu(element, '.group-members .actor.drag-wrapper .actor-img', [
+      {
+        name: 'FLASH_ROLLS.ui.contextMenu.panToToken',
+        icon: '<i class="fas fa-location-crosshairs"></i>',
+        condition: target => !!this.getRowToken(wrapperOf(target)),
+        callback: target => this.panToRowToken(wrapperOf(target))
+      },
+      {
+        name: 'FLASH_ROLLS.ui.contextMenu.removeFromGroup',
+        icon: '<i class="fas fa-user-minus"></i>',
+        condition: () => game.user.isGM,
+        callback: async target => {
+          const ref = GroupMembership5e.memberRefFrom(wrapperOf(target));
+          if (ref && await GroupMembership5e.remove(ref)) menu.render();
+        }
+      }
+    ], { jQuery: false, fixed: true });
+  }
+
+  /**
    * Attach actor selection handlers
    */
   static attachActorHandlers(menu, html) {
     html.querySelectorAll('.actor.drag-wrapper').forEach(wrapper => {
       wrapper.addEventListener('click', (event) => {
-        if (wrapper.hasAttribute('data-non-selectable')) {
-          return;
-        }
+        if (event.target.closest('.group-toggle')) return;
         menu._onActorClick.call(menu, event);
       });
 
-      const sheetIcon = wrapper.querySelector('.icon-sheet');
-      if (sheetIcon) {
-        sheetIcon.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          const actorId = wrapper.dataset.actorId;
-          const tokenId = wrapper.dataset.tokenId;
-
-          this.openActorSheetById(actorId, tokenId);
-        });
-      }
+      wrapper.addEventListener('dblclick', (event) => {
+        if (event.target.closest('.actor.drag-wrapper') !== wrapper) return;
+        if (event.target.closest('button')) return;
+        event.preventDefault();
+        this.openActorSheetById(wrapper.dataset.actorId, wrapper.dataset.tokenId);
+      });
 
       const targetIcon = wrapper.querySelector('.icon-target');
       if (targetIcon) {
@@ -392,22 +482,13 @@ export class RollMenuEventManager {
 
       const actorImg = wrapper.querySelector('.actor-img');
       if (actorImg) {
-        actorImg.addEventListener('contextmenu', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          
-          const tokenId = wrapper.dataset.tokenId;
-          const actorId = wrapper.dataset.actorId;
-          
-          let token = tokenId ? canvas.tokens.get(tokenId) : null;
-          if (!token && actorId) {
-            token = canvas.tokens.placeables.find(t => t.actor?.id === actorId);
-          }
-          
-          if (token) {
-            canvas.animatePan({ x: token.x, y: token.y, duration: 250 });
-          }
-        });
+        if (!wrapper.closest('.group-members')) {
+          actorImg.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.panToRowToken(wrapper);
+          });
+        }
 
         // Add hover handlers for temporary token selection preview
         actorImg.addEventListener('mouseenter', (event) => {
@@ -538,12 +619,12 @@ export class RollMenuEventManager {
    */
   static attachAccordionHandlers(menu, html) {    
     const SETTINGS = getSettings();
-    const showOnHover = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
+    const showOnHover = SettingsUtil.getShowOptionsListOnHover();
     
     const accordion = html.querySelector('.request-types-accordion');
     if (accordion) {
       const mouseEnterHandler = () => {
-        const showOptionsListOnHover = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
+        const showOptionsListOnHover = SettingsUtil.getShowOptionsListOnHover();
         if (menu.selectedActors.size > 0 && showOptionsListOnHover) {
           accordion?.classList.add('hover-visible');
         }
@@ -668,21 +749,28 @@ export class RollMenuEventManager {
   }
   
   /**
-   * Attach group expansion/collapse handlers
+   * Attach group expand/collapse handlers. Toggling shows or hides the member list of every row of
+   * that group without re-rendering the menu, and saves the state to a user flag. Groups start expanded
+   * @param {RollRequestsMenu} menu - The menu instance
+   * @param {HTMLElement} html - The menu HTML element
+   * @returns {void}
    */
   static attachGroupHandlers(menu, html) {
-    const groupExpandButtons = html.querySelectorAll('.group-expand-btn');
-    groupExpandButtons.forEach(button => {
+    html.querySelectorAll('.actor-group .group-toggle').forEach(button => {
       button.addEventListener('click', async (event) => {
         event.preventDefault();
         event.stopPropagation();
-        
+
         const groupId = button.dataset.groupId;
-        const isExpanded = menu.groupExpansionStates[groupId] ?? false;
-        
-        menu.groupExpansionStates[groupId] = !isExpanded;
+        const expanded = !(menu.groupExpansionStates[groupId] ?? true);
+        menu.groupExpansionStates[groupId] = expanded;
+
+        html.querySelectorAll(`.actor-group .group-toggle[data-group-id="${groupId}"]`).forEach(toggle => {
+          toggle.setAttribute('aria-expanded', String(expanded));
+          toggle.closest('li.group-row')?.querySelector('.group-members')?.classList.toggle('expanded', expanded);
+        });
+        this.limitVisibleActors(html);
         await game.user.setFlag(MODULE_ID, 'groupExpansionStates', menu.groupExpansionStates);
-        menu.render();
       });
     });
   }
@@ -697,8 +785,10 @@ export class RollMenuEventManager {
   }
 
   /**
-   * Toggle targeting for all selected actors, or clear all targets if none selected
+   * Toggle targeting for all selected actors. With nothing selected, target every token listed in
+   * the current tab, or clear those targets when they are all targeted already
    * @param {RollRequestsMenu} menu - The menu instance
+   * @returns {void}
    */
   static toggleTargetsForSelected(menu) {
     if (menu.selectedActors.size > 0) {
@@ -711,15 +801,37 @@ export class RollMenuEventManager {
 
         this.toggleActorTargetById(actorId, tokenId);
       });
-    } else {
-      if (game.user.targets.size > 0) {
-        const targetCount = game.user.targets.size;
-        game.user.targets.forEach(token => {
-          token.setTarget(false, { releaseOthers: false });
-        });
-        FlashAPI.notify('info', `Cleared ${targetCount} target(s)`);
-      }
+      return;
     }
+
+    const tokens = this.getListedTokens(menu);
+    if (tokens.length === 0) return;
+    const allTargeted = tokens.every(token => game.user.targets.has(token));
+    tokens.forEach(token => token.setTarget(!allTargeted, { releaseOthers: false }));
+  }
+
+  /**
+   * Canvas tokens of the rows listed in the current tab, including group members. A row bound to a
+   * token gives that token; an actor row gives the actor's tokens on the scene. Tokens hidden from
+   * the current user are left out
+   * @param {RollRequestsMenu} menu - The menu instance
+   * @returns {Token[]}
+   */
+  static getListedTokens(menu) {
+    const context = menu._lastPreparedContext || {};
+    const rows = menu.currentTab === 'group'
+      ? (context.groups || []).flatMap(group => group.members || [])
+      : (context.actors || []);
+    const tokens = new Set();
+    for (const row of rows) {
+      const rowTokens = row.tokenId
+        ? [canvas.tokens?.get(row.tokenId)]
+        : (canvas.tokens?.placeables || []).filter(token => token.actor?.id === row.id);
+      rowTokens.forEach(token => {
+        if (token?.visible) tokens.add(token);
+      });
+    }
+    return [...tokens];
   }
 
   /**
@@ -812,7 +924,7 @@ export class RollMenuEventManager {
 
     for (const uniqueId of menu.selectedActors) {
       const actor = getActorData(uniqueId);
-      if (!actor) continue;
+      if (!actor || !PlayerAccess.canActOn(actor)) continue;
       
       totalActors++;
       const statusEffects = actor.effects.filter(effect =>
@@ -876,7 +988,8 @@ export class RollMenuEventManager {
       } else {
         actor = game.actors.get(actorId);
       }
-      actor?.sheet.render(true);
+      if (!actor?.testUserPermission(game.user, 'LIMITED')) return;
+      actor.sheet.render(true);
     }
   }
 
@@ -1013,12 +1126,12 @@ export class RollMenuEventManager {
    */
   static async toggleOptionsListOnHover(menu) {    
     const SETTINGS = getSettings();
-    const currentValue = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
+    const currentValue = SettingsUtil.getShowOptionsListOnHover();
     const accordion = menu.element.querySelector('.request-types-accordion');
     const accordionVisible = accordion?.classList.contains('hover-visible');
     
     const newValue = !currentValue;
-    await SettingsUtil.set(SETTINGS.showOptionsListOnHover.tag, newValue);
+    await SettingsUtil.setShowOptionsListOnHover(newValue);
 
     RollMenuEventManager.updateAccordionHoverBehaviorNoRender(menu, newValue);
 
@@ -1292,7 +1405,6 @@ export class RollMenuEventManager {
    * @param {RollRequestsMenu} menu - The menu instance
    */
   static async transformSelectedActors(menu) {
-    const { TransformationManager } = await import('../TransformationManager.mjs');
     await TransformationManager.transformSelectedActors(menu);
   }
 }

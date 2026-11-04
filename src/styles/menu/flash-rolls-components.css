@@ -64,15 +64,14 @@
 
 /* Actor Image */
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img {
-  max-height: 3.9rem;
-  min-height: 3.5rem;
   width: 3.5rem;
   height: auto;
+  aspect-ratio: 1 / 1;
   flex-shrink: 0;
   border-radius: 4px;
   background-color: var(--fr5e-secondary-bg-10);
   border: 1px solid var(--fr5e-secondary-bg-10);
-  align-self: stretch;
+  align-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -108,7 +107,6 @@
   border-radius: 2px;
 }
 
-#flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.icon-sheet,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.favorite,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.movement-restricted,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.icon-target {
@@ -126,7 +124,6 @@
   font-size: var(--font-size-10);
 }
 
-#flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.icon-sheet:before,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.favorite:before,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.movement-restricted:before,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img i.icon-target:before {
@@ -141,17 +138,6 @@
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img span.icons i.favorite,
 #flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img span.icons i.movement-restricted {
   color: rgba(245,245,245,1);
-}
-
-#flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img span.icons i.icon-sheet {
-  opacity: 0;
-  margin-top: auto;
-  color: rgba(245,245,245,1);
-  transition: opacity 0.2s ease-out 0.2s;
-}
-
-#flash-rolls-menu div.main-content > ul.actors > li .actor > .actor-img:hover span.icons i.icon-sheet {
-  opacity: 1;
 }
 
 /* Actor Image Group Variations */
@@ -279,6 +265,51 @@
 #flash-rolls-menu div.main-content > ul.actors .actor-list-empty {
   padding: 1.5rem 0.5rem;
   text-align: center;
+  max-width: 230px;
+  margin-inline: auto;
+  font-weight: 400;
+}
+
+/* Create Group */
+#flash-rolls-menu div.main-content > ul.actors li.group-create-row {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+#flash-rolls-menu div.main-content > ul.actors li.group-create-row > button.group-create {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  width: 100%;
+  max-width: 6rem;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px dashed currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: var(--font-size-12);
+  line-height: 1.2;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+#flash-rolls-menu div.main-content > ul.actors li.group-create-row > button.group-create i {
+  font-size: var(--font-size-18);
+}
+
+#flash-rolls-menu div.main-content > ul.actors li.group-create-row > button.group-create:hover,
+#flash-rolls-menu div.main-content > ul.actors li.group-create-row > button.group-create:focus-visible {
+  opacity: 1;
+  border-color: var(--color-highlights-75, var(--color-warm-2));
+  background-color: var(--fr5e-secondary-bg-10);
+  box-shadow: none;
 }
 
 #flash-rolls-menu div.main-content > ul.actors > li.actor-list > ul > li.actor {
@@ -537,6 +568,13 @@
   color: var(--fr5e-text-color);
 }
 
+#flash-rolls-menu > div ul.status-effects > li.empty-message {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  padding: 0.5rem;
+  pointer-events: none;
+}
+
 /* Roll Types Menu */
 #flash-rolls-menu > div > ul.roll-types {
   left: calc(-25.6rem + 2px);
@@ -688,11 +726,13 @@
   color: var(--color-light-1);
 }
 
-#flash-rolls-menu .request-types .roll-types-nested > li:hover i.btn-macro {
+#flash-rolls-menu .request-types .roll-types-nested > li:hover i.btn-macro,
+#flash-rolls-menu .status-effects > li.status-effect:hover i.btn-macro {
   opacity: 1;
 }
 
-#flash-rolls-menu .request-types i.btn-macro {
+#flash-rolls-menu .request-types i.btn-macro,
+#flash-rolls-menu .status-effects i.btn-macro {
   margin-left: auto;
   display: inline-flex;
   width: 1.25rem;
@@ -711,7 +751,8 @@
   transition: opacity 0.2s ease;
 }
 
-#flash-rolls-menu .request-types i.btn-macro:hover {
+#flash-rolls-menu .request-types i.btn-macro:hover,
+#flash-rolls-menu .status-effects i.btn-macro:hover {
   background: var(--color-warm-3);
 }
 
@@ -885,6 +926,29 @@
   border: 0 !important;
 }
 
+/* Auto-hide action icons - base styles */
+#flash-rolls-menu.auto-hide-icons .action-icons {
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+#flash-rolls-menu.auto-hide-icons.is-hovered .action-icons,
+#flash-rolls-menu.auto-hide-icons:hover .action-icons {
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0.2s;
+}
+
+/* Disable transitions during re-render when hovering */
+#flash-rolls-menu.no-transition,
+#flash-rolls-menu.no-transition > div[data-application-part=main],
+#flash-rolls-menu.no-transition .main-content,
+#flash-rolls-menu.no-transition .action-icons {
+  transition: none !important;
+}
+
 /* Icon Context Menu */
 .icon-context-menu {
   background: var(--fr5e-menu-background);
@@ -926,4 +990,204 @@
 .icon-context-menu .context-menu-item span {
   flex: 1;
   font-size: 0.875rem;
+}
+
+/* Actor Actions Overflow Menu */
+#flash-rolls-menu .main-content ul.action-icons li.bulk-action.overflow-hidden {
+  display: none !important;
+}
+
+#flash-rolls-menu .main-content ul.action-icons .actor-actions-more-btn.active {
+  color: var(--color-warm-1);
+  opacity: 1;
+}
+
+.actor-actions-overflow-menu {
+  position: absolute;
+  z-index: 10000;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  border: 1px solid var(--fr5e-secondary-bg-10);
+  pointer-events: auto;
+}
+
+.actor-actions-overflow-menu .context-menu-item {
+  white-space: nowrap;
+}
+
+.actor-actions-overflow-menu .context-menu-item:focus-visible {
+  background: var(--color-warm-2);
+  color: var(--color-light-1, #fff);
+  outline: none;
+}
+
+.actor-actions-overflow-menu .context-menu-item .overflow-item-check {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Actor Groups (Groups tab): li.group-row > .actor.actor-group + ul.group-members */
+#flash-rolls-menu div.main-content > ul.actors > li.actor-list > ul > li.group-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin: 0 0 0.25rem 0;
+  padding: 0;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group {
+  border: 1px solid var(--fr5e-secondary-bg-10);
+  background: var(--fr5e-secondary-bg-05);
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group[data-group-selected=true],
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group.selected {
+  background: var(--color-highlights-75, var(--color-warm-2));
+  border-color: var(--color-warm-3);
+  color: var(--color-light-1);
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group[data-group-selected=partial] {
+  background: transparent;
+  border: 1px dashed var(--color-highlights-75, var(--color-warm-2));
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group .actor-data .actor-name {
+  font-weight: bold;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group .actor-data .group-count {
+  display: block;
+  margin-left: 4px;
+  font-size: var(--font-size-11);
+  line-height: 1.3em;
+  white-space: nowrap;
+  opacity: 0.65;
+}
+
+/* Expand/collapse bar along the bottom of the group card (right edge in the horizontal layout) */
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group > button.group-toggle {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 1rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 3px 3px;
+  box-shadow: none;
+  background: var(--fr5e-secondary-bg-10);
+  color: inherit;
+  font-size: var(--font-size-10);
+  line-height: 1;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group > button.group-toggle:hover,
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group > button.group-toggle:focus-visible {
+  opacity: 1;
+  background: var(--color-warm-2);
+  color: var(--color-light-1);
+  outline: 0;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group > button.group-toggle i {
+  margin: 0;
+  transition: transform 0.2s ease;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li .actor.actor-group > button.group-toggle[aria-expanded="true"] i {
+  transform: rotate(180deg);
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li .actor.actor-group {
+  width: calc(5.4rem + 1.1rem);
+}
+
+#flash-rolls-menu[data-layout="horizontal"].compact div.main-content > ul.actors > li .actor.actor-group {
+  width: calc(4.2rem + 1.1rem);
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li .actor.actor-group > button.group-toggle {
+  flex: 0 0 1rem;
+  width: 1rem;
+  height: auto;
+  align-self: stretch;
+  border-radius: 0 3px 3px 0;
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li .actor.actor-group > button.group-toggle i {
+  transform: rotate(-90deg);
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li .actor.actor-group > button.group-toggle[aria-expanded="true"] i {
+  transform: rotate(90deg);
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li.actor-list ul.group-members {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0.15rem 0 0 0.35rem;
+  padding: 0 0 0 0.35rem;
+  border-left: 2px solid var(--fr5e-secondary-bg-10);
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li.actor-list ul.group-members.expanded {
+  display: flex;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li.actor-list ul.group-members > li .actor {
+  opacity: 0.95;
+}
+
+#flash-rolls-menu div.main-content > ul.actors > li.actor-list ul.group-members > li .actor .member-quantity {
+  margin-left: auto;
+  font-size: var(--font-size-10);
+  opacity: 0.7;
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li.actor-list > ul > li.group-row {
+  flex-direction: row;
+  width: auto;
+  margin: 0 0.25rem 0 0;
+}
+
+/* Horizontal layout: the group header is a card the size of a member card, image only */
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li.actor-list > ul > li.group-row > .actor.actor-group {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li.actor-list > ul > li.group-row > .actor.actor-group > .actor-data {
+  display: none;
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li.actor-list > ul > li.group-row > .actor.actor-group > .actor-img {
+  width: 100%;
+  max-width: none;
+}
+
+#flash-rolls-menu[data-layout="horizontal"] div.main-content > ul.actors > li.actor-list ul.group-members {
+  flex-direction: row;
+  margin: 0 0 0 0.25rem;
+  padding: 0 0 0 0.25rem;
+  border-left-width: 1px;
+}
+
+/* Rows the current user may not select (player mode) */
+#flash-rolls-menu div.main-content > ul.actors > li .actor.not-actionable {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Player mode roll list: no macro buttons */
+#flash-rolls-menu .request-types-accordion.player-mode .btn-macro {
+  display: none;
 }

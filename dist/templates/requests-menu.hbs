@@ -1,6 +1,6 @@
 <div data-tab="{{selectedTab}}">
   {{!-- Drag Handle --}}
-  <div class="drag-handle" tootlip="{{localize 'FLASH_ROLLS.ui.menus.dragHandleTooltip'}}">
+  <div class="drag-handle" data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.dragHandleTooltip'}}">
     <i class="fas fa-grip-horizontal"></i>
   </div>
 
@@ -10,8 +10,16 @@
         <ul>
         {{#if (eq selectedTab "group")}}
           {{#unless groups}}
+            {{#if isGM}}
+              <li class="group-create-row">
+                <button type="button" class="group-create">
+                  <i class="fas fa-plus" inert></i>
+                  <span>{{localize "FLASH_ROLLS.ui.menus.createGroup"}}</span>
+                </button>
+              </li>
+            {{/if}}
             <li class="actor-list-empty">
-              {{#if ../isGM}}
+              {{#if isGM}}
                 {{localize "FLASH_ROLLS.ui.menus.noGroupsDropHint"}}
               {{else}}
                 {{localize "FLASH_ROLLS.ui.menus.noGroups"}}
@@ -19,89 +27,39 @@
             </li>
           {{/unless}}
           {{#each groups as |group|}}
-          <li>
-            <div class="actor actor-group drag-wrapper{{#if group.isExpanded}} expanded non-selectable{{/if}}" draggable="true" 
-                data-id="{{group.uniqueId}}" data-actor-id="{{group.id}}" 
-                data-group-selected="{{group.selected}}" {{#if group.isExpanded}}data-non-selectable="true"{{/if}} 
+          <li class="group-row">
+            <div class="actor actor-group drag-wrapper" draggable="{{#if ../isGM}}true{{else}}false{{/if}}"
+                data-id="{{group.uniqueId}}" data-actor-id="{{group.id}}"
+                {{#if group.tokenId}}data-token-id="{{group.tokenId}}"{{/if}}
+                data-group-selected="{{group.selected}}"
                 data-tooltip="{{group.name}}" data-tooltip-direction="LEFT" data-tooltip-delay="800">
-              {{#unless group.isExpanded}}
+              <div class="actor-data">
+                {{#if ../showNames}}<span class="actor-name">{{group.name}}</span>{{/if}}
+                <span class="group-count">{{group.memberCountLabel}}</span>
+              </div>
               <div class="actor-img group-{{group.memberImages.length}}">
                 {{#each group.memberImages as |img|}}
-                  {{#if (lte @index 3)}}
-                    <img src="{{img}}" alt="Member {{@index}}" />
-                  {{/if}}
+                  <img src="{{img}}" alt="{{group.name}}" />
                 {{/each}}
-                <span class="icons">
-                  <i class="fas fa-square-user icon-sheet" data-tooltip="Character sheet" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
-                </span>
               </div>
-              {{/unless}}
-              <ul class="group-members">
-                {{#if group.isExpanded}}
-                {{#each group.members as |member|}}
-                  <li>
-                    <div class="actor drag-wrapper{{#if member.selected}} selected{{/if}}" draggable="false"
-                        data-id="{{member.uniqueId}}" data-actor-id="{{member.id}}" 
-                        {{#if member.tokenId}}data-token-id="{{member.tokenId}}"{{/if}}
-                        data-selected="{{member.selected}}">
-                      <div class="actor-data">
-                        {{#if ../../showNames}}<span class="actor-name">
-                          {{ member.name }}
-                          </span>
-                        {{/if}}
-                        <ul class="actor-stats">
-                          {{#each member.crlngnStats as |prop|}}
-                            <li class="actor-stat">
-                              <span class="stat-abbrev">{{ prop.abbrev }}</span>
-                              <span class="stat-value">{{ prop.value }}</span>
-                            </li>
-                          {{/each}}
-                        </ul>
-                      </div>
-                      <div class="actor-img" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000">
-                        <span class="icons">
-                          {{#if member.isFavorite}}
-                            <i class="fas fa-bolt favorite" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000"></i>
-                          {{/if}}
-                          {{#if member.movementRestricted}}
-                            <i class="fas fa-ban movement-restricted" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.movementLocked'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
-                          {{/if}}
-                          <i class="fas fa-square-user icon-sheet" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.characterSheet'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
-                          {{!-- <i class="fas fa-crosshairs icon-target" data-tooltip="Target character" data-tooltip-direction="UP"></i> --}}
-                        </span>
-                        <img src="{{ member.img }}" alt="{{ member.name }}" />
-                      </div>
-                      <div class="actor-stat-bar" data-stat="hp">
-                        <span class="bar" style="width: {{ member.hpPercent }}%;background-color: {{ member.hpColor }};"></span>
-                      </div>
-                    </div>
-                  </li>
-                {{/each}}
-                {{/if}}
-                {{#unless isCompact}}
-                <li>
-                  <span class="actor-name">
-                    {{ group.name }}
-                  </span>
-                </li>
-                {{/unless}}
-                <li>
-                  <button class="group-expand-btn" data-group-id="{{group.id}}">
-                    {{#if (eq ../menuLayout 'horizontal')}}
-                      <i class="fas fa-caret-{{#if group.isExpanded}}left{{else}}right{{/if}}"></i>
-                    {{else}}
-                      <i class="fas fa-caret-{{#if group.isExpanded}}up{{else}}down{{/if}}"></i>
-                    {{/if}}
-                  </button>
-                </li>
-              </ul>
+              <button type="button" class="group-toggle" data-group-id="{{group.id}}"
+                      aria-expanded="{{#if group.isExpanded}}true{{else}}false{{/if}}"
+                      aria-label="{{localize 'FLASH_ROLLS.ui.groups.toggleMembers'}}"
+                      data-tooltip="{{localize 'FLASH_ROLLS.ui.groups.toggleMembers'}}" data-tooltip-delay="800">
+                <i class="fas fa-chevron-down" inert></i>
+              </button>
             </div>
+            <ul class="group-members{{#if group.isExpanded}} expanded{{/if}}">
+              {{#each group.members as |member|}}
+                {{> "modules/flash-rolls-5e/templates/partials/actor-row.hbs" member showNames=../../showNames draggable=false}}
+              {{/each}}
+            </ul>
           </li>
           {{/each}}
         {{else}}
           {{#unless actors}}
             <li class="actor-list-empty">
-              {{#if ../isGM}}
+              {{#if isGM}}
                 {{localize "FLASH_ROLLS.ui.menus.noActorsDropHint"}}
               {{else}}
                 {{localize "FLASH_ROLLS.ui.menus.noActors"}}
@@ -109,43 +67,7 @@
             </li>
           {{/unless}}
           {{#each actors as |actor|}}
-            <li>
-              <div class="actor drag-wrapper{{#if actor.selected}} selected{{/if}}" draggable="true"
-                  data-id="{{actor.uniqueId}}" data-actor-id="{{actor.id}}" 
-                  {{#if actor.tokenId}}data-token-id="{{actor.tokenId}}"{{/if}}
-                  data-selected="{{actor.selected}}">
-                <div class="actor-data">
-                  {{#if ../showNames}}<span class="actor-name">
-                    {{ actor.name }}
-                    </span>
-                  {{/if}}
-                  <ul class="actor-stats">
-                    {{#each actor.crlngnStats as |prop|}}
-                      <li class="actor-stat">
-                        <span class="stat-abbrev">{{ prop.abbrev }}</span>
-                        <span class="stat-value">{{ prop.value }}</span>
-                      </li>
-                    {{/each}}
-                  </ul>
-                </div>
-                <div class="actor-img" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000">
-                  <span class="icons">
-                    {{#if actor.isFavorite}}
-                      <i class="fas fa-bolt favorite" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000"></i>
-                    {{/if}}
-                    {{#if actor.movementRestricted}}
-                      <i class="fas fa-ban movement-restricted" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.movementLocked'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
-                    {{/if}}
-                    <i class="fas fa-square-user icon-sheet" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.characterSheet'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
-                    {{!-- <i class="fas fa-crosshairs icon-target" data-tooltip="Target character" data-tooltip-direction="UP"></i> --}}
-                  </span>
-                  <img src="{{ actor.img }}" alt="{{ actor.name }}" />
-                </div>
-                <div class="actor-stat-bar" data-stat="hp">
-                  <span class="bar" style="width: {{ actor.hpPercent }}%;background-color: {{ actor.hpColor }};"></span>
-                </div>
-              </div>
-            </li>
+            {{> "modules/flash-rolls-5e/templates/partials/actor-row.hbs" actor showNames=../showNames draggable=../isGM}}
           {{/each}}
         {{/if}}
         </ul>
@@ -153,15 +75,17 @@
 
       {{!-- {{#if isCompact}} --}}
       <li class="actors-tabs">
-        <button class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc"
+        {{#unless playerMode}}
+        <button type="button" class="actor-tab npc-tab{{#if (eq selectedTab "npc")}} active{{/if}}" data-tab="npc"
           data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.npcs'}}" data-tooltip-direction="UP" data-tooltip-delay="800">
           <i class="fas fa-skull-cow"></i>
         </button>
-        <button class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc"
+        {{/unless}}
+        <button type="button" class="actor-tab pc-tab{{#if (eq selectedTab "pc")}} active{{/if}}" data-tab="pc"
           data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.pcs'}}" data-tooltip-direction="UP" data-tooltip-delay="800">
           <i class="fas fa-circle-user"></i>
         </button>
-        <button class="actor-tab group-tab{{#if (eq selectedTab "group")}} active{{/if}}" data-tab="group"
+        <button type="button" class="actor-tab group-tab{{#if (eq selectedTab "group")}} active{{/if}}" data-tab="group"
           data-tooltip="{{localize 'FLASH_ROLLS.ui.menus.groups'}}" data-tooltip-direction="UP" data-tooltip-delay="800">
           <i class="fa-solid fa-users-medical"></i>
         </button>
@@ -181,7 +105,7 @@
                    data-tooltip-direction="{{#if (eq ../../menuLayout 'horizontal')}}UP{{else}}RIGHT{{/if}}"
                    data-tooltip-delay="800"></i>
               {{else}}
-                <button id="{{element}}"
+                <button type="button" id="{{element}}"
                         data-tooltip="{{localize tooltipKey}}"
                         data-tooltip-direction="{{#if (eq ../../menuLayout 'horizontal')}}UP{{else}}RIGHT{{/if}}"
                         data-tooltip-delay="800">
@@ -210,18 +134,18 @@
       {{/if}}
 
       {{!-- Actor Action Icons --}}
-      <div class="actor-actions-container{{#unless (gt enabledActorIcons.length maxIconsPerRow)}} no-scroll{{/unless}}">
-        {{#if (gt enabledActorIcons.length maxIconsPerRow)}}
-          <button class="actor-actions-nav {{#if (eq menuLayout 'horizontal')}}actor-actions-nav-left{{else}}actor-actions-nav-up{{/if}}" data-direction="{{#if (eq menuLayout 'horizontal')}}left{{else}}up{{/if}}" aria-label="{{#if (eq menuLayout 'horizontal')}}Scroll left{{else}}Scroll up{{/if}}">
+      <div class="actor-actions-container{{#unless actorIconsScroll}} no-scroll{{/unless}}{{#if actorIconsOverflowMenu}} has-overflow-menu{{/if}}">
+        {{#if actorIconsScroll}}
+          <button type="button" class="actor-actions-nav {{#if (eq menuLayout 'horizontal')}}actor-actions-nav-left{{else}}actor-actions-nav-up{{/if}}" data-direction="{{#if (eq menuLayout 'horizontal')}}left{{else}}up{{/if}}" aria-label="{{#if (eq menuLayout 'horizontal')}}Scroll left{{else}}Scroll up{{/if}}">
             <i class="fas {{#if (eq menuLayout 'horizontal')}}fa-chevron-left{{else}}fa-chevron-up{{/if}}"></i>
           </button>
         {{/if}}
         <div class="actor-actions-scrollable">
           {{#each enabledActorIcons as |icon|}}
             {{#with (lookup ../iconConfigs.actorActions id)}}
-              <li data-icon-id="{{../id}}" data-icon-type="actorActions" class="bulk-action">
+              <li data-icon-id="{{../id}}" data-icon-type="actorActions" class="bulk-action{{#if ../overflow}} overflow-hidden{{/if}}"{{#if ../overflow}} data-overflow="true"{{/if}}>
                 {{#if (eq type "button")}}
-                  <button id="{{element}}"
+                  <button type="button" id="{{element}}"
                           data-tooltip="{{localize tooltipKey}}"
                           data-tooltip-direction="{{#if (eq ../../menuLayout 'horizontal')}}UP{{else}}RIGHT{{/if}}"
                           data-tooltip-delay="800">
@@ -241,8 +165,20 @@
             {{/with}}
           {{/each}}
         </div>
-        {{#if (gt enabledActorIcons.length maxIconsPerRow)}}
-          <button class="actor-actions-nav {{#if (eq menuLayout 'horizontal')}}actor-actions-nav-right{{else}}actor-actions-nav-down{{/if}}" data-direction="{{#if (eq menuLayout 'horizontal')}}right{{else}}down{{/if}}" aria-label="{{#if (eq menuLayout 'horizontal')}}Scroll right{{else}}Scroll down{{/if}}">
+        {{#if actorIconsOverflowMenu}}
+          <li class="actor-actions-more">
+            <button type="button" class="actor-actions-more-btn"
+                    aria-label="{{localize 'FLASH_ROLLS.ui.inputs.moreActions'}}"
+                    aria-haspopup="menu"
+                    data-tooltip="{{localize 'FLASH_ROLLS.ui.inputs.moreActions'}}"
+                    data-tooltip-direction="{{#if (eq menuLayout 'horizontal')}}UP{{else}}RIGHT{{/if}}"
+                    data-tooltip-delay="800">
+              <i class="flash-icon fas {{#if (eq menuLayout 'horizontal')}}fa-ellipsis{{else}}fa-ellipsis-vertical{{/if}}"></i>
+            </button>
+          </li>
+        {{/if}}
+        {{#if actorIconsScroll}}
+          <button type="button" class="actor-actions-nav {{#if (eq menuLayout 'horizontal')}}actor-actions-nav-right{{else}}actor-actions-nav-down{{/if}}" data-direction="{{#if (eq menuLayout 'horizontal')}}right{{else}}down{{/if}}" aria-label="{{#if (eq menuLayout 'horizontal')}}Scroll right{{else}}Scroll down{{/if}}">
             <i class="fas {{#if (eq menuLayout 'horizontal')}}fa-chevron-right{{else}}fa-chevron-down{{/if}}"></i>
           </button>
         {{/if}}
@@ -251,7 +187,7 @@
   </div>
 
   <!-- Request Types with Accordion -->
-  <div class="request-types-accordion">
+  <div class="request-types-accordion{{#if playerMode}} player-mode{{/if}}">
     <!-- Search Input -->
     <div class="search-container">
       <label for="search-input" class="sr-only">{{localize 'FLASH_ROLLS.ui.search.placeholder'}}</label>
@@ -296,11 +232,15 @@
     </ul>
 
     <ul class="status-effects {{#if (eq selectedSubmenu "status-effects")}}active{{/if}}">
+      {{#unless statusEffects}}
+        <li class="empty-message">{{localize 'FLASH_ROLLS.ui.menus.noStatusEffects'}}</li>
+      {{/unless}}
       {{#each statusEffects as |statusEffect|}}
         <li data-id="{{ statusEffect.id }}" class="status-effect">
           <div class="status-effect-header">
             <i class="icon" style="background-image: url('{{ statusEffect.iconPath }}');"></i>
             <span class="status-effect-name">{{ statusEffect.displayName }}</span>
+            <i class="btn-macro fas fa-code" data-tooltip="{{localize 'FLASH_ROLLS.ui.buttons.createMacro'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
           </div>
         </li>
       {{/each}}

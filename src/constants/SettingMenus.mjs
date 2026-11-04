@@ -1,5 +1,5 @@
 import { ModuleSettingsMenu } from '../components/ui/dialogs/ModuleSettingsMenu.mjs';
-import { PremiumFeaturesDialog } from '../components/ui/dialogs/PremiumFeaturesDialog.mjs';
+import { PremiumFeaturesLauncher } from '../components/ui/dialogs/PremiumFeaturesLoader.mjs';
 import { MODULE_ID } from './General.mjs';
 import { getSettings } from './Settings.mjs';
 
@@ -263,7 +263,7 @@ export function getSettingMenus() {
       label: game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.buttonLabel"),
       hint: game.i18n.localize("FLASH_ROLLS.settings.premiumFeatures.hint"),
       icon: "fas fa-gem",
-      propType: PremiumFeaturesDialog,
+      propType: PremiumFeaturesLauncher,
       restricted: true
     },
     exportSettings: {

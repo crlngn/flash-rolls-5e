@@ -59,9 +59,9 @@
 
 #flash-rolls-menu[data-layout="horizontal"].compact div.main-content > ul.actors > li.actor-list > ul > li > .actor .actor-img,
 #flash-rolls-menu[data-layout="vertical"].compact div.main-content > ul.actors > li.actor-list > ul > li > .actor .actor-img {
-  height: 3.75rem;
+  height: auto;
   width: 3.75rem;
-  max-height: 3.75rem;
+  max-height: none;
   max-width: 3.75rem;
 }
 

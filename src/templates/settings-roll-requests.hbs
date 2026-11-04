@@ -22,6 +22,13 @@
     <p class="hint">{{fields.showOfflineNotifications.hint}}</p>
   </div>
 
+  <div class="form-group range">
+    <label for="rollPacingDelay">{{fields.rollPacingDelay.label}}</label>
+    <input type="range" name="rollPacingDelay" id="rollPacingDelay" min="0" step="100" max="3000" value="{{rollPacingDelay}}" />
+    <input type="number" name="rollPacingDelay_value" class="range-value-input" value="{{rollPacingDelay}}" />
+    <p class="hint">{{{fields.rollPacingDelay.hint}}}</p>
+  </div>
+
   <fieldset>
     <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.rollPrompting"}}</legend>
 

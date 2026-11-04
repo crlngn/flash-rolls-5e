@@ -242,21 +242,5 @@ body > .actor.drag-wrapper .actor-data {
   background: rgba(255, 255, 255, 0.05);
 }
 
-#flash-rolls-menu .actor-group .group-expand-btn {
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  padding: 0.15rem;
-  margin-left: 0.1rem;
-  border-radius: 2px;
-  transition: background-color 0.2s ease;
-}
-
-#flash-rolls-menu .actor-group .group-expand-btn:hover {
-  background-color: var(--fr5e-secondary-bg-10);
-  opacity: 0.7;
-}
-
 /* Additional Group Actor Styles for Non-compact modes would go here */
 /* These are quite extensive in the original file and follow similar patterns */

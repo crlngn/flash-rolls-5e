@@ -8,7 +8,7 @@ import { getSettings } from "../../constants/Settings.mjs";
 import { RollHelpers } from "../helpers/RollHelpers.mjs";
 import { ChatMessageManager } from "../managers/ChatMessageManager.mjs";
 import { ModuleSettingsMenu } from "../ui/dialogs/ModuleSettingsMenu.mjs";
-import { PremiumFeaturesDialog } from "../ui/dialogs/PremiumFeaturesDialog.mjs";
+import { openPremiumFeaturesDialog } from "../ui/dialogs/PremiumFeaturesLoader.mjs";
 import { RollMenuEventManager } from "../managers/roll-menu/RollMenuEventManager.mjs";
 import { TokenMovementLock } from "@ftb-core/tokens/TokenMovementLock.mjs";
 import { RollMenuStateManager } from "../managers/roll-menu/RollMenuStateManager.mjs";
@@ -18,6 +18,8 @@ import { TokenTeleport } from "@ftb-core/tokens/TokenTeleport.mjs";
 import { TransformationManager } from "../managers/TransformationManager.mjs";
 import { GeneralUtil } from "../utils/GeneralUtil.mjs";
 import { SystemCompat } from "../utils/SystemCompat.mjs";
+import { StatusEffectActions } from "@ftb-core/conditions/StatusEffectActions.mjs";
+import { StatusEffectCatalog } from "@ftb-core/conditions/StatusEffectCatalog.mjs";
 
 /**
  * Public API for Flash Token Bar 5e that can be used by other modules
@@ -774,9 +776,7 @@ export class FlashAPI {
    * When enabled, the roll request options list is shown when hovering over the menu
    */
   static async toggleShowOptions() {
-    const SETTINGS = getSettings();
-    const currentValue = SettingsUtil.get(SETTINGS.showOptionsListOnHover.tag);
-    await SettingsUtil.set(SETTINGS.showOptionsListOnHover.tag, !currentValue);
+    await SettingsUtil.setShowOptionsListOnHover(!SettingsUtil.getShowOptionsListOnHover());
 
     const menu = RollRequestsMenu.getInstance();
     if (menu && menu.rendered) {
@@ -795,7 +795,7 @@ export class FlashAPI {
    * Open the Patreon features dialog
    */
   static openPatreonFeatures() {
-    new PremiumFeaturesDialog().render(true);
+    openPremiumFeaturesDialog();
   }
 
   /**
@@ -963,6 +963,58 @@ export class FlashAPI {
     } else if (menu && menu.rendered) {
       await RollMenuEventManager.removeAllStatusEffectsFromSelected(menu);
     }
+  }
+
+  /**
+   * Toggle a status effect on actors: removed when any of them has it, applied otherwise
+   * @param {string} effectId - Status effect id, e.g. "prone"
+   * @param {string[]} [actorIds] - Actor/token ids; defaults to the actors selected in the menu
+   * @returns {Promise<void>}
+   */
+  static async toggleStatusEffect(effectId, actorIds) {
+    const menu = RollRequestsMenu.getInstance();
+    if (actorIds && actorIds.length > 0) {
+      await StatusEffectActions.toggleOnUniqueIds(effectId, actorIds);
+    } else if (menu && menu.rendered) {
+      await StatusEffectActions.toggleOnSelected(effectId, menu);
+    }
+  }
+
+  /**
+   * Create a macro that toggles a status effect
+   * @param {string} effectId - Status effect id
+   * @param {string[]} [actorIds] - Actor/token ids stored in the macro; empty uses the menu selection when run
+   * @returns {Promise<Macro|null>} Created macro document
+   */
+  static async createStatusEffectMacro(effectId, actorIds = []) {
+    const effect = StatusEffectCatalog.getStatusEffect(effectId) ?? CONFIG.statusEffects.find(e => e.id === effectId);
+    if (!effect) {
+      FlashAPI.notify('warn', `Unknown status effect: ${effectId}`);
+      return null;
+    }
+    const effectName = game.i18n.localize(effect.name || effect.label || effectId);
+    const actorNames = actorIds.map(id => getActorData(id)?.name).filter(Boolean);
+    const command = `// Flash Token Bar: Toggle ${effectName}
+// Actors: ${actorNames.length ? actorNames.join(', ') : 'selected in the token bar'}
+try {
+  await FlashAPI.toggleStatusEffect(${JSON.stringify(effectId)}, ${JSON.stringify(actorIds)});
+} catch (error) {
+  ui.notifications.warn("Failed to toggle effect: " + error.message);
+}`;
+
+    const SETTINGS = getSettings();
+    const folderId = SettingsUtil.get(SETTINGS.addMacrosToFolder.tag) ? await this._ensureFlashRollsFolder() : null;
+    const macro = await Macro.create({
+      name: `Flash Token Bar: Toggle ${effectName}`,
+      type: "script",
+      command,
+      img: effect.img || effect.icon || "modules/flash-rolls-5e/assets/bolt-circle.svg",
+      ...(folderId && { folder: folderId }),
+      flags: { "flash-rolls-5e": { effectId, actorIds, type: "statusEffect" } }
+    });
+    FlashAPI.notify('info', game.i18n.format("FLASH_ROLLS.notifications.macroCreated", { macroName: macro.name }));
+    macro.sheet.render(true);
+    return macro;
   }
 
   /**

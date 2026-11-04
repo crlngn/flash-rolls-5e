@@ -14,6 +14,7 @@ import { SocketUtil } from "@ftb-core/utils/SocketUtil.mjs";
 import { FlashAPI } from '../core/FlashAPI.mjs';
 import { VanillaActivityManager } from './VanillaActivityManager.mjs';
 import { MidiActivityManager } from './MidiActivityManager.mjs';
+import { RollInterceptor } from '../handlers/RollInterceptor.mjs';
 
 /**
  * @typedef {Object} ActivityUseConfiguration
@@ -653,7 +654,6 @@ export class BaseActivityManager {
 
     LogUtil.log("BaseActivityManager.sendCheckRollRequest - sending", [actor.name, rollType, rollKey, alternatives, requestConfig]);
 
-    const { RollInterceptor } = await import('../handlers/RollInterceptor.mjs');
     await RollInterceptor._sendRollRequest(actor, owner, rollType, requestConfig);
     return true;
   }

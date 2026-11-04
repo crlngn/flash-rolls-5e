@@ -1,0 +1,32 @@
+<li>
+  <div class="actor drag-wrapper{{#if selected}} selected{{/if}}{{#unless actionable}} not-actionable{{/unless}}" draggable="{{#if draggable}}true{{else}}false{{/if}}"
+      data-id="{{uniqueId}}" data-actor-id="{{id}}"
+      {{#if tokenId}}data-token-id="{{tokenId}}"{{/if}}
+      data-selected="{{selected}}">
+    <div class="actor-data">
+      {{#if showNames}}<span class="actor-name">{{name}}</span>{{/if}}
+      <ul class="actor-stats">
+        {{#each crlngnStats as |prop|}}
+          <li class="actor-stat">
+            <span class="stat-abbrev">{{prop.abbrev}}</span>
+            <span class="stat-value">{{prop.value}}</span>
+          </li>
+        {{/each}}
+      </ul>
+    </div>
+    <div class="actor-img" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000">
+      <span class="icons">
+        {{#if isFavorite}}
+          <i class="fas fa-bolt favorite" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.dragOutToRemove'}}" data-tooltip-direction="DOWN" data-tooltip-delay="2000"></i>
+        {{/if}}
+        {{#if movementRestricted}}
+          <i class="fas fa-ban movement-restricted" data-tooltip="{{localize 'FLASH_ROLLS.ui.tooltips.movementLocked'}}" data-tooltip-direction="UP" data-tooltip-delay="800"></i>
+        {{/if}}
+      </span>
+      <img src="{{img}}" alt="{{name}}" />
+    </div>
+    <div class="actor-stat-bar" data-stat="hp">
+      <span class="bar" style="width: {{hpPercent}}%;background-color: {{hpColor}};"></span>
+    </div>
+  </div>
+</li>

@@ -26,13 +26,15 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    chunkSizeWarningLimit: 600,
+    modulePreload: false,
+    cssCodeSplit: false,
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       input: "src/module.mjs",
       output: {
         dir: "dist/",
         entryFileNames:"scripts/flash-rolls-5e.js",
-        chunkFileNames: "scripts/flash-rolls-5e.js",
+        chunkFileNames: "scripts/chunks/[name].js",
         assetFileNames: (assetInfo) => {
           const isImgType = /\.(gif|jpe?g|png|svg)$/.test(assetInfo.name);
           const isStyleType = /\.css$/.test(assetInfo.name);
@@ -50,7 +52,6 @@ export default defineConfig({
           return 'assets/[name][extname]';
         },
         format: "es",
-        inlineDynamicImports: true,
       },
     },
   },

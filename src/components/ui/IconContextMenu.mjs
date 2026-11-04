@@ -23,6 +23,7 @@ export class IconContextMenu {
   static show(event, iconId, iconType, menu) {
     event.preventDefault();
     event.stopPropagation();
+    if (!game.user.isGM) return;
 
     this.close();
 
@@ -367,7 +368,7 @@ try {
 // Available filter options (all are optional, defaults to false):
 //   inCombat: true/false    - Show only actors in combat
 //   visible: true/false     - Show only visible tokens
-//   removeDead: true/false  - Hide dead actors (HP = 0)
+//   removeDead: true/false  - Hide dead NPCs (dead status or HP 0)
 //
 // Examples:
 //   FlashAPI.filterActors({ inCombat: true });

@@ -2,7 +2,7 @@ import { getSettings } from "../../../constants/Settings.mjs";
 import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
 import { SettingsUtil } from "../../utils/SettingsUtil.mjs";
 import { DnDBCookieUtil } from "./DnDBCookieUtil.mjs";
-import { PremiumFeaturesDialog } from "../../ui/dialogs/PremiumFeaturesDialog.mjs";
+import { getOpenPremiumFeaturesDialog } from "../../ui/dialogs/PremiumFeaturesLoader.mjs";
 import { PatronSessionManager } from "../../managers/PatronSessionManager.mjs";
 
 const PROXY_BASE_URL = "https://proxy.carolingian.io";
@@ -405,7 +405,7 @@ export class DnDBConnection {
    * Notify status change to UI
    */
   static _notifyStatusChange() {
-    const dialog = PremiumFeaturesDialog.getInstance();
+    const dialog = getOpenPremiumFeaturesDialog();
     if (dialog) {
       dialog.updateConnectionStatus(this.getStatus());
     }

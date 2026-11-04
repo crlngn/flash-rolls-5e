@@ -2,6 +2,7 @@ import { getSettings } from "../../constants/Settings.mjs";
 import { SettingsUtil } from "../utils/SettingsUtil.mjs";
 import RollRequestsMenu from "../ui/RollRequestsMenu.mjs";
 import { LogUtil } from "@ftb-core/utils/LogUtil.mjs";
+import { PlayerAccess } from "../core/PlayerAccess.mjs";
 
 /**
  * Utility class for managing sidebar controls
@@ -40,7 +41,7 @@ export class SidebarController {
    */
   static addSidebarControls(app, html) {
     LogUtil.log("addSidebarControls",[app, html]);
-    if (!game.user.isGM || !app || app.id !== "sidebar") return;
+    if (!PlayerAccess.canUseBar() || !app || app.id !== "sidebar") return;
 
     if (this.shouldUseSceneControls()) {
       LogUtil.log("addSidebarControls - Skipping, icon will be in scene controls");
@@ -52,7 +53,7 @@ export class SidebarController {
     }
 
     const SETTINGS = getSettings();
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const rollRequestsEnabled = !game.user.isGM || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
 
     const rollRequestIcon = document.createElement('button');
     rollRequestIcon.id = "flash-rolls-icon";
@@ -90,18 +91,18 @@ export class SidebarController {
    * @param {Record<string, SceneControl>} controls - The scene control configurations
    */
   static addSceneControlButton(controls) {
-    if (!game.user.isGM) return;
+    if (!PlayerAccess.canUseBar()) return;
     if (!this.shouldUseSceneControls()) return;
 
     const SETTINGS = getSettings();
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const rollRequestsEnabled = !game.user.isGM || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
 
     controls.flashRolls = {
       name: "flashRolls",
       title: game.i18n.localize('FLASH_ROLLS.ui.menus.rollRequestsTitle'),
       icon: `fa-solid fa-bolt${rollRequestsEnabled ? '' : '-slash'}`,
       order: Object.keys(controls).length,
-      visible: game.user.isGM,
+      visible: PlayerAccess.canUseBar(),
       activeTool: "placeholder",
       tools: {
         placeholder: {
@@ -139,6 +140,7 @@ export class SidebarController {
    * @param {boolean} enabled - Whether roll requests are enabled
    */
   static updateRollRequestsIcon(enabled) {
+    if (!game.user.isGM) return;
     for (const button of document.querySelectorAll('.flash-rolls-icon')) {
       button.classList.toggle('active', !!enabled);
       const icon = button.querySelector('i');
@@ -181,7 +183,7 @@ export class SidebarController {
    * Used when repositioning without going through the full addSidebarControls flow
    */
   static _addIconToChatControls() {
-    if (!game.user.isGM) return;
+    if (!PlayerAccess.canUseBar()) return;
     if (document.querySelector('#flash-rolls-icon')) return;
 
     const chatControls = document.querySelector("#roll-privacy, #message-modes");
@@ -191,7 +193,7 @@ export class SidebarController {
     }
 
     const SETTINGS = getSettings();
-    const rollRequestsEnabled = SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
+    const rollRequestsEnabled = !game.user.isGM || SettingsUtil.get(SETTINGS.rollRequestsEnabled.tag);
 
     const rollRequestIcon = document.createElement('button');
     rollRequestIcon.id = "flash-rolls-icon";

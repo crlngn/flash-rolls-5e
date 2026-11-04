@@ -490,6 +490,7 @@
       "tip": "Flash Rolls also accepts the value with the \"CobaltSession=\" prefix or DDB Importer's JSON format, and cleans it up for you."
     },
     "notifications": {
+      "removeMemberFailed": "Could not remove the member from the group. See the console for details.",
       "playerOffline": "{player} is offline. Rolling locally",
       "rollRequestSent": "Roll request for {actor} sent to {player}",
       "rollRequestReceived": "{gm} request: {rollType}",
@@ -736,7 +737,10 @@
           "initiativeOptions": "Combat & Initiative",
           "chatMessages": "Chat Messages",
           "visibility": "Visibility",
-          "activityChatCards": "Activity Chat Cards"
+          "activityChatCards": "Activity Chat Cards",
+          "layout": "Layout",
+          "behavior": "Behavior",
+          "icons": "Icons"
         }
       },
       "ddbImportOwnership": {
@@ -1029,9 +1033,33 @@
           "horizontal": "Horizontal"
         }
       },
+      "rollPacingDelay": {
+        "label": "Delay Between Rolls (GM)",
+        "hint": "Milliseconds to wait between the rolls of a multi-actor action, so they arrive one at a time instead of all at once. With Dice So Nice each roll waits for its dice animation to finish, and this delay is only used for rolls it does not animate. Set to 0 to roll everyone at once."
+      },
+      "playerAccess": {
+        "label": "Show Bar to Players",
+        "hint": "Players get the toggle button and a limited token bar: player characters and their groups only. They can select and act only on characters they own: roll for them, add or remove status effects, target, teleport and open sheets. Roll requests, macros and GM-only actions stay hidden."
+      },
+      "autoHideActionIcons": {
+        "label": "Auto-Hide Action Icons",
+        "hint": "Hide the action icons until you hover over the token bar."
+      },
+      "actorImageSource": {
+        "label": "Portrait Source",
+        "hint": "Show the token image or the actor's portrait on the rows of the token bar. Actors without a token on the scene always show their portrait.",
+        "choices": {
+          "token": "Token image",
+          "actor": "Actor portrait"
+        }
+      },
       "maxIconsPerRow": {
         "label": "Max Action Icons Visible",
-        "hint": "Maximum number of actor action icons to show at once. When more icons are enabled, navigation arrows will appear to scroll through them."
+        "hint": "Maximum number of actor action icons to show at once. When more icons are enabled, the rest are shown in a text menu or through navigation arrows. Set to 0 to show only the text menu."
+      },
+      "showHiddenOptionsAsMenu": {
+        "label": "Show hidden options as a text menu",
+        "hint": "When more action icons are enabled than fit, show a … button that lists the remaining options as a text menu, instead of up/down navigation arrows."
       },
       "addMacrosToFolder": {
         "label": "Place new macros on 'Flash Token Bar' Folder",
@@ -1070,7 +1098,7 @@
         "hint": "When enabled, toggling the 'Lock Menu' icon will also prevent the menu from being dragged to a new position. The menu will remain fixed in place until unlocked."
       },
       "flashIconInSceneControls": {
-        "label": "Show Toggle Button in Scene Controls",
+        "label": "Place Toggle Button on the left side of screen",
         "hint": "When enabled, the Flash Token Bar toggle button will appear in the left-side Scene Controls instead of the chat controls area. Useful when chat controls are hidden."
       },
       "legacyTokenAssociationsMigrated": {
@@ -1173,6 +1201,7 @@
         "placeTokens": "Place Tokens",
         "teleportTokens": "Teleport Tokens",
         "transform": "Transformation",
+        "moreActions": "More Actions",
         "selectTokens": "Select",
         "removeAssociations": "Remove Associations"
       },
@@ -1181,7 +1210,14 @@
         "noTokensInScene": "No associated tokens in this scene",
         "associationsRemoved": "Token associations removed for {actor}"
       },
+      "groups": {
+        "toggleMembers": "Show or hide members",
+        "memberCount": "{count} members",
+        "memberCountOne": "{count} member"
+      },
       "contextMenu": {
+        "panToToken": "Pan to Token",
+        "removeFromGroup": "Remove from Group",
         "removeIcon": "Remove Icon",
         "createMacro": "Create Macro"
       },
@@ -1189,7 +1225,7 @@
         "title": "Filter Actors",
         "inCombat": "Show Only Combatants",
         "visible": "Show Only Visible",
-        "removeDead": "Remove Dead"
+        "removeDead": "Hide Dead NPCs"
       },
       "forms": {
         "pixelsRollTitle": "Pixels Dice - Roll Resolver",
@@ -1365,6 +1401,8 @@
         "noActors": "No actors",
         "noActorsDropHint": "No actors in this list. Drag some here from the Actor Directory, or simply add tokens to the active scene.",
         "noGroups": "No groups",
+        "noStatusEffects": "No status effects available",
+        "createGroup": "Create group from selected tokens",
         "noGroupsDropHint": "No groups in this list. Drag encounter or group actors here from the Actor Directory."
       }
     },

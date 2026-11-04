@@ -4,126 +4,168 @@
   <h4><i class="fas fa-globe"></i> {{localize "FLASH_ROLLS.ui.dialogs.worldSettingsLabel"}} <span class="toggle-hint">{{localize 'FLASH_ROLLS.ui.dialogs.toggleHints'}}</span></h4>
   <hr/>
 
-  <div class="form-group">
-    <label for="showMenuOnLoad">{{fields.showMenuOnLoad.label}}</label>
-    <input type="checkbox" name="showMenuOnLoad" id="showMenuOnLoad" {{#if showMenuOnLoad}}checked{{/if}} />
-    <p class="hint">{{fields.showMenuOnLoad.hint}}</p>
-  </div>
+  <fieldset>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.layout"}}</legend>
 
-  <div class="form-group">
-    <label for="lockMenuPosition">{{fields.lockMenuPosition.label}}</label>
-    <input type="checkbox" name="lockMenuPosition" id="lockMenuPosition" {{#if lockMenuPosition}}checked{{/if}} />
-    <p class="hint">{{fields.lockMenuPosition.hint}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="flashIconInSceneControls">{{fields.flashIconInSceneControls.label}}</label>
-    <input type="checkbox" name="flashIconInSceneControls" id="flashIconInSceneControls" {{#if flashIconInSceneControls}}checked{{/if}} />
-    <p class="hint">{{fields.flashIconInSceneControls.hint}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="showTokenVisionOnHover">{{fields.showTokenVisionOnHover.label}}</label>
-    <input type="checkbox" name="showTokenVisionOnHover" id="showTokenVisionOnHover" {{#if showTokenVisionOnHover}}checked{{/if}} />
-    <p class="hint">{{fields.showTokenVisionOnHover.hint}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="compactMode">{{fields.compactMode.label}}</label>
-    <input type="checkbox" name="compactMode" id="compactMode" {{#if compactMode}}checked{{/if}} />
-    <p class="hint">{{fields.compactMode.hint}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="menuLayout">{{fields.menuLayout.label}}</label>
-    <select name="menuLayout" id="menuLayout" data-current-value="{{menuLayout}}">
-      {{#each fields.menuLayout.choices}}
-      <option value="{{@key}}">
-        {{this}}
-      </option>
-      {{/each}}
-    </select>
-    <p class="hint">{{{fields.menuLayout.hint}}}</p>
-  </div>
-
-  <div class="form-group">
-    <label for="maxIconsPerRow">{{fields.maxIconsPerRow.label}}</label>
-    <input type="number" name="maxIconsPerRow" id="maxIconsPerRow" value="{{maxIconsPerRow}}" min="1" step="1" />
-    <p class="hint">{{{fields.maxIconsPerRow.hint}}}</p>
-  </div>
-
-  <div class="form-group range">
-    <label for="tooltipAutoDismiss">{{fields.tooltipAutoDismiss.label}}</label>
-    <input type="range" name="tooltipAutoDismiss" id="tooltipAutoDismiss" min="0" step="1" max="10" value="{{tooltipAutoDismiss}}" />
-    <input type="number" name="tooltipAutoDismiss_value" class="range-value-input" value="{{tooltipAutoDismiss}}" />
-    <p class="hint">{{{fields.tooltipAutoDismiss.hint}}}</p>
-  </div>
-
-  <div class="form-group">
-    <label>{{fields.actorStatsToShow.label}}</label>
-    <p class="hint">{{fields.actorStatsToShow.hint}}</p>
-    <fieldset class="actor-stats-checkboxes">
-      <div class="stat-checkbox">
-        <input type="checkbox" name="actorStatsToShow.hp" {{#if actorStatsToShow.hp}}checked{{/if}} />
-        <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.hp"}}</span>
-      </div>
-      <div class="stat-checkbox">
-        <input type="checkbox" name="actorStatsToShow.ac" {{#if actorStatsToShow.ac}}checked{{/if}} />
-        <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.ac"}}</span>
-      </div>
-      <div class="stat-checkbox">
-        <input type="checkbox" name="actorStatsToShow.dc" {{#if actorStatsToShow.dc}}checked{{/if}} />
-        <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.dc"}}</span>
-      </div>
-      <div class="stat-checkbox">
-        <input type="checkbox" name="actorStatsToShow.prc" {{#if actorStatsToShow.prc}}checked{{/if}} />
-        <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.prc"}}</span>
-      </div>
-    </fieldset>
-  </div>
-
-  <div class="form-group column">
-    <label>{{fields.menuIconsLayout.label}}</label>
-    <p class="hint">{{{fields.menuIconsLayout.hint}}}</p>
-    <div class="icon-arrangement-container">
-      <h5>
-        <div>{{localize 'FLASH_ROLLS.ui.settings.moduleActionsTitle'}}</div>
-        <div>{{localize 'FLASH_ROLLS.ui.settings.actorActionsTitle'}}</div>
-      </h5>
-      <ul class="module-action-icons sortable-icon-list" data-icon-type="moduleActions">
-        {{#each menuIconsLayout.moduleActions as |icon|}}
-          <li class="icon-item {{#unless icon.enabled}}disabled{{/unless}}"
-              draggable="true"
-              data-icon-id="{{icon.id}}"
-              data-order="{{icon.order}}"
-              data-enabled="{{icon.enabled}}">
-            <div class="icon-controls">
-              <input type="checkbox" class="icon-toggle" {{#if icon.enabled}}checked{{/if}} />
-              <i class="drag-handle fas fa-grip-vertical"></i>
-            </div>
-            <i class="icon-preview fas {{icon.icon}}"></i>
-            <div class="flash-icon">{{icon.label}}</div>
-          </li>
-        {{/each}}
-      </ul>
-
-      <ul class="actor-action-icons sortable-icon-list" data-icon-type="actorActions">
-        {{#each menuIconsLayout.actorActions as |icon|}}
-          <li class="icon-item {{#unless icon.enabled}}disabled{{/unless}}"
-              draggable="true"
-              data-icon-id="{{icon.id}}"
-              data-order="{{icon.order}}"
-              data-enabled="{{icon.enabled}}">
-            <div class="icon-controls">
-              <input type="checkbox" class="icon-toggle" {{#if icon.enabled}}checked{{/if}} />
-              <i class="drag-handle fas fa-grip-vertical"></i>
-            </div>
-            <i class="icon-preview fas {{icon.icon}}"></i>
-            <div class="flash-icon">{{icon.label}}</div>
-          </li>
-        {{/each}}
-      </ul>
+    <div class="form-group">
+      <label for="compactMode">{{fields.compactMode.label}}</label>
+      <input type="checkbox" name="compactMode" id="compactMode" {{#if compactMode}}checked{{/if}} />
+      <p class="hint">{{fields.compactMode.hint}}</p>
     </div>
-  </div>
-  
+
+    <div class="form-group">
+      <label for="menuLayout">{{fields.menuLayout.label}}</label>
+      <select name="menuLayout" id="menuLayout" data-current-value="{{menuLayout}}">
+        {{#each fields.menuLayout.choices}}
+        <option value="{{@key}}">
+          {{this}}
+        </option>
+        {{/each}}
+      </select>
+      <p class="hint">{{{fields.menuLayout.hint}}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="actorImageSource">{{fields.actorImageSource.label}}</label>
+      <select name="actorImageSource" id="actorImageSource" data-current-value="{{actorImageSource}}">
+        {{#each fields.actorImageSource.choices}}
+        <option value="{{@key}}">
+          {{this}}
+        </option>
+        {{/each}}
+      </select>
+      <p class="hint">{{{fields.actorImageSource.hint}}}</p>
+    </div>
+
+    <div class="form-group">
+      <label>{{fields.actorStatsToShow.label}}</label>
+      <p class="hint">{{fields.actorStatsToShow.hint}}</p>
+      <fieldset class="actor-stats-checkboxes">
+        <div class="stat-checkbox">
+          <input type="checkbox" name="actorStatsToShow.hp" {{#if actorStatsToShow.hp}}checked{{/if}} />
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.hp"}}</span>
+        </div>
+        <div class="stat-checkbox">
+          <input type="checkbox" name="actorStatsToShow.ac" {{#if actorStatsToShow.ac}}checked{{/if}} />
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.ac"}}</span>
+        </div>
+        <div class="stat-checkbox">
+          <input type="checkbox" name="actorStatsToShow.dc" {{#if actorStatsToShow.dc}}checked{{/if}} />
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.dc"}}</span>
+        </div>
+        <div class="stat-checkbox">
+          <input type="checkbox" name="actorStatsToShow.prc" {{#if actorStatsToShow.prc}}checked{{/if}} />
+          <span>{{localize "FLASH_ROLLS.settings.actorStatsToShow.prc"}}</span>
+        </div>
+      </fieldset>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.behavior"}}</legend>
+
+    <div class="form-group">
+      <label for="showMenuOnLoad">{{fields.showMenuOnLoad.label}}</label>
+      <input type="checkbox" name="showMenuOnLoad" id="showMenuOnLoad" {{#if showMenuOnLoad}}checked{{/if}} />
+      <p class="hint">{{fields.showMenuOnLoad.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="playerAccess">{{fields.playerAccess.label}}</label>
+      <input type="checkbox" name="playerAccess" id="playerAccess" {{#if playerAccess}}checked{{/if}} />
+      <p class="hint">{{fields.playerAccess.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="lockMenuPosition">{{fields.lockMenuPosition.label}}</label>
+      <input type="checkbox" name="lockMenuPosition" id="lockMenuPosition" {{#if lockMenuPosition}}checked{{/if}} />
+      <p class="hint">{{fields.lockMenuPosition.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="flashIconInSceneControls">{{fields.flashIconInSceneControls.label}}</label>
+      <input type="checkbox" name="flashIconInSceneControls" id="flashIconInSceneControls" {{#if flashIconInSceneControls}}checked{{/if}} />
+      <p class="hint">{{fields.flashIconInSceneControls.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="showTokenVisionOnHover">{{fields.showTokenVisionOnHover.label}}</label>
+      <input type="checkbox" name="showTokenVisionOnHover" id="showTokenVisionOnHover" {{#if showTokenVisionOnHover}}checked{{/if}} />
+      <p class="hint">{{fields.showTokenVisionOnHover.hint}}</p>
+    </div>
+
+    <div class="form-group range">
+      <label for="tooltipAutoDismiss">{{fields.tooltipAutoDismiss.label}}</label>
+      <input type="range" name="tooltipAutoDismiss" id="tooltipAutoDismiss" min="0" step="1" max="10" value="{{tooltipAutoDismiss}}" />
+      <input type="number" name="tooltipAutoDismiss_value" class="range-value-input" value="{{tooltipAutoDismiss}}" />
+      <p class="hint">{{{fields.tooltipAutoDismiss.hint}}}</p>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>{{localize "FLASH_ROLLS.settings.moduleSettingsMenu.fieldsets.icons"}}</legend>
+
+    <div class="form-group">
+      <label for="autoHideActionIcons">{{fields.autoHideActionIcons.label}}</label>
+      <input type="checkbox" name="autoHideActionIcons" id="autoHideActionIcons" {{#if autoHideActionIcons}}checked{{/if}} />
+      <p class="hint">{{fields.autoHideActionIcons.hint}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="maxIconsPerRow">{{fields.maxIconsPerRow.label}}</label>
+      <input type="number" name="maxIconsPerRow" id="maxIconsPerRow" value="{{maxIconsPerRow}}" min="0" step="1" />
+      <p class="hint">{{{fields.maxIconsPerRow.hint}}}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="showHiddenOptionsAsMenu">{{fields.showHiddenOptionsAsMenu.label}}</label>
+      <input type="checkbox" name="showHiddenOptionsAsMenu" id="showHiddenOptionsAsMenu" {{#if showHiddenOptionsAsMenu}}checked{{/if}} />
+      <p class="hint">{{fields.showHiddenOptionsAsMenu.hint}}</p>
+    </div>
+
+    <div class="form-group column">
+      <label>{{fields.menuIconsLayout.label}}</label>
+      <p class="hint">{{{fields.menuIconsLayout.hint}}}</p>
+      <div class="icon-arrangement-container">
+        <h5>
+          <div>{{localize 'FLASH_ROLLS.ui.settings.moduleActionsTitle'}}</div>
+          <div>{{localize 'FLASH_ROLLS.ui.settings.actorActionsTitle'}}</div>
+        </h5>
+        <ul class="module-action-icons sortable-icon-list" data-icon-type="moduleActions">
+          {{#each menuIconsLayout.moduleActions as |icon|}}
+            <li class="icon-item {{#unless icon.enabled}}disabled{{/unless}}"
+                draggable="true"
+                data-icon-id="{{icon.id}}"
+                data-order="{{icon.order}}"
+                data-enabled="{{icon.enabled}}">
+              <div class="icon-controls">
+                <input type="checkbox" class="icon-toggle" {{#if icon.enabled}}checked{{/if}} />
+                <i class="drag-handle fas fa-grip-vertical"></i>
+              </div>
+              <i class="icon-preview fas {{icon.icon}}"></i>
+              <div class="flash-icon">{{icon.label}}</div>
+            </li>
+          {{/each}}
+        </ul>
+
+        <ul class="actor-action-icons sortable-icon-list" data-icon-type="actorActions">
+          {{#each menuIconsLayout.actorActions as |icon|}}
+            <li class="icon-item {{#unless icon.enabled}}disabled{{/unless}}"
+                draggable="true"
+                data-icon-id="{{icon.id}}"
+                data-order="{{icon.order}}"
+                data-enabled="{{icon.enabled}}">
+              <div class="icon-controls">
+                <input type="checkbox" class="icon-toggle" {{#if icon.enabled}}checked{{/if}} />
+                <i class="drag-handle fas fa-grip-vertical"></i>
+              </div>
+              <i class="icon-preview fas {{icon.icon}}"></i>
+              <div class="flash-icon">{{icon.label}}</div>
+            </li>
+          {{/each}}
+        </ul>
+      </div>
+    </div>
+  </fieldset>
+
 </section>

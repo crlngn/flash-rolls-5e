@@ -210,6 +210,7 @@
     border: 1px solid var(--fr5e-bg-50);
     padding: 3px;
     transition: border-color 0s;
+    background: var(--fr5e-secondary-bg-05);
 
     &:hover{
       background: var(--fr5e-secondary-bg-10);

@@ -72,24 +72,32 @@ export const getSettings = () => {
       propType: Object,
       fields: [
         'showMenuOnLoad',
+        'playerAccess',
         'showTokenVisionOnHover',
         'compactMode',
+        'autoHideActionIcons',
         'actorStatsToShow',
         'menuLayout',
+        'actorImageSource',
         'menuIconsLayout',
         'maxIconsPerRow',
+        'showHiddenOptionsAsMenu',
         'teleportAnimationPath',
         'lockMenuPosition',
         'flashIconInSceneControls'
       ],
       default: {
         showMenuOnLoad: true,
+        playerAccess: false,
         showTokenVisionOnHover: true,
         compactMode: true,
+        autoHideActionIcons: false,
         actorStatsToShow: { hp: true, ac: true, dc: true, prc: true },
         menuLayout: "vertical",
+        actorImageSource: "token",
         menuIconsLayout: iconsMenuDefault,
         maxIconsPerRow: 5,
+        showHiddenOptionsAsMenu: true,
         teleportAnimationPath: '',
         lockMenuPosition: false,
         flashIconInSceneControls: false
@@ -146,6 +154,7 @@ export const getSettings = () => {
         'consumptionConfigMode',
         'placeTemplateForPlayer',
         'showOfflineNotifications',
+        'rollPacingDelay',
         'initiateCombatOnRequest',
         'autoRequestInitiativeOnCombatant',
         'publicPlayerRolls',
@@ -161,6 +170,7 @@ export const getSettings = () => {
         consumptionConfigMode: 2,
         placeTemplateForPlayer: false,
         showOfflineNotifications: true,
+        rollPacingDelay: 400,
         initiateCombatOnRequest: true,
         autoRequestInitiativeOnCombatant: true,
         publicPlayerRolls: false,
@@ -536,6 +546,43 @@ export const getSettings = () => {
       config: false
     },
 
+    actorImageSource: {
+      tag: "actor-image-source",
+      label: game.i18n.localize("FLASH_ROLLS.settings.actorImageSource.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.actorImageSource.hint"),
+      propType: String,
+      inputType: SETTING_INPUT.select,
+      choices: {
+        "token": game.i18n.localize("FLASH_ROLLS.settings.actorImageSource.choices.token"),
+        "actor": game.i18n.localize("FLASH_ROLLS.settings.actorImageSource.choices.actor")
+      },
+      default: "token",
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    playerAccess: {
+      tag: "player-access",
+      label: game.i18n.localize("FLASH_ROLLS.settings.playerAccess.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.playerAccess.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    autoHideActionIcons: {
+      tag: "auto-hide-action-icons",
+      label: game.i18n.localize("FLASH_ROLLS.settings.autoHideActionIcons.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.autoHideActionIcons.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: false,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
     lockMenuPosition: {
       tag: "lock-menu-position",
       label: game.i18n.localize("FLASH_ROLLS.settings.lockMenuPosition.label"),
@@ -564,6 +611,17 @@ export const getSettings = () => {
       hint: game.i18n.localize("FLASH_ROLLS.settings.maxIconsPerRow.hint"),
       propType: Number,
       default: 5,
+      scope: SETTING_SCOPE.world,
+      config: false
+    },
+
+    showHiddenOptionsAsMenu: {
+      tag: "show-hidden-options-as-menu",
+      label: game.i18n.localize("FLASH_ROLLS.settings.showHiddenOptionsAsMenu.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.showHiddenOptionsAsMenu.hint"),
+      propType: Boolean,
+      inputType: SETTING_INPUT.checkbox,
+      default: true,
       scope: SETTING_SCOPE.world,
       config: false
     },
@@ -738,6 +796,21 @@ export const getSettings = () => {
         min: 1,
         max: 20,
         step: 1
+      }
+    },
+
+    rollPacingDelay: {
+      tag: "roll-pacing-delay",
+      label: game.i18n.localize("FLASH_ROLLS.settings.rollPacingDelay.label"),
+      hint: game.i18n.localize("FLASH_ROLLS.settings.rollPacingDelay.hint"),
+      propType: Number,
+      default: 400,
+      scope: SETTING_SCOPE.world,
+      config: false,
+      range: {
+        min: 0,
+        max: 3000,
+        step: 100
       }
     },
 
